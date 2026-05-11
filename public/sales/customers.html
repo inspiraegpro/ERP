@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>العملاء - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left,rgba(185,137,24,.14),transparent 20rem),linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1380px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1,.head h2 { margin:0; }
+        .hero p { margin:.45rem 0 0; color:rgba(255,255,255,.85); line-height:1.85; max-width:56rem; }
+        .tags { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+        .tag { padding:.7rem .95rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); font-weight:700; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .head,.toolbar,.action-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .toolbar { margin-bottom:1rem; }
+        .toolbar input,.field input,.field select,.field textarea { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.96rem; }
+        .toolbar .search { min-width:280px; }
+        .btn { border:none; border-radius:14px; padding:.9rem 1.1rem; font-size:.95rem; font-weight:800; cursor:pointer; box-shadow:0 10px 22px rgba(22,58,95,.12); }
+        .btn.primary { background:var(--p); color:#fff; } .btn.accent { background:var(--a); color:#fff; } .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); } .btn.danger { background:rgba(159,58,56,.12); color:var(--er); box-shadow:none; }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:16px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        .badge { display:inline-flex; padding:.35rem .7rem; border-radius:999px; font-weight:700; font-size:.82rem; }
+        .badge.zero { background:rgba(31,111,95,.1); color:var(--ok); }
+        .badge.open { background:rgba(185,137,24,.14); color:#8b6505; }
+        .modal { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:1300; }
+        .modal.open { display:flex; }
+        .modal-card { width:min(620px,92vw); background:#fff; border-radius:24px; border:1px solid var(--bd); box-shadow:0 18px 38px rgba(22,58,95,.18); }
+        .modal-header,.modal-footer { padding:1rem 1.25rem; border-bottom:1px solid rgba(82,98,119,.12); }
+        .modal-footer { border-bottom:none; border-top:1px solid rgba(82,98,119,.12); }
+        .modal-body { padding:1.25rem; }
+        .form-grid { display:grid; grid-template-columns:repeat(2,minmax(180px,1fr)); gap:1rem; }
+        .field { display:flex; flex-direction:column; gap:.45rem; }
+        .field label { font-weight:700; color:var(--s); font-size:.92rem; }
+        .span2 { grid-column:span 2; }
+        @media (max-width:980px) { .form-grid { grid-template-columns:1fr; } .span2 { grid-column:auto; } .card { overflow-x:auto; } }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>إدارة العملاء</h1>
+        <p>متابعة العملاء، بيانات التواصل، الحسابات المرتبطة، والأرصدة المفتوحة بواجهة حديثة موحدة ومتوافقة مع بقية موديولات النظام.</p>
+        <div class="tags">
+            <span class="tag">قائمة العملاء</span>
+            <span class="tag">إضافة وتعديل</span>
+            <span class="tag">ربط حسابات</span>
+            <span class="tag">كشف حساب</span>
+        </div>
+    </section>
+
+    <div id="messageBox" class="msg"></div>
+
+    <section class="card">
+        <div class="toolbar">
+            <div class="head">
+                <h2>سجل العملاء</h2>
+            </div>
+            <div class="toolbar">
+                <input class="search" id="searchInput" placeholder="ابحث بالاسم أو الهاتف أو البريد">
+                <button class="btn primary" type="button" onclick="openCustomerModal()">إضافة عميل</button>
+                <button class="btn light" type="button" onclick="loadCustomers()">تحديث</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>الهاتف</th>
+                    <th>البريد</th>
+                    <th>العنوان</th>
+                    <th>الرصيد</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="customersBody"></tbody>
+        </table>
+    </section>
+</div>
+
+<div id="customerModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header"><strong id="modalTitle">إضافة عميل</strong></div>
+        <div class="modal-body">
+            <input type="hidden" id="customerId">
+            <div class="form-grid">
+                <div class="field"><label for="customerName">اسم العميل</label><input id="customerName"></div>
+                <div class="field"><label for="customerPhone">الهاتف</label><input id="customerPhone"></div>
+                <div class="field"><label for="customerEmail">البريد الإلكتروني</label><input id="customerEmail"></div>
+                <div class="field"><label for="customerBalance">الرصيد الافتتاحي</label><input type="number" id="customerBalance" value="0"></div>
+                <div class="field span2"><label for="customerAddress">العنوان</label><textarea id="customerAddress" rows="3"></textarea></div>
+                <div class="field span2"><label for="customerAccount">الحساب المرتبط</label><select id="customerAccount"><option value="">بدون ربط</option></select></div>
+            </div>
+        </div>
+        <div class="modal-footer action-row">
+            <button class="btn light" type="button" onclick="closeCustomerModal()">إلغاء</button>
+            <button class="btn primary" type="button" onclick="saveCustomer()">حفظ العميل</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let customers = [];
+    let accounts = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        document.getElementById('searchInput').addEventListener('input', renderCustomers);
+        await loadAccounts();
+        await loadCustomers();
+    });
+
+    function setMessage(message, type = 'ok') {
+        const box = document.getElementById('messageBox');
+        box.className = `msg ${type === 'error' ? 'er' : 'ok'}`;
+        box.textContent = message;
+    }
+
+    async function loadAccounts() {
+        try {
+            const response = await fetch(`${API}/accounts`);
+            accounts = response.ok ? await response.json() : [];
+            document.getElementById('customerAccount').innerHTML = '<option value="">بدون ربط</option>' + accounts.map((account) => `<option value="${account._id}">${account.code || ''} - ${account.name || 'حساب'}</option>`).join('');
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function loadCustomers() {
+        try {
+            const response = await fetch(`${API}/customers`);
+            customers = response.ok ? await response.json() : [];
+            renderCustomers();
+        } catch (error) {
+            console.error(error);
+            setMessage('تعذر تحميل العملاء.', 'error');
+        }
+    }
+
+    function renderCustomers() {
+        const term = document.getElementById('searchInput').value.trim().toLowerCase();
+        const rows = customers.filter((customer) => {
+            const haystack = [customer.name, customer.phone, customer.email].join(' ').toLowerCase();
+            return haystack.includes(term);
+        });
+        document.getElementById('customersBody').innerHTML = rows.map((customer) => {
+            const balance = Number(customer.balance || 0);
+            return `
+                <tr>
+                    <td>${customer.name || ''}</td>
+                    <td>${customer.phone || ''}</td>
+                    <td>${customer.email || ''}</td>
+                    <td>${customer.address || ''}</td>
+                    <td>${balance.toFixed(2)}</td>
+                    <td><span class="badge ${balance === 0 ? 'zero' : 'open'}">${balance === 0 ? 'مغلق' : 'رصيد مفتوح'}</span></td>
+                    <td>
+                        <button class="btn light" type="button" onclick="viewStatement('${customer.accountId || ''}')">كشف</button>
+                        <button class="btn accent" type="button" onclick="editCustomer('${customer._id}')">تعديل</button>
+                        <button class="btn danger" type="button" onclick="deleteCustomer('${customer._id}')">حذف</button>
+                    </td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="7">لا يوجد عملاء حتى الآن.</td></tr>';
+    }
+
+    function openCustomerModal() {
+        document.getElementById('customerId').value = '';
+        document.getElementById('modalTitle').textContent = 'إضافة عميل';
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerPhone').value = '';
+        document.getElementById('customerEmail').value = '';
+        document.getElementById('customerAddress').value = '';
+        document.getElementById('customerBalance').value = '0';
+        document.getElementById('customerAccount').value = '';
+        document.getElementById('customerModal').classList.add('open');
+    }
+
+    function closeCustomerModal() {
+        document.getElementById('customerModal').classList.remove('open');
+    }
+
+    function editCustomer(id) {
+        const customer = customers.find((item) => item._id === id);
+        if (!customer) return;
+        document.getElementById('customerId').value = customer._id;
+        document.getElementById('modalTitle').textContent = 'تعديل عميل';
+        document.getElementById('customerName').value = customer.name || '';
+        document.getElementById('customerPhone').value = customer.phone || '';
+        document.getElementById('customerEmail').value = customer.email || '';
+        document.getElementById('customerAddress').value = customer.address || '';
+        document.getElementById('customerBalance').value = Number(customer.balance || 0);
+        document.getElementById('customerAccount').value = customer.accountId || '';
+        document.getElementById('customerModal').classList.add('open');
+    }
+
+    async function saveCustomer() {
+        const id = document.getElementById('customerId').value;
+        const payload = {
+            name: document.getElementById('customerName').value.trim(),
+            phone: document.getElementById('customerPhone').value.trim(),
+            email: document.getElementById('customerEmail').value.trim(),
+            address: document.getElementById('customerAddress').value.trim(),
+            balance: Number(document.getElementById('customerBalance').value || 0),
+            accountId: document.getElementById('customerAccount').value || null
+        };
+        if (!payload.name) {
+            setMessage('اسم العميل مطلوب.', 'error');
+            return;
+        }
+        try {
+            const response = await fetch(id ? `${API}/customers/${id}` : `${API}/customers`, {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'فشل حفظ العميل.');
+            closeCustomerModal();
+            await loadCustomers();
+            setMessage(id ? 'تم تحديث العميل بنجاح.' : 'تم إنشاء العميل بنجاح.');
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر حفظ العميل.', 'error');
+        }
+    }
+
+    async function deleteCustomer(id) {
+        if (!confirm('هل أنت متأكد من حذف هذا العميل؟')) return;
+        try {
+            const response = await fetch(`${API}/customers/${id}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'فشل حذف العميل.');
+            await loadCustomers();
+            setMessage('تم حذف العميل بنجاح.');
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر حذف العميل.', 'error');
+        }
+    }
+
+    function viewStatement(accountId) {
+        if (!accountId) {
+            setMessage('هذا العميل غير مرتبط بحساب محاسبي.', 'error');
+            return;
+        }
+        window.location.href = `/financial/financial_reports.html?accountId=${accountId}&report=accountStatement`;
+    }
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

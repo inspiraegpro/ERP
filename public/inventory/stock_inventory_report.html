@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ميزان مراجعة المخزن - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        .dashboard-header {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card-v2 {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-bottom: 4px solid var(--primary-color);
+            text-align: center;
+        }
+        .stat-card-v2 label { color: #64748b; font-size: 0.9rem; display: block; margin-bottom: 0.5rem; }
+        .stat-card-v2 strong { font-size: 1.8rem; color: var(--secondary-color); }
+        
+        .view-controls {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+        }
+        .group-btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .group-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        .table-v2 th { background: #f1f5f9; color: #475569; font-weight: 800; }
+        .badge { padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+        .badge-roll { background: #e0f2fe; color: #0369a1; }
+        .badge-piece { background: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <div class="hero-top">
+                <div>
+                    <h1>📊 ميزان مراجعة المخزن</h1>
+                    <p>عرض تحليلي للأرصدة والمخزون الحالي (الرولات والقطع المتاحة).</p>
+                </div>
+                <div class="hero-actions">
+                    <button class="btn light" onclick="loadData()">🔄 تحديث البيانات</button>
+                    <button class="btn primary" onclick="window.print()">🖨️ طباعة التقرير</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- إحصائيات علوية (Metric) -->
+        <div class="dashboard-header">
+            <div class="stat-card-v2" style="border-color: #3b82f6;">
+                <label>إجمالي المساحة</label>
+                <strong id="totalArea">0.00</strong> <small>م²</small>
+            </div>
+            <div class="stat-card-v2" style="border-color: #059669;">
+                <label>عدد الرولات</label>
+                <strong id="rollsCount">0</strong>
+            </div>
+            <div class="stat-card-v2" style="border-color: #f59e0b;">
+                <label>عدد القطع (البواقي)</label>
+                <strong id="piecesCount">0</strong>
+            </div>
+            <div class="stat-card-v2" style="border-color: #6366f1;">
+                <label>عدد الأصناف النشطة</label>
+                <strong id="activeProductsCount">0</strong>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="view-controls">
+                <span>🔍 وضع العرض:</span>
+                <button class="group-btn active" onclick="switchView('category', this)">ملخص حسب الخامة</button>
+                <button class="group-btn" onclick="switchView('product', this)">ملخص حسب الصنف</button>
+                <button class="group-btn" onclick="switchView('detailed', this)">تفاصيل الأكواد</button>
+            </div>
+
+            <div id="tableContainer">
+                <table class="table-v2">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="10" style="text-align:center; padding:3rem;">جاري جرد المخزن...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        let rawData = { rolls: [], pieces: [] };
+        let currentView = 'category';
+
+        document.addEventListener('DOMContentLoaded', loadData);
+
+        async function loadData() {
+            try {
+                const response = await fetch(`${API}/inventory/report/detailed`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (!response.ok) throw new Error('فشل جلب البيانات');
+                rawData = await response.json();
+                
+                calculateStats();
+                renderView();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" style="color:red; text-align:center;">⚠️ فشل جلب بيانات المخزن. تأكد من تشغيل السيرفر.</td></tr>`;
+            }
+        }
+
+        function calculateStats() {
+            const rolls = rawData.rolls || [];
+            const pieces = rawData.pieces || [];
+            
+            const totalArea = rolls.reduce((s, r) => s + (r.currentArea || r.originalArea || 0), 0) +
+                             pieces.reduce((s, p) => s + (p.area || 0), 0);
+            
+            document.getElementById('totalArea').textContent = totalArea.toFixed(2);
+            document.getElementById('rollsCount').textContent = rolls.length;
+            document.getElementById('piecesCount').textContent = pieces.length;
+            
+            const uniqueProds = new Set([...rolls.map(r => r.productName), ...pieces.map(p => p.productName)]);
+            document.getElementById('activeProductsCount').textContent = uniqueProds.size;
+        }
+
+        function switchView(view, btn) {
+            currentView = view;
+            document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderView();
+        }
+
+        function renderView() {
+            const head = document.getElementById('tableHead');
+            const body = document.getElementById('tableBody');
+            const allItems = [
+                ...(rawData.rolls || []).map(r => ({ ...r, type: 'Roll', area: r.currentArea || r.originalArea || 0, length: r.currentLengthCm || r.originalLengthCm, width: r.width || r.widthCm || 152 })),
+                ...(rawData.pieces || []).map(p => ({ ...p, type: 'Piece', area: p.area || 0, sku: p.pieceCode, length: p.lengthCm, width: p.widthCm }))
+            ];
+
+            if (currentView === 'category') {
+                head.innerHTML = `<tr><th>الخامة / الفئة</th><th>إجمالي المساحة (م²)</th><th>عدد الرولات</th><th>عدد القطع</th><th>عدد الأصناف</th></tr>`;
+                const summary = {};
+                allItems.forEach(item => {
+                    const cat = item.materialType || item.category || 'غير مصنف';
+                    if (!summary[cat]) summary[cat] = { area: 0, rolls: 0, pieces: 0, products: new Set() };
+                    summary[cat].area += item.area;
+                    if (item.type === 'Roll') summary[cat].rolls++; else summary[cat].pieces++;
+                    summary[cat].products.add(item.productName);
+                });
+                body.innerHTML = Object.entries(summary).map(([cat, s]) => `
+                    <tr>
+                        <td><strong>${cat}</strong></td>
+                        <td>${s.area.toFixed(2)}</td>
+                        <td>${s.rolls}</td>
+                        <td>${s.pieces}</td>
+                        <td>${s.products.size}</td>
+                    </tr>
+                `).join('');
+
+            } else if (currentView === 'product') {
+                head.innerHTML = `<tr><th>الخامة</th><th>الصنف</th><th>المساحة (م²)</th><th>إجمالي الوحدات</th><th>رولات</th><th>قطع</th></tr>`;
+                const summary = {};
+                allItems.forEach(item => {
+                    const key = `${item.materialType || 'N/A'}-${item.productName}`;
+                    if (!summary[key]) summary[key] = { cat: item.materialType || 'N/A', name: item.productName, area: 0, rolls: 0, pieces: 0 };
+                    summary[key].area += item.area;
+                    if (item.type === 'Roll') summary[key].rolls++; else summary[key].pieces++;
+                });
+                body.innerHTML = Object.values(summary).map(s => `
+                    <tr>
+                        <td>${s.cat}</td>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.area.toFixed(2)}</td>
+                        <td>${s.rolls + s.pieces}</td>
+                        <td>${s.rolls}</td>
+                        <td>${s.pieces}</td>
+                    </tr>
+                `).join('');
+
+            } else {
+                head.innerHTML = `<tr><th>الكود</th><th>الخامة</th><th>الصنف</th><th>العرض (سم)</th><th>الطول (سم)</th><th>المساحة (م²)</th><th>النوع</th></tr>`;
+                body.innerHTML = allItems.map(item => `
+                    <tr>
+                        <td><code>${item.rollCode || item.pieceCode || item.sku || '-'}</code></td>
+                        <td>${item.materialType || '-'}</td>
+                        <td>${item.productName}</td>
+                        <td>${item.width}</td>
+                        <td>${item.length}</td>
+                        <td>${item.area.toFixed(2)}</td>
+                        <td><span class="badge ${item.type === 'Roll' ? 'badge-roll' : 'badge-piece'}">${item.type === 'Roll' ? 'رول' : 'قطعة'}</span></td>
+                    </tr>
+                `).join('');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إذن الاستلام - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --screen-primary: #163a5f;
+            --screen-secondary: #526277;
+            --screen-accent: #b98918;
+            --screen-success: #1f6f5f;
+            --screen-danger: #9f3a38;
+            --screen-border: rgba(22, 58, 95, 0.12);
+            --screen-surface: rgba(255, 255, 255, 0.96);
+            --screen-soft: #f5f7fb;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185, 137, 24, 0.12), transparent 20rem),
+                linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--screen-primary);
+        }
+
+        .page-shell {
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--screen-primary), #244c73);
+            color: #fff;
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 24px 60px rgba(22, 58, 95, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .hero h1 {
+            margin: 0 0 0.75rem;
+            font-size: clamp(1.8rem, 2vw, 2.4rem);
+        }
+
+        .hero p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.84);
+            line-height: 1.85;
+            max-width: 48rem;
+        }
+
+        .hero-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1.35rem;
+        }
+
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.7rem 0.95rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            font-weight: 600;
+        }
+
+        .surface,
+        .search-panel,
+        .table-panel {
+            background: var(--screen-surface);
+            border: 1px solid var(--screen-border);
+            border-radius: 22px;
+            box-shadow: 0 18px 38px rgba(22, 58, 95, 0.08);
+        }
+
+        .search-panel,
+        .table-panel {
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .search-grid,
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .search-grid {
+            grid-template-columns: 1.2fr 170px 180px auto;
+            align-items: end;
+        }
+
+        .form-grid {
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .field label {
+            color: var(--screen-secondary);
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            width: 100%;
+            border: 1px solid rgba(82, 98, 119, 0.2);
+            background: #fff;
+            border-radius: 14px;
+            padding: 0.85rem 0.95rem;
+            font-size: 0.97rem;
+            box-sizing: border-box;
+            color: var(--screen-primary);
+        }
+
+        .field textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .field input[readonly] {
+            background: #f4f7fb;
+        }
+
+        .field.span-2 {
+            grid-column: span 2;
+        }
+
+        .field.span-4 {
+            grid-column: 1 / -1;
+        }
+
+        .toggle-box {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            height: 100%;
+            padding: 0.9rem 1rem;
+            border: 1px solid var(--screen-border);
+            border-radius: 14px;
+            background: var(--screen-soft);
+            font-weight: 700;
+            color: var(--screen-secondary);
+        }
+
+        .toggle-box input {
+            width: auto;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .section-head h2 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: var(--screen-primary);
+        }
+
+        .section-head p {
+            margin: 0.25rem 0 0;
+            color: #738396;
+        }
+
+        .status-box {
+            display: none;
+            margin-bottom: 1rem;
+            padding: 1rem 1.1rem;
+            border-radius: 16px;
+            font-weight: 700;
+        }
+
+        .status-box.success {
+            display: block;
+            background: rgba(31, 111, 95, 0.1);
+            color: var(--screen-success);
+            border: 1px solid rgba(31, 111, 95, 0.18);
+        }
+
+        .status-box.error {
+            display: block;
+            background: rgba(159, 58, 56, 0.1);
+            color: var(--screen-danger);
+            border: 1px solid rgba(159, 58, 56, 0.18);
+        }
+
+        .status-box.info {
+            display: block;
+            background: rgba(22, 58, 95, 0.08);
+            color: var(--screen-primary);
+            border: 1px solid rgba(22, 58, 95, 0.12);
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 0.95rem 1.2rem;
+            font-size: 0.97rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            box-shadow: 0 10px 22px rgba(22, 58, 95, 0.12);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: var(--screen-primary);
+            color: #fff;
+        }
+
+        .btn.accent {
+            background: var(--screen-accent);
+            color: #fff;
+        }
+
+        .btn.light {
+            background: #fff;
+            color: var(--screen-primary);
+            border: 1px solid var(--screen-border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            background: #eef2f7;
+            color: var(--screen-primary);
+            font-size: 0.9rem;
+            padding: 1rem 0.8rem;
+            border-bottom: 1px solid var(--screen-border);
+        }
+
+        tbody td {
+            padding: 0.75rem 0.65rem;
+            border-bottom: 1px solid rgba(82, 98, 119, 0.12);
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        tbody tr:hover {
+            background: #fbfcfe;
+        }
+
+        .table-input {
+            width: 100%;
+            border: 1px solid rgba(82, 98, 119, 0.18);
+            border-radius: 12px;
+            padding: 0.7rem 0.65rem;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .table-input.readonly { background: #f4f7fb; }
+        .remove-btn { border:none; background:rgba(159,58,56,.1); color:var(--screen-danger); border-radius:10px; padding:.55rem .7rem; cursor:pointer; font-weight:800; }
+        .summary-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.9rem; margin-top:1rem; }
+        .summary-card { background:var(--screen-soft); border:1px solid var(--screen-border); border-radius:16px; padding:1rem; }
+        .summary-card span { display:block; color:#738396; font-size:.9rem; margin-bottom:.35rem; }
+        .summary-card strong { font-size:1.25rem; color:var(--screen-primary); }
+        .hint { color:#738396; font-size:.9rem; }
+        @media (max-width: 980px) {
+            .search-grid, .form-grid { grid-template-columns: 1fr; }
+            .field.span-2, .field.span-4 { grid-column: auto; }
+            .table-panel { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <div class="hero-row">
+                <div>
+                    <h1 id="screenTitle">إذن استلام خامات</h1>
+                    <p>تسجيل الوارد إلى المخزن مع الحفاظ على دقة الأبعاد والتكلفة وربط المستندات المرجعية بدون كسر الربط مع طبقة المخزون الخلفية.</p>
+                </div>
+                <button class="btn light" onclick="window.location.href='/inventory/stock_report.html'">العودة إلى تقرير المخزون</button>
+            </div>
+            <div class="hero-tags">
+                <span class="hero-tag">نوع الحركة: وارد</span>
+                <span class="hero-tag" id="modeTag">وضع جديد</span>
+                <span class="hero-tag">تكامل مباشر مع المشتريات</span>
+            </div>
+        </section>
+
+        <div id="messageBox" class="status-box"></div>
+
+        <section class="search-panel">
+            <div class="section-head">
+                <div>
+                    <h2>ربط الفاتورة أو الشحنة</h2>
+                    <p>يمكن تحميل الأصناف مباشرة من فاتورة مشتريات محلية أو من بيانات الشحنة.</p>
+                </div>
+                <span class="hint" id="invoiceStatus">جاهز للتحميل</span>
+            </div>
+            <div class="search-grid">
+                <div class="field">
+                    <label for="inRef">المرجع</label>
+                    <input id="inRef" placeholder="اكتب رقم الفاتورة أو رقم الشحنة">
+                </div>
+                <div class="field">
+                    <label>&nbsp;</label>
+                    <div class="toggle-box">
+                        <input type="checkbox" id="isLocal" checked>
+                        <span>فاتورة محلية</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>&nbsp;</label>
+                    <button class="btn accent" type="button" onclick="loadDocItems()">تحميل الأصناف</button>
+                </div>
+                <div class="field">
+                    <label>&nbsp;</label>
+                    <button class="btn light" type="button" onclick="addManualRow()">إضافة سطر يدوي</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="surface" style="padding:1.25rem;margin-bottom:1.25rem;">
+            <div class="section-head">
+                <div>
+                    <h2>بيانات الإذن</h2>
+                    <p>يتم حفظ الحقول بنفس الأسماء الحالية في الربط الخلفي.</p>
+                </div>
+            </div>
+            <input type="hidden" id="editId">
+            <div class="form-grid">
+                <div class="field"><label for="inDate">التاريخ</label><input type="date" id="inDate"></div>
+                <div class="field"><label for="inSerial">رقم الإذن</label><input id="inSerial" placeholder="تلقائي" readonly></div>
+                <div class="field"><label for="inWarehouse">المخزن</label><select id="inWarehouse"><option value="">جار التحميل...</option></select></div>
+                <div class="field"><label for="inReceiver">المستلم</label><input id="inReceiver" placeholder="اسم المستلم"></div>
+                <div class="field span-4"><label for="inNotes">ملاحظات</label><textarea id="inNotes" placeholder="أي ملاحظات تشغيلية أو محاسبية مرتبطة بالإذن"></textarea></div>
+            </div>
+        </section>
+
+        <section class="table-panel">
+            <div class="section-head">
+                <div>
+                    <h2>تفاصيل الأصناف</h2>
+                    <p>الجدول يحافظ على الحقول `warehouse` و`items` ويدعم التحديث الآمن عبر `PUT` عند التعديل.</p>
+                </div>
+                <span class="hint">أبعاد الخامة بالمتر والمساحة = الطول × العرض</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>الصنف</th>
+                        <th>كود الرول<br><small style="font-weight:400">التاريخ / المقاس</small></th>
+                        <th>الطول (م)</th>
+                        <th>العرض (م)</th>
+                        <th>الكمية (م²)</th>
+                        <th>تكلفة المتر</th>
+                        <th>إزالة</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody"></tbody>
+            </table>
+            <div class="summary-strip">
+                <div class="summary-card"><span>عدد البنود</span><strong id="lineCount">0</strong></div>
+                <div class="summary-card"><span>إجمالي المساحة</span><strong id="totalQty">0.00</strong></div>
+                <div class="summary-card"><span>إجمالي القيمة التقديرية</span><strong id="totalValue">0.00</strong></div>
+            </div>
+            <div class="action-row">
+                <span class="hint">عند تعديل إذن موجود سيتم استخدام تحديث الحركة مباشرة بدون حذف السجل القديم.</span>
+                <button class="btn primary" id="saveButton" type="button" onclick="save()">حفظ إذن الاستلام</button>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API = '/api';
+        let productsList = [];
+        let warehouseMap = [];
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('inDate').valueAsDate = new Date();
+            await fetchMasterData();
+            await checkEditMode();
+            updateSummary();
+        });
+        function setMessage(message, type = 'info') {
+            const box = document.getElementById('messageBox');
+            box.className = `status-box ${type}`;
+            box.textContent = message;
+        }
+        const token = localStorage.getItem('token') || '';
+        function authHeaders(includeJson = false) {
+            const headers = {};
+            if (includeJson) headers['Content-Type'] = 'application/json';
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+        function clearMessage() { const box = document.getElementById('messageBox'); box.className = 'status-box'; box.textContent = ''; }
+        function setInvoiceStatus(message, color = '#738396') { const status = document.getElementById('invoiceStatus'); status.textContent = message; status.style.color = color; }
+        async function fetchMasterData() {
+            try {
+                const [productsResponse, warehousesResponse] = await Promise.all([
+                    fetch(`${API}/products`, { headers: authHeaders() }), 
+                    fetch(`${API}/warehouses`, { headers: authHeaders() })
+                ]);
+                productsList = await productsResponse.json();
+                warehouseMap = await warehousesResponse.json();
+                const select = document.getElementById('inWarehouse');
+                select.innerHTML = '';
+                if (!warehouseMap.length) {
+                    select.innerHTML = '<option value="الرئيسي">المخزن الرئيسي</option>';
+                    return;
+                }
+                warehouseMap.forEach((warehouse) => {
+                    const option = document.createElement('option');
+                    option.value = warehouse._id || warehouse.path || warehouse.name;
+                    option.textContent = warehouse.path || warehouse.name || 'مخزن';
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error(error);
+                setMessage('تعذر تحميل بيانات المنتجات أو المخازن.', 'error');
+            }
+        }
+        async function checkEditMode() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            if (!id) return;
+            document.getElementById('editId').value = id;
+            document.getElementById('screenTitle').textContent = 'تحديث إذن استلام خامات';
+            document.getElementById('modeTag').textContent = 'وضع تعديل';
+            document.getElementById('saveButton').textContent = 'تحديث إذن الاستلام';
+            try {
+                const response = await fetch(`${API}/stock/${id}`, { headers: authHeaders() });
+                if (!response.ok) throw new Error('تعذر تحميل الإذن المطلوب.');
+                const trx = await response.json();
+                document.getElementById('inDate').value = (trx.date || '').split('T')[0];
+                document.getElementById('inSerial').value = trx.serialNumber || '';
+                document.getElementById('inReceiver').value = trx.receiverName || '';
+                document.getElementById('inNotes').value = trx.notes || '';
+                document.getElementById('inRef').value = trx.supplierDoc || '';
+                applyWarehouseSelection(trx.warehouse);
+                const body = document.getElementById('itemsBody');
+                body.innerHTML = '';
+                (trx.items || []).forEach((item) => {
+                    const product = item.product || {};
+                    addRow({
+                        productId: product._id || item.product,
+                        productName: product.name || 'صنف',
+                        rollCode: item.rollCode || '',
+                        length: Number(item.customDimensions?.length || 0),
+                        width: Number(item.customDimensions?.width || 0),
+                        quantity: Number(item.quantity || 0),
+                        unitCost: Number(item.unitCost || 0)
+                    });
+                });
+                setMessage('تم تحميل الإذن للتعديل بنجاح. سيتم الحفظ عبر تحديث الحركة مباشرة.', 'info');
+            } catch (error) {
+                console.error(error);
+                setMessage(error.message || 'فشل تحميل بيانات الإذن.', 'error');
+            }
+        }
+        function applyWarehouseSelection(warehouseValue) {
+            const select = document.getElementById('inWarehouse');
+            if (!warehouseValue) return;
+            for (const option of select.options) {
+                if (option.value === warehouseValue || option.textContent === warehouseValue) {
+                    select.value = option.value;
+                    return;
+                }
+            }
+        }
+        async function loadDocItems() {
+            clearMessage();
+            const ref = document.getElementById('inRef').value.trim();
+            const isLocal = document.getElementById('isLocal').checked;
+            if (!ref) { setMessage('اكتب رقم المرجع أولاً لتحميل الأصناف.', 'error'); return; }
+            setInvoiceStatus('جار تحميل المرجع...', '#163a5f');
+            try {
+                let items = [];
+                if (isLocal) {
+                    const invoiceResponse = await fetch(`${API}/purchases/number/${encodeURIComponent(ref)}`, { headers: authHeaders() });
+                    if (!invoiceResponse.ok) throw new Error('فاتورة الشراء غير موجودة.');
+                    const invoice = await invoiceResponse.json();
+                    const stockResponse = await fetch(`${API}/stock?supplierDoc=${encodeURIComponent(ref)}&type=Inbound`, { headers: authHeaders() });
+                    const receivedTransactions = stockResponse.ok ? await stockResponse.json() : [];
+                    const receivedMap = {};
+                    receivedTransactions.forEach((trx) => (trx.items || []).forEach((item) => {
+                        const key = String(item.product?._id || item.product);
+                        receivedMap[key] = (receivedMap[key] || 0) + Number(item.quantity || 0);
+                    }));
+                    const factor = invoice.subtotal > 0 && invoice.totalAmount > 0 ? invoice.totalAmount / invoice.subtotal : 1;
+                    items = (invoice.items || []).map((item) => {
+                        const productId = String(item.product?._id || item.product);
+                        const remaining = Math.max(0, Number(item.quantity || 0) - Number(receivedMap[productId] || 0));
+                        if (remaining <= 0.01) return null;
+                        return {
+                            productId,
+                            productName: item.product?.name || resolveProductName(productId),
+                            quantity: remaining,
+                            unitCost: Number(item.cost || 0) * factor,
+                            length: normalizeMeterValue(item.length ?? item.product?.dimensions?.length ?? 0),
+                            width: normalizeMeterValue(item.width ?? item.product?.dimensions?.width ?? 0)
+                        };
+                    }).filter(Boolean);
+                    if (!items.length) {
+                        setInvoiceStatus('تم استلام هذه الفاتورة بالكامل مسبقًا.', '#b98918');
+                        setMessage('لا توجد كميات متبقية للتحميل من هذه الفاتورة.', 'info');
+                        return;
+                    }
+                    setInvoiceStatus(`تم تحميل الفاتورة ${invoice.invoiceNumber || ref}`, '#1f6f5f');
+                } else {
+                    const shipmentResponse = await fetch(`${API}/import-shipments`, { headers: authHeaders() });
+                    const shipments = shipmentResponse.ok ? await shipmentResponse.json() : [];
+                    const shipment = shipments.find((row) => row.shipmentRef == ref || row.hwbNumber == ref);
+                    if (!shipment) throw new Error('لم يتم العثور على الشحنة المطلوبة.');
+                    items = (shipment.items || []).map((item) => ({
+                        productId: String(item.product?._id || item.product),
+                        productName: item.product?.name || resolveProductName(item.product),
+                        quantity: Number(item.quantity || 0),
+                        unitCost: Number(item.unitLandedCost || item.unitCost || 0),
+                        length: normalizeMeterValue(item.length || 0),
+                        width: normalizeMeterValue(item.width || 0)
+                    }));
+                    setInvoiceStatus(`تم تحميل الشحنة ${shipment.shipmentRef || ref}`, '#1f6f5f');
+                }
+                populateTable(items, ref);
+                setMessage('تم تحميل الأصناف بنجاح. يمكنك مراجعتها قبل الحفظ.', 'success');
+            } catch (error) {
+                console.error(error);
+                setInvoiceStatus('فشل تحميل المرجع', '#9f3a38');
+                setMessage(error.message || 'فشل تحميل الأصناف.', 'error');
+            }
+        }
+        function resolveProductName(productId) {
+            const product = productsList.find((item) => item._id === String(productId));
+            return product?.name || 'صنف';
+        }
+        function normalizeMeterValue(value) {
+            const numeric = Number(value || 0);
+            if (numeric > 50) return numeric / 100;
+            return numeric;
+        }
+        function generateRollCode(ref, index, productName, date, lengthCm, widthCm) {
+            // Format:
+            // {last5digits}/{rollNumber}-{productName}-{yyyymmdd}-{lengthCm×widthCm}
+            // e.g. 21557/4-P2-20260422-1524×152
+            const refDigits = String(ref || '').replace(/[^0-9]/g, '');
+            const last5 = refDigits.length >= 5 ? refDigits.slice(-5) : refDigits.padStart(5, '0');
+            const nameToken = String(productName || 'XX').trim().replace(/\s+/g, '');
+            const dateToken = String(date || '').trim().replace(/[^0-9]/g, '').slice(0, 8) || new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const l = Math.max(0, Math.round(Number(lengthCm || 0)));
+            const w = Math.max(0, Math.round(Number(widthCm || 0)));
+            const sizeToken = (l && w) ? `${l}×${w}` : '';
+            return `${last5}/${index + 1}-${nameToken}${dateToken ? `-${dateToken}` : ''}${sizeToken ? `-${sizeToken}` : ''}`;
+        }
+
+        function populateTable(items, ref) {
+            const body = document.getElementById('itemsBody');
+            body.innerHTML = '';
+            const dateVal = document.getElementById('inDate').value || new Date().toISOString().split('T')[0];
+            const dateFormatted = dateVal.replace(/-/g, '');
+            items.forEach((item, index) => {
+                const productId = String(item.productId);
+                const productName = item.productName || resolveProductName(productId);
+                const lengthCm = Math.round(Number(item.length || 0) * 100);
+                const widthCm = Math.round(Number(item.width || 0) * 100);
+                const autoRoll = generateRollCode(ref, index, productName, dateFormatted, lengthCm, widthCm);
+                addRow({
+                    productId,
+                    productName,
+                    rollCode: item.rollCode || autoRoll,
+                    length: Number(item.length || 0),
+                    width: Number(item.width || 0),
+                    quantity: Number(item.quantity || 0),
+                    unitCost: Number(item.unitCost || 0)
+                });
+            });
+        }
+        function addManualRow() {
+            if (!productsList.length) {
+                setMessage('تعذر إضافة سطر يدوي قبل تحميل قائمة المنتجات.', 'error');
+                return;
+            }
+            const product = productsList[0];
+            const ref = document.getElementById('inRef').value.trim() || 'manual';
+            const currentRows = document.querySelectorAll('#itemsBody tr').length;
+            const dateVal = document.getElementById('inDate').value || new Date().toISOString().split('T')[0];
+            const dateFormatted = dateVal.replace(/-/g, '');
+            const lengthM = normalizeMeterValue(product.dimensions?.length || 0);
+            const widthM = normalizeMeterValue(product.dimensions?.width || 0);
+            const lengthCm = Math.round(Number(lengthM || 0) * 100);
+            const widthCm = Math.round(Number(widthM || 0) * 100);
+            addRow({
+                productId: product._id,
+                productName: product.name,
+                rollCode: generateRollCode(ref, currentRows, product.name, dateFormatted, lengthCm, widthCm),
+                length: lengthM,
+                width: widthM,
+                quantity: 0,
+                unitCost: Number(product.cost || 0)
+            });
+        }
+        function addRow(item) {
+            const body = document.getElementById('itemsBody');
+            const row = document.createElement('tr');
+            const dateVal = document.getElementById('inDate').value || new Date().toISOString().split('T')[0];
+            const dateFormatted = dateVal.replace(/-/g, '');
+            const lengthCm = Math.round(Number(item.length || 0) * 100);
+            const widthCm = Math.round(Number(item.width || 0) * 100);
+            const dimsText = widthCm > 0 ? `${lengthCm}×${widthCm}` : '';
+
+            // If roll code is empty (or legacy short), generate the structured format.
+            const ref = document.getElementById('inRef').value.trim() || 'manual';
+            const currentIndex = document.querySelectorAll('#itemsBody tr').length;
+            const structuredCode = generateRollCode(ref, currentIndex, item.productName, dateFormatted, lengthCm, widthCm);
+            const rollCodeValue = (item.rollCode && String(item.rollCode).trim()) ? String(item.rollCode).trim() : structuredCode;
+
+            row.innerHTML = `
+                <td>${item.productName}<input type="hidden" class="p-id" value="${item.productId}"></td>
+                <td>
+                    <input class="table-input roll" value="${rollCodeValue}" style="font-weight:700;color:#b98918;">
+                    <div class="roll-meta" style="font-size:11px;color:#64748b;margin-top:2px;">${dateVal}${dimsText ? ' | ' + dimsText + ' سم' : ''}</div>
+                </td>
+                <td><input class="table-input len" type="number" min="0" step="0.01" value="${Number(item.length || 0).toFixed(2)}"></td>
+                <td><input class="table-input wid" type="number" min="0" step="0.01" value="${Number(item.width || 0).toFixed(2)}"></td>
+                <td><input class="table-input qty readonly" type="number" min="0" step="0.01" value="${Number(item.quantity || 0).toFixed(2)}" readonly></td>
+                <td><input class="table-input cost" type="number" min="0" step="0.01" value="${Number(item.unitCost || 0).toFixed(2)}"></td>
+                <td><button type="button" class="remove-btn">حذف</button></td>
+            `;
+            body.appendChild(row);
+            row.querySelector('.remove-btn').addEventListener('click', () => { row.remove(); updateSummary(); });
+            row.querySelector('.len').addEventListener('input', () => recalcQty(row));
+            row.querySelector('.wid').addEventListener('input', () => recalcQty(row));
+            row.querySelector('.cost').addEventListener('input', updateSummary);
+            recalcQty(row);
+        }
+        function recalcQty(row) {
+            const length = Number(row.querySelector('.len').value || 0);
+            const width = Number(row.querySelector('.wid').value || 0);
+            row.querySelector('.qty').value = (length * width).toFixed(2);
+            updateSummary();
+        }
+        function updateSummary() {
+            const rows = Array.from(document.querySelectorAll('#itemsBody tr'));
+            const totalQty = rows.reduce((sum, row) => sum + Number(row.querySelector('.qty').value || 0), 0);
+            const totalValue = rows.reduce((sum, row) => sum + (Number(row.querySelector('.qty').value || 0) * Number(row.querySelector('.cost').value || 0)), 0);
+            document.getElementById('lineCount').textContent = rows.length.toLocaleString('ar-EG');
+            document.getElementById('totalQty').textContent = totalQty.toFixed(2);
+            document.getElementById('totalValue').textContent = totalValue.toFixed(2);
+        }
+        async function save() {
+            clearMessage();
+            const warehouse = document.getElementById('inWarehouse').value;
+            const rows = Array.from(document.querySelectorAll('#itemsBody tr'));
+            if (!warehouse) { setMessage('اختر المخزن أولاً قبل الحفظ.', 'error'); return; }
+            if (!rows.length) { setMessage('لا توجد أصناف لحفظها داخل إذن الاستلام.', 'error'); return; }
+            const items = rows.map((row) => ({
+                product: row.querySelector('.p-id').value,
+                productName: row.querySelector('.p-id').closest('td')?.childNodes[0]?.textContent?.trim() || '',
+                rollCode: row.querySelector('.roll').value.trim(),
+                itemType: 'roll',
+                quantity: Number(row.querySelector('.qty').value || 0),
+                unitCost: Number(row.querySelector('.cost').value || 0),
+                lengthCm: Math.round(Number(row.querySelector('.len').value || 0) * 100),
+                widthCm: Math.round(Number(row.querySelector('.wid').value || 0) * 100),
+                customDimensions: { length: Number(row.querySelector('.len').value || 0), width: Number(row.querySelector('.wid').value || 0) }
+            }));
+            if (items.some((item) => !item.rollCode)) { setMessage('كل بند وارد يجب أن يحتوي على كود رول.', 'error'); return; }
+            const payload = {
+                type: 'Inbound',
+                date: document.getElementById('inDate').value,
+                serialNumber: document.getElementById('inSerial').value,
+                warehouse,
+                receiverName: document.getElementById('inReceiver').value.trim(),
+                notes: document.getElementById('inNotes').value.trim(),
+                supplierDoc: document.getElementById('inRef').value.trim(),
+                items
+            };
+            const editId = document.getElementById('editId').value;
+            const method = editId ? 'PUT' : 'POST';
+            const endpoint = editId ? `${API}/stock/${editId}` : `${API}/stock`;
+            try {
+                const response = await fetch(endpoint, { method, headers: authHeaders(true), body: JSON.stringify(payload) });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'فشل حفظ إذن الاستلام.');
+                setMessage(editId ? 'تم تحديث إذن الاستلام بنجاح.' : 'تم حفظ إذن الاستلام بنجاح.', 'success');
+                setTimeout(() => { window.location.href = '/inventory/stock_report.html'; }, 1200);
+            } catch (error) {
+                console.error(error);
+                setMessage(error.message || 'تعذر حفظ إذن الاستلام.', 'error');
+            }
+        }
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

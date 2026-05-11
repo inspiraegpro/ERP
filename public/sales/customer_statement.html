@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كشف حساب عميل</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+        
+        /* تنسيق قائمة البحث */
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: left 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-left: 2.5rem;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            .container { box-shadow: none; max-width: 100%; margin: 0; padding: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6 min-h-[600px] border border-gray-100">
+    
+    <div class="flex flex-col md:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <i class="fas fa-file-invoice-dollar text-blue-600"></i>
+                كشف حساب عميل
+            </h2>
+            <p class="text-slate-500 text-sm mt-1">تقرير تفصيلي بحركة المبيعات والسداد</p>
+        </div>
+        <div class="flex gap-2 no-print">
+            <button onclick="window.print()" class="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition shadow flex items-center gap-2">
+                <i class="fas fa-print"></i> طباعة
+            </button>
+            <a href="/sales/customers_balance.html" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition shadow flex items-center gap-2">
+                <i class="fas fa-arrow-right"></i> الميزان
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-blue-50 p-5 rounded-xl mb-6 no-print border border-blue-100 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            
+            <div class="md:col-span-4">
+                <label class="block text-xs font-bold text-blue-800 mb-2">اختر العميل (بحث)</label>
+                <div class="relative">
+                    <select id="customerSelect" class="w-full p-2.5 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-700 font-bold">
+                        <option value="">-- جاري تحميل العملاء --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="md:col-span-3">
+                <label class="block text-xs font-bold text-slate-600 mb-2">من تاريخ</label>
+                <input type="date" id="fromDate" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-xs font-bold text-slate-600 mb-2">إلى تاريخ</label>
+                <input type="date" id="toDate" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="md:col-span-2">
+                <button onclick="loadReport()" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-bold shadow-md flex justify-center items-center gap-2">
+                    <i class="fas fa-search"></i> عرض
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="summaryCard" class="hidden flex flex-col md:flex-row justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 shadow-inner">
+        <div class="text-center md:text-right mb-2 md:mb-0">
+            <p class="text-xs text-slate-500 mb-1">العميل المختار</p>
+            <h3 id="displayCustName" class="text-lg font-black text-slate-800">...</h3>
+        </div>
+        
+        <div class="flex gap-8">
+            <div class="text-center">
+                <p class="text-xs text-slate-500 mb-1">الرصيد الافتتاحي</p>
+                <span id="openBal" class="font-bold text-slate-600 text-lg">0.00</span>
+            </div>
+            <div class="text-center border-r pr-8 border-slate-300">
+                <p class="text-xs text-slate-500 mb-1">الرصيد الحالي المستحق</p>
+                <span id="endBal" class="font-bold text-blue-600 text-xl dir-ltr">0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full border-collapse bg-white">
+            <thead>
+                <tr class="bg-slate-800 text-white text-sm">
+                    <th class="p-3 text-right">التاريخ</th>
+                    <th class="p-3 text-right">رقم المستند</th>
+                    <th class="p-3 text-right w-1/3">البيان</th>
+                    <th class="p-3 text-center bg-red-500/20">مدين (عليه)</th>
+                    <th class="p-3 text-center bg-green-500/20">دائن (له)</th>
+                    <th class="p-3 text-center">الرصيد</th>
+                </tr>
+            </thead>
+            <tbody id="tbody" class="text-sm text-slate-700 divide-y divide-slate-100">
+                <tr><td colspan="6" class="text-center p-8 text-slate-400">اختر عميلاً لعرض البيانات</td></tr>
+            </tbody>
+            <tfoot id="tfoot" class="hidden font-bold bg-slate-100 border-t-2 border-slate-300">
+                <tr>
+                    <td colspan="3" class="p-3 text-left pl-10">إجمالي الحركات</td>
+                    <td id="tDeb" class="p-3 text-center text-red-600">0.00</td>
+                    <td id="tCred" class="p-3 text-center text-green-600">0.00</td>
+                    <td class="p-3 text-center text-slate-800">-</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    const API = '/api';
+
+    // عند تحميل الصفحة
+    window.onload = async function() {
+        // 1. ضبط التواريخ
+        const today = new Date();
+        document.getElementById('toDate').valueAsDate = today;
+        document.getElementById('fromDate').valueAsDate = new Date(today.getFullYear(), 0, 1);
+
+        // 2. تحميل قائمة العملاء
+        await loadCustomersList();
+
+        // 3. لو جايين من صفحة تانية برقم عميل، نختاره تلقائي
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCustId = urlParams.get('id');
+        
+        if (urlCustId) {
+            const select = document.getElementById('customerSelect');
+            select.value = urlCustId;
+            // لو العميل موجود، حمل تقريره
+            if (select.value) {
+                loadReport();
+            }
+        }
+    };
+
+    // دالة تحميل قائمة العملاء (للبحث والاختيار)
+    async function loadCustomersList() {
+        const select = document.getElementById('customerSelect');
+        try {
+            const res = await fetch(`${API}/customers`); // التأكد من رابط العملاء
+            const customers = await res.json();
+            
+            select.innerHTML = '<option value="">-- اختر العميل --</option>';
+            
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c._id;
+                opt.text = c.name + (c.code ? ` (${c.code})` : '');
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            console.error("فشل تحميل العملاء", e);
+            select.innerHTML = '<option value="">خطأ في تحميل القائمة</option>';
+        }
+    }
+
+    // دالة تحميل التقرير
+    async function loadReport() {
+        const custId = document.getElementById('customerSelect').value;
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        const tbody = document.getElementById('tbody');
+
+        if (!custId) {
+            alert("الرجاء اختيار العميل أولاً");
+            return;
+        }
+
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center p-6"><i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i> جارِ التحميل...</td></tr>';
+
+        try {
+            // 🔥 الرابط الصحيح في الباك إند
+            const res = await fetch(`${API}/customers/reports/statement?customerId=${custId}&fromDate=${from}&toDate=${to}`);
+            
+            if (!res.ok) throw new Error("فشل جلب البيانات من السيرفر");
+            
+            const data = await res.json();
+
+            // عرض البيانات
+            document.getElementById('summaryCard').classList.remove('hidden');
+            document.getElementById('tfoot').classList.remove('hidden');
+            
+            document.getElementById('displayCustName').innerText = data.customerName;
+            document.getElementById('openBal').innerText = fmt(data.openingBalance);
+            document.getElementById('endBal').innerText = fmt(data.endingBalance);
+
+            tbody.innerHTML = '';
+            let tD = 0, tC = 0;
+
+            if (data.transactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-slate-400 bg-slate-50">لا توجد حركات في هذه الفترة</td></tr>`;
+            } else {
+                data.transactions.forEach(t => {
+                    tD += t.debit;
+                    tC += t.credit;
+                    
+                    const row = `
+                        <tr class="border-b hover:bg-blue-50 transition duration-150">
+                            <td class="p-3 text-right font-mono text-slate-600">${t.date}</td>
+                            <td class="p-3 text-right font-bold text-blue-700">${t.ref || '-'}</td>
+                            <td class="p-3 text-right text-slate-700">${t.desc}</td>
+                            <td class="p-3 text-center text-red-600 font-bold bg-red-50/50">${t.debit > 0 ? fmt(t.debit) : '-'}</td>
+                            <td class="p-3 text-center text-green-600 font-bold bg-green-50/50">${t.credit > 0 ? fmt(t.credit) : '-'}</td>
+                            <td class="p-3 text-center font-black dir-ltr ${t.balance < 0 ? 'text-red-600' : 'text-slate-800'}">${fmt(t.balance)}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+            }
+
+            document.getElementById('tDeb').innerText = fmt(tD);
+            document.getElementById('tCred').innerText = fmt(tC);
+
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-red-500 font-bold">❌ خطأ: ${e.message}</td></tr>`;
+        }
+    }
+
+    function fmt(num) {
+        return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

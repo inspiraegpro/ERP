@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تقرير حالة الرولات</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1400px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; }
+        .filter-group { flex: 1; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: #475569; }
+        select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        th { background: #1e293b; color: white; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .status-Available { background: #dcfce7; color: #166534; }
+        .status-PartiallyUsed { background: #fef3c7; color: #92400e; }
+        .status-Exhausted { background: #fee2e2; color: #991b1b; }
+        .progress-bar { width: 100%; height: 20px; background: #e5e7eb; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.3s; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>📊 تقرير حالة الرولات (Roll Status Report)</h2>
+    
+    <div class="filters">
+        <div class="filter-group">
+            <label>الصنف</label>
+            <select id="productFilter">
+                <option value="">جميع الأصناف</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>المخزن</label>
+            <select id="warehouseFilter">
+                <option value="">جميع المخازن</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>الحالة</label>
+            <select id="statusFilter">
+                <option value="">جميع الحالات</option>
+                <option value="Available">متاح</option>
+                <option value="PartiallyUsed">مستخدم جزئياً</option>
+                <option value="Exhausted">مستنفذ</option>
+            </select>
+        </div>
+        <div class="filter-group" style="display: flex; align-items: flex-end;">
+            <button onclick="loadReport()">🔍 تحديث التقرير</button>
+        </div>
+    </div>
+    
+    <table id="reportTable">
+        <thead>
+            <tr>
+                <th>كود الرول</th>
+                <th>الصنف</th>
+                <th>المخزن</th>
+                <th>الأبعاد الأصلية</th>
+                <th>المساحة الأصلية (م²)</th>
+                <th>المستهلك (م²)</th>
+                <th>المتبقي (م²)</th>
+                <th>نسبة الاستخدام</th>
+                <th>الحالة</th>
+                <th>تكلفة المتر</th>
+                <th>تاريخ الاستلام</th>
+                <th>رقم الشحنة / الفاتورة</th>
+            </tr>
+        </thead>
+        <tbody id="tbody">
+            <tr><td colspan="12" style="padding: 30px; text-align: center; color: #666;">جاري التحميل...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+    let productsList = [];
+    let warehousesList = [];
+
+    window.onload = async () => {
+        await loadMasterData();
+        await loadReport();
+    };
+
+    async function loadMasterData() {
+        try {
+            const [pRes, wRes] = await Promise.all([
+                fetch(`${API}/products`),
+                fetch(`/api/warehouses`)
+            ]);
+            productsList = await pRes.json();
+            warehousesList = await wRes.json();
+
+            const productSel = document.getElementById('productFilter');
+            productsList.forEach(p => {
+                productSel.innerHTML += `<option value="${p._id}">${p.name} (${p.code})</option>`;
+            });
+
+            const warehouseSel = document.getElementById('warehouseFilter');
+            warehousesList.forEach(w => {
+                warehouseSel.innerHTML += `<option value="${w.path || w.name}">${w.path || w.name}</option>`;
+            });
+        } catch(e) {
+            console.error('خطأ في تحميل البيانات الأساسية:', e);
+        }
+    }
+
+    async function loadReport() {
+        const productId = document.getElementById('productFilter').value;
+        const warehouse = document.getElementById('warehouseFilter').value;
+        const status = document.getElementById('statusFilter').value;
+
+        let url = `${API}/stock/roll-status?`;
+        if (productId) url += `productId=${productId}&`;
+        if (warehouse) url += `warehouse=${encodeURIComponent(warehouse)}&`;
+        if (status) url += `status=${status}&`;
+
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '<tr><td colspan="12" style="padding: 20px; text-align: center; color: #666;">جاري التحميل...</td></tr>';
+
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('فشل تحميل البيانات');
+            const rolls = await res.json();
+
+            if (rolls.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="padding: 30px; text-align: center; color: #666;">لا توجد رولات مطابقة للفلتر</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rolls.map(roll => {
+                const product = roll.product || { name: '-', code: '-' };
+                const originalArea = roll.originalDimensions.area || 0;
+                const consumed = roll.consumedArea || 0;
+                const remaining = roll.remainingArea || 0;
+                const usagePercent = originalArea > 0 ? ((consumed / originalArea) * 100).toFixed(1) : 0;
+
+                const statusClass = `status-${roll.status}`;
+                const statusText = {
+                    'Available': '✅ متاح',
+                    'PartiallyUsed': '⚠️ مستخدم جزئياً',
+                    'Exhausted': '❌ مستنفذ'
+                }[roll.status] || roll.status;
+
+                const progressWidth = Math.min(100, (consumed / originalArea) * 100);
+                const lengthCm = Number(roll.originalLengthCm || roll.originalDimensions?.lengthCm || 0);
+                const widthCm = Number(roll.originalWidthCm || roll.widthCm || roll.width || roll.originalDimensions?.widthCm || 0);
+                const dimsCmText = (lengthCm && widthCm) ? `${Math.round(lengthCm)}×${Math.round(widthCm)} سم` : '';
+
+                return `
+                    <tr>
+                        <td style="font-weight: bold; color: #d97706;">
+                            <div>${roll.rollCode}</div>
+                            ${dimsCmText ? `<div style="margin-top:4px;font-size:12px;color:#64748b;font-weight:700;">${dimsCmText}</div>` : ''}
+                        </td>
+                        <td>${product.name}<br><small style="color: #666;">${product.code}</small></td>
+                        <td>${roll.warehouse}</td>
+                        <td>${roll.originalDimensions.length.toFixed(2)} × ${roll.originalDimensions.width.toFixed(2)} م</td>
+                        <td style="font-weight: bold;">${originalArea.toFixed(2)}</td>
+                        <td style="color: #ef4444;">${consumed.toFixed(2)}</td>
+                        <td style="font-weight: bold; color: #059669;">${remaining.toFixed(2)}</td>
+                        <td>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progressWidth}%"></div>
+                            </div>
+                            <small>${usagePercent}%</small>
+                        </td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${(roll.unitCost || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</td>
+                        <td>${new Date(roll.receivedDate).toLocaleDateString('ar-EG')}</td>
+                        <td>${roll.supplierDoc || roll.purchaseInvoiceId || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch(e) {
+            console.error('خطأ:', e);
+            tbody.innerHTML = `<tr><td colspan="12" style="padding: 30px; text-align: center; color: #dc2626;">حدث خطأ: ${e.message}</td></tr>`;
+        }
+    }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

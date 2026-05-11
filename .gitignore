@@ -1,0 +1,55 @@
+# Node modules
+node_modules/
+npm-debug.log
+
+# Environment variables
+.env
+
+# Database and Storage
+data_storage/
+
+# Backups and Archives
+backups/
+backup/
+_zip_full/
+*.zip
+
+# OS generated files
+.DS_Store
+# Node modules
+node_modules/
+npm-debug.log
+
+# Environment variables
+.env
+.env.local
+
+# Database and Storage
+data_storage/
+
+# Backups and Archives
+backups/
+backup_*/
+_zip_full/
+*.zip
+
+# OS generated files
+.DS_Store
+
+# Temporary files
+.tmp.drivedownload
+.tmp.driveupload
+.tmp_gltest.js
+tmp_fix.txt
+tmp_fix_node.txt
+
+# Logs
+*.log
+server_stdout.log
+server_stderr.log
+
+# Test and debug files
+import_result.txt
+products_debug.json
+temp_stock_out_test.js
+backup_before_delete.js

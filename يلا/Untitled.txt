@@ -1,0 +1,933 @@
+
+root@VPS006cpanel:/var/www/Emp_Inventory# # 1. الدخول لمجلد المشروع
+cd /var/www/Emp_Inventory
+
+# 2. إنشاء ملف نصي مجمع فيه كل الأكواد (عشان تنسخه مرة واحدة)
+echo "--- [ START OF PROJECT SUMMARY ] ---" > Final_Project_Code.txt
+echo "Project Path: /var/www/Emp_Inventory" >> Final_Project_Code.txt
+echo "Database Schema:" >> Final_Project_Code.txt
+sqlite3 inventory_master.db ".schema" >> Final_Project_Code.txt
+echo "" >> Final_Project_Code.txt
+
+# إضافة كود app.py
+echo "--- [ FILE: app.py ] ---" >> Final_Project_Code.txt
+cat app.py >> Final_Project_Code.txt
+echo "" >> Final_Project_Code.txt
+
+# إضافة أكواد كل الصفحات في مجلد pages
+for file in pages/*.py; do
+    echo "--- [ FILE: $file ] ---" >> Final_Project_Code.txt
+    cat "$file" >> Final_Project_Code.txt
+    echo "" >> Final_Project_Code.txt
+done
+
+echo "--- [ END OF PROJECT SUMMARY ] ---" >> Final_Project_Code.txt
+
+# 3. عرض المحتوى بالكامل على الشاشة عشان تاخده Copy
+cat Final_Project_Code.txt
+--- [ START OF PROJECT SUMMARY ] ---
+Project Path: /var/www/Emp_Inventory
+Database Schema:
+CREATE TABLE inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sku TEXT UNIQUE,
+    name TEXT,
+    category TEXT,
+    width REAL,
+    length REAL,
+    area REAL,
+    unit_price REAL,
+    supplier TEXT,
+    date TEXT
+, rec_no TEXT);
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE TABLE inventory_out (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    issue_no TEXT,
+    manual_ref TEXT,
+    date TEXT,
+    job_no TEXT,
+    car TEXT,
+    tech TEXT,
+    item_code TEXT,
+    part_name TEXT,
+    cut_w REAL,
+    cut_l REAL,
+    area_m2 REAL
+);
+CREATE TABLE users
+             (id INTEGER PRIMARY KEY AUTOINCREMENT,
+              username TEXT UNIQUE,
+              password TEXT,
+              role TEXT);
+
+--- [ FILE: app.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+import io
+
+st.set_page_config(page_title="نظام Emp للمخازن", layout="wide")
+
+# --- دالة الطباعة والتصدير العامة ---
+def add_report_tools(df, report_name="report"):
+    st.sidebar.divider()
+    st.sidebar.subheader("🖨️ أدوات التقرير")
+
+    # 1. زر الطباعة (باستخدام JavaScript)
+    if st.sidebar.button("🖨️ طباعة الصفحة الحالية", use_container_width=True):
+        st.markdown("<script>window.print();</script>", unsafe_allow_html=True)
+
+    # 2. زر التصدير إكسيل
+    if df is not None and not df.empty:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Sheet1')
+        st.sidebar.download_button(
+            label="📥 تصدير إلى Excel",
+            data=output.getvalue(),
+            file_name=f"{report_name}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+# تصدير الدوال لاستخدامها في الصفحات التانية
+st.session_state['add_report_tools'] = add_report_tools
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+
+def logout():
+    st.session_state.logged_in = False
+    st.rerun()
+
+# --- تعريف الصفحات كمتغيرات ثابتة لمنع تكرار الـ URL ---
+pg_out = st.Page("pages/1_صرف.py", title="صرف خامات", icon="📤")
+pg_in = st.Page("pages/2_استلام.py", title="استلام خامات", icon="📥")
+pg_inv = st.Page("pages/3_المخزن.py", title="المخزن والجرد", icon="📦")
+pg_ret = st.Page("pages/4_مرتجع.py", title="مرتجع بضاعة", icon="🔙")
+pg_books = st.Page("pages/5_الدفاتر.py", title="دفاتر الحركة", icon="📒")
+pg_rev = st.Page("pages/6_المراجعة.py", title="المراجعة المالية", icon="⚖️")
+pg_rep = st.Page("pages/7_التقارير.py", title="التقارير", icon="📊")
+pg_size = st.Page("pages/8_المقاسات.py", title="تحليل المقاسات", icon="📏")
+pg_users = st.Page("pages/9_المستخدمين.py", title="إدارة المستخدمين", icon="👤")
+
+def login_screen():
+    st.title("🔐 تسجيل الدخول - نظام Emp")
+    with st.container(border=True):
+        u_name = st.text_input("اسم المستخدم")
+        u_pass = st.text_input("كلمة المرور", type="password")
+        if st.button("دخول", use_container_width=True):
+            conn = get_connection(); c = conn.cursor()
+            c.execute("SELECT username, role FROM users WHERE username=? AND password=?", (u_name, u_pass))
+            user_data = c.fetchone()
+            conn.close()
+            if user_data:
+                st.session_state.logged_in = True
+                st.session_state.user = user_data[0]
+                st.session_state.role = user_data[1]
+                st.rerun()
+            else: st.error("❌ بيانات الدخول غلط!")
+
+if not st.session_state.logged_in:
+    pg = st.navigation([st.Page(login_screen, title="تسجيل الدخول", icon="🔒")])
+else:
+    role = st.session_state.role
+    st.sidebar.markdown(f"### 👋 أهلاً: {st.session_state.user}")
+    if st.sidebar.button("🚪 خروج"): logout()
+
+    # توزيع الصفحات حسب الصلاحية بدون تكرار
+    if role == "المدير المالي":
+        nav_list = [pg_out, pg_in, pg_inv, pg_ret, pg_books, pg_rev, pg_rep, pg_size, pg_users]
+    elif role == "أمين المخزن":
+        nav_list = [pg_out, pg_in, pg_inv, pg_ret, pg_size]
+    elif role == "محاسب":
+        nav_list = [pg_inv, pg_books, pg_rev, pg_rep]
+
+    pg = st.navigation(nav_list)
+
+pg.run()
+
+--- [ FILE: pages/1_صرف.py ] ---
+import streamlit as st
+import sqlite3
+from datetime import datetime
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+def get_data(query, params=()):
+    try:
+        conn = get_connection(); c = conn.cursor()
+        c.execute(query, params); data = [row[0] for row in c.fetchall() if row[0]]
+        conn.close(); return data
+    except: return []
+
+st.set_page_config(page_title="صرف احترافي - Emp", layout="wide")
+st.title("📑 إذن صرف خامات (النسخة الاحترافية)")
+
+all_cats = get_data("SELECT DISTINCT category FROM inventory WHERE area > 0")
+list_of_cars = get_data("SELECT DISTINCT car FROM inventory_out")
+list_of_techs = get_data("SELECT DISTINCT tech FROM inventory_out")
+list_of_parts = get_data("SELECT DISTINCT part_name FROM inventory_out")
+
+if 'issue_rows' not in st.session_state: st.session_state.issue_rows = [0]
+
+with st.container(border=True):
+    c1, c2, c3 = st.columns(3)
+    iss_no = c1.text_input("رقم الإذن", value=f"OUT-{datetime.now().strftime('%y%m%d%H%M')}")
+    man_ref = c2.text_input("رقم الدفتري")
+    iss_date = c3.date_input("التاريخ", datetime.now())
+    st.divider()
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        new_c = st.checkbox("سيارة جديدة؟")
+        f_car = st.text_input("اسم السيارة") if new_c else st.selectbox("السيارة", [""] + list_of_cars)
+    with c5:
+        new_t = st.checkbox("فني جديد؟")
+        f_tech = st.text_input("اسم الفني") if new_t else st.selectbox("الفني", [""] + list_of_techs)
+    f_job = c6.text_input("Job No")
+
+issued_items = []
+for idx in st.session_state.issue_rows:
+    with st.container(border=True):
+        r1, r2 = st.columns([2, 2, 2]), st.columns([2, 1, 1, 0.5])
+        with r1[0]: sel_cat = st.selectbox("الخامة", [""] + all_cats, key=f"c_{idx}")
+        with r1[1]:
+            avail_n = get_data("SELECT DISTINCT name FROM inventory WHERE category = ? AND area > 0", (sel_cat,)) if sel_cat else []
+            sel_name = st.selectbox("الصنف", [""] + avail_n, key=f"n_{idx}")
+        with r1[2]:
+            avail_s = get_data("SELECT sku FROM inventory WHERE category = ? AND name = ? AND area > 0", (sel_cat, sel_name)) if sel_name else []
+            f_sku = st.selectbox("الكود", [""] + avail_s, key=f"s_{idx}")
+
+        with r2[0]:
+            new_p = st.checkbox("قطعة جديدة؟", key=f"np_{idx}")
+            f_part = st.text_input("اسم القطعة", key=f"npt_{idx}") if new_p else st.selectbox("اختر القطعة", [""] + list_of_parts, key=f"nps_{idx}")
+
+        w = r2[1].number_input("عرض(سم)", key=f"w_{idx}")
+        l = r2[2].number_input("طول(سم)", key=f"l_{idx}")
+        s_area = (w * l) / 100 # حسبة الـ 100
+
+        if r2[3].button("🗑️", key=f"d_{idx}"):
+            if len(st.session_state.issue_rows) > 1:
+                st.session_state.issue_rows.remove(idx); st.rerun()
+        if f_sku and f_part: issued_items.append({"sku": f_sku, "part": f_part, "w": w, "l": l, "area": s_area})
+
+if st.button("➕ إضافة قطعة"):
+    st.session_state.issue_rows.append(max(st.session_state.issue_rows) + 1); st.rerun()
+
+if st.button("💾 حفظ وترحيل", type="primary", use_container_width=True):
+    try:
+        conn = get_connection(); c = conn.cursor()
+        for item in issued_items:
+            c.execute("INSERT INTO inventory_out (issue_no, manual_ref, date, job_no, car, tech, item_code, part_name, area_m2, cut_w, cut_l) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                      (iss_no, man_ref, iss_date.strftime("%Y-%m-%d"), f_job, f_car, f_tech, item['sku'], item['part'], item['area'], item['w'], item['l']))
+            c.execute("UPDATE inventory SET area = area - ? WHERE sku = ?", (item['area'], item['sku']))
+        conn.commit(); conn.close(); st.success("✅ تم الصرف!"); st.session_state.issue_rows = [0]; st.rerun()
+    except Exception as e: st.error(f"❌ خطأ: {e}")
+
+--- [ FILE: pages/2_استلام.py ] ---
+import streamlit as st
+import sqlite3
+from datetime import datetime
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+def get_data(query, params=()):
+    try:
+        conn = get_connection(); c = conn.cursor()
+        c.execute(query, params); data = [row[0] for row in c.fetchall() if row[0]]
+        conn.close(); return data
+    except: return []
+
+def get_last_serial(prefix):
+    try:
+        conn = get_connection(); c = conn.cursor()
+        c.execute(f"SELECT id FROM inventory ORDER BY id DESC LIMIT 1")
+        last = c.fetchone()
+        conn.close()
+        num = (last[0] + 1) if last else 1
+        return f"{prefix}-{datetime.now().strftime('%y%m')}{num:04d}"
+    except: return f"{prefix}-0001"
+
+st.set_page_config(page_title="استلام احترافي - Emp", layout="wide")
+st.title("📥 إذن استلام وتوريد (النسخة الاحترافية)")
+
+# جلب البيانات
+all_categories = get_data("SELECT DISTINCT category FROM inventory")
+all_suppliers = get_data("SELECT DISTINCT supplier FROM inventory")
+
+if 'rec_rows' not in st.session_state: st.session_state.rec_rows = [0]
+
+with st.container(border=True):
+    st.markdown("### 📝 بيانات التوريد العامة")
+    c1, c2, c3 = st.columns(3)
+    rec_no = c1.text_input("رقم الإذن (قابل للتعديل)", value=get_last_serial("REC"))
+    rec_date = c2.date_input("تاريخ الاستلام", datetime.now())
+    new_supp = c3.checkbox("مورد جديد؟ ➕")
+    f_supp = c3.text_input("اسم المورد الجديد") if new_supp else c3.selectbox("اختر المورد", [""] + all_suppliers)
+
+st.divider()
+
+received_items = []
+for idx in st.session_state.rec_rows:
+    with st.container(border=True):
+        col_hierarchy, col_dims, col_del = st.columns([4, 3, 0.5])
+        with col_hierarchy:
+            c_cat, c_item = st.columns(2)
+            new_cat_cb = c_cat.checkbox("خامة جديدة؟ ➕", key=f"nc_cb_{idx}")
+            final_cat = c_cat.text_input("اسم الخامة", key=f"nc_i_{idx}") if new_cat_cb else c_cat.selectbox("اختر الخامة", [""] + all_categories, key=f"sc_s_{idx}")
+
+            items_under_cat = get_data("SELECT DISTINCT name FROM inventory WHERE category = ?", (final_cat,)) if final_cat else []
+            new_item_cb = c_item.checkbox("صنف جديد؟ ➕", key=f"ni_cb_{idx}")
+            final_item = c_item.text_input("اسم الصنف", key=f"ni_i_{idx}") if new_item_cb else c_item.selectbox("اختر الصنف", [""] + items_under_cat, key=f"si_s_{idx}")
+
+            sku = st.text_input(f"كود الباركود / SKU #{idx+1}", key=f"sku_r_{idx}")
+
+        with col_dims:
+            type_radio = st.radio(f"النوع", ["رول", "لوازم"], horizontal=True, key=f"tr_{idx}")
+            cc1, cc2 = st.columns(2)
+            if type_radio == "رول":
+                w = cc1.number_input("عرض(سم)", value=152.0, key=f"w_{idx}")
+                l = cc2.number_input("طول(سم)", value=1500.0, key=f"l_{idx}")
+                calc_val = (w * l) / 100 # حسبة الـ 100 المعتمدة
+                st.info(f"المساحة: {calc_val:,.2f}")
+            else:
+                calc_val = cc1.number_input("الكمية/العدد", min_value=0.0, key=f"q_{idx}")
+                w, l = 0, 0
+                st.info(f"العدد: {int(calc_val)}")
+
+        if col_del.button("🗑️", key=f"del_{idx}"):
+            if len(st.session_state.rec_rows) > 1:
+                st.session_state.rec_rows.remove(idx); st.rerun()
+        if sku and final_cat and final_item:
+            received_items.append({"sku": sku, "cat": final_cat, "name": final_item, "w": w, "l": l, "val": calc_val})
+
+if st.button("➕ إضافة صنف آخر"):
+    st.session_state.rec_rows.append(max(st.session_state.rec_rows) + 1); st.rerun()
+
+if st.button("🚀 ترحيل للمخزن", type="primary", use_container_width=True):
+    try:
+        conn = get_connection(); c = conn.cursor()
+        for item in received_items:
+            c.execute("INSERT INTO inventory (sku, name, category, width, length, area, supplier, date, unit_price) VALUES (?,?,?,?,?,?,?,?,0)",
+                      (item['sku'], item['name'], item['cat'], item['w'], item['l'], item['val'], f_supp, rec_date.strftime("%Y-%m-%d")))
+        conn.commit(); conn.close(); st.success("✅ تم التوريد!"); st.session_state.rec_rows = [0]; st.rerun()
+    except Exception as e: st.error(f"❌ خطأ: {e}")
+
+--- [ FILE: pages/3_المخزن.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="المخزن الذكي - Emp", layout="wide")
+
+# --- CSS للدلع (تصميم الكروت والأزرار) ---
+st.markdown("""
+    <style>
+    .category-box {
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid #ddd;
+        margin-bottom: 10px;
+    }
+    .sku-link {
+        color: #007bff;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("📦 مستودع الخامات الذكي")
+
+# إدارة الحالة (State Management) للتنقل بين الصفحات
+if 'view' not in st.session_state: st.session_state.view = 'grid'
+if 'target_sku' not in st.session_state: st.session_state.target_sku = None
+
+# زر العودة للرئيسية (يظهر فقط وأنت داخل كارت صنف)
+if st.session_state.view == 'details':
+    if st.button("⬅️ العودة لجرد المخزن"):
+        st.session_state.view = 'grid'
+        st.rerun()
+
+# --- جلب البيانات ---
+conn = get_connection()
+df_inv = pd.read_sql_query("SELECT id, category, name, sku, area FROM inventory WHERE area > 0", conn)
+conn.close()
+
+# ---------------------------------------------------------
+# الحالة الأولى: عرض المربعات والجداول (الرئيسية)
+# ---------------------------------------------------------
+if st.session_state.view == 'grid':
+    if df_inv.empty:
+        st.warning("المخزن فارغ.")
+    else:
+        # عرض الخامات كـ "مربعات" (Grid)
+        st.markdown("### 📂 تصنيفات الخامات")
+        categories = df_inv['category'].unique()
+        cols = st.columns(4) # 4 كروت في السطر
+
+        for i, cat in enumerate(categories):
+            with cols[i % 4]:
+                st.markdown(f"""
+                <div class="category-box">
+                    <h4>{cat}</h4>
+                    <p>إجمالي: {df_inv[df_inv['category']==cat]['area'].sum():.2f} m2</p>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"عرض أصناف {cat}", key=f"btn_{cat}", use_container_width=True):
+                    st.session_state.selected_cat = cat
+
+        # عرض جدول الأصناف للخامة المختارة
+        if 'selected_cat' in st.session_state:
+            st.divider()
+            sel_cat = st.session_state.selected_cat
+            st.subheader(f"📋 أصناف خامة: {sel_cat}")
+
+            cat_df = df_inv[df_inv['category'] == sel_cat].copy()
+
+            # عرض الجدول مع "زرار تتبع" لكل سطر (بديل الهايبر لينك)
+            for _, row in cat_df.iterrows():
+                with st.container(border=True):
+                    c_id, c_name, c_sku, c_area, c_action = st.columns([0.5, 2, 2, 1.5, 1])
+                    c_id.write(f"#{row['id']}")
+                    c_name.write(row['name'])
+                    c_sku.write(f"**{row['sku']}**")
+                    c_area.write(f"{row['area']:.2f} m2")
+                    if c_action.button("🪪 تتبع", key=f"trk_{row['sku']}"):
+                        st.session_state.target_sku = row['sku']
+                        st.session_state.view = 'details'
+                        st.rerun()
+
+# ---------------------------------------------------------
+# الحالة الثانية: عرض كارت الصنف (التفاصيل)
+# ---------------------------------------------------------
+elif st.session_state.view == 'details':
+    selected_sku = st.session_state.target_sku
+    st.subheader(f"🪪 كارت حركة الكود: {selected_sku}")
+
+    conn = get_connection()
+    # جلب بيانات الاستلام
+    df_in = pd.read_sql_query("""
+        SELECT id as 'ID', date as 'التاريخ', 'استلام' as 'الحركة',
+               supplier as 'البيان', width || 'x' || length as 'المقاس',
+               (width * length / 100) as 'المساحة', (width * length / 100) as 'change'
+        FROM inventory WHERE sku = ?
+    """, conn, params=(selected_sku,))
+
+    # جلب بيانات الصرف
+    df_out = pd.read_sql_query("""
+        SELECT id as 'ID', date as 'التاريخ', 'صرف' as 'الحركة',
+               issue_no as 'المستند', car as 'البيان',
+               cut_w || 'x' || cut_l as 'المقاس',
+               area_m2 as 'المساحة', -area_m2 as 'change'
+        FROM inventory_out WHERE item_code = ?
+    """, conn, params=(selected_sku,))
+    conn.close()
+
+    if not df_in.empty:
+        full_history = pd.concat([df_in, df_out]).sort_values(['التاريخ', 'change'], ascending=[True, False])
+        full_history['الرصيد التراكمي'] = full_history['change'].cumsum()
+
+        # عرض تاريخ الحركة بشكل منسق
+        st.table(full_history.drop(columns=['change']).style.format({"المساحة": "{:.2f}", "الرصيد التراكمي": "{:.2f}"}))
+
+        # زرار "الهايبر لينك" اللي قولت عليه لربط الأذونات بالمراجعة (اختياري)
+        st.info("💡 نصيحة: يمكنك الضغط على 'العودة' للرجوع للقائمة الرئيسية.")
+
+# إضافة أدوات التصدير والطباعة في السايدبار
+if 'add_report_tools' in st.session_state:
+    # بنبعت الـ dataframe اللي عايزين نصدره (df_inv)
+    st.session_state['add_report_tools'](df_inv, report_name="Inventory_Report")
+
+--- [ FILE: pages/4_مرتجع.py ] ---
+import streamlit as st
+import sqlite3
+from datetime import datetime
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="مرتجع - Emp", layout="wide")
+st.title("🔄 إذن مرتجع خامات للمخزن")
+
+# 1. البحث عن رقم الجوب أو الإذن
+with st.container(border=True):
+    col1, col2 = st.columns([3, 1])
+    search_job = col1.text_input("ادخل رقم Job No أو رقم إذن الصرف للبحث")
+    btn_search = col2.button("🔍 ابحث عن المنصرف", use_container_width=True)
+
+if search_job:
+    conn = get_connection()
+    # جلب بيانات القطع اللي اتصرفت للجوب ده
+    issued_data = conn.execute("""
+        SELECT id, item_code, part_name, cut_w, cut_l, area_m2
+        FROM inventory_out
+        WHERE job_no = ? OR issue_no = ?
+    """, (search_job, search_job)).fetchall()
+    conn.close()
+
+    if not issued_data:
+        st.error("❌ لم يتم العثور على أي منصرف بهذا الرقم")
+    else:
+        st.info(f"✅ تم العثور على {len(issued_data)} قطع منصرفة لهذا الرقم")
+
+        with st.form("return_form"):
+            # اختيار القطعة من المنصرف
+            options = {f"{r[2]} (كود: {r[1]}) - مقاس {r[3]}x{r[4]}": r for r in issued_data}
+            selected_part_str = st.selectbox("اختر القطعة التي سيتم إرجاع جزء منها", options.keys())
+            selected_data = options[selected_part_str]
+
+            st.divider()
+            st.markdown(f"**بيانات المرتجع الفعلي للقطعة: {selected_data[2]}**")
+            c1, c2, c3 = st.columns(3)
+            ret_w = c1.number_input("العرض المرتجع (سم)", min_value=0.0, max_value=float(selected_data[3]))
+            ret_l = c2.number_input("الطول المرتجع (سم)", min_value=0.0, max_value=float(selected_data[4]))
+
+            ret_area = (ret_w / 100) * (ret_l / 100)
+            c3.metric("المساحة التي ستعود للمخزن", f"{ret_area:.3f} m2")
+
+            ret_reason = st.text_area("سبب المرتجع")
+
+            if st.form_submit_button("✅ اعتماد المرتجع وتحديث العهدة", use_container_width=True):
+                if ret_area <= 0:
+                    st.warning("⚠️ لازم تحدد مقاس المرتجع")
+                else:
+                    try:
+                        conn = get_connection(); c = conn.cursor()
+                        # 1. تحديث المخزن (إضافة المساحة المرتجعة للرول الأصلي)
+                        c.execute("UPDATE inventory SET area = area + ? WHERE sku = ?", (ret_area, selected_data[1]))
+
+                        # 2. تسجيل حركة المرتجع (ممكن ننشئ جدول للمرتجع أو نضيفها بالسالب في الصرف)
+                        # هنا هنسجلها كإذن استلام بنوع (مرتجع) عشان تظهر في الجرد
+                        ret_no = "RET-" + datetime.now().strftime("%y%m%d%H%M")
+                        c.execute("""
+                            INSERT INTO inventory (sku, name, category, area, date, supplier, unit_price)
+                            VALUES (?, ?, ?, ?, ?, ?, 0)
+                        """, (f"RET-{selected_data[1]}", f"مرتجع {selected_data[2]}", "مرتجع", ret_area, datetime.now().strftime("%Y-%m-%d"), f"Job: {search_job}"))
+
+                        conn.commit(); conn.close()
+                        st.success(f"✅ تم إرجاع {ret_area:.3f} m2 إلى عهدة الكود {selected_data[1]}")
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"❌ خطأ: {e}")
+
+--- [ FILE: pages/5_الدفاتر.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="الدفاتر - Emp", layout="wide")
+st.title("📒 دفاتر الحركة والتحليل الذكي")
+
+# جلب البيانات
+conn = get_connection()
+df_out = pd.read_sql_query("SELECT * FROM inventory_out ORDER BY date DESC", conn)
+conn.close()
+
+# --- فلاتر البحث (زي ما هي عشان ما نغيرش النتايج) ---
+with st.container(border=True):
+    st.markdown("### 🔍 فلاتر البحث في الصرف")
+    c1, c2, c3, c4 = st.columns(4)
+    f_iss = c1.text_input("رقم الإذن / الجوب")
+    f_tech = c2.selectbox("الفني", ["الكل"] + list(df_out['tech'].unique()))
+    f_car = c3.selectbox("السيارة", ["الكل"] + list(df_out['car'].unique()))
+    f_part = c4.selectbox("القطعة", ["الكل"] + list(df_out['part_name'].unique()))
+
+# تطبيق الفلترة
+df_filtered = df_out.copy()
+if f_iss: df_filtered = df_filtered[df_filtered['issue_no'].str.contains(f_iss) | df_filtered['job_no'].str.contains(f_iss)]
+if f_tech != "الكل": df_filtered = df_filtered[df_filtered['tech'] == f_tech]
+if f_car != "الكل": df_filtered = df_filtered[df_filtered['car'] == f_car]
+if f_part != "الكل": df_filtered = df_filtered[df_filtered['part_name'] == f_part]
+
+# --- عرض الجدول التفاعلي ---
+st.info("💡 المس أي سطر في الجدول لمشاهدة 'قصة حياة' الجوب أوردر بالكامل")
+
+# استخدام خاصية الاختيار في الجدول
+event = st.dataframe(
+    df_filtered,
+    use_container_width=True,
+    hide_index=True,
+    on_select="rerun", # دي اللي بتخلي الجدول يتفاعل مع اللمس
+    selection_mode="single-row"
+)
+
+# --- منطق "قصة حياة الجوب أوردر" عند اللمس ---
+if len(event.selection.rows) > 0:
+    selected_index = event.selection.rows[0]
+    selected_job = df_filtered.iloc[selected_index]['job_no']
+
+    st.divider()
+    st.subheader(f"🎞️ سجل حركات الجوب أوردر: {selected_job}")
+
+    conn = get_connection()
+    # جلب كل الحركات المرتبطة بهذا الجوب (صرف ومرتجع لو فيه)
+    job_history = pd.read_sql_query("""
+        SELECT date as 'التاريخ', 'صرف' as 'النوع', tech as 'الفني',
+               part_name as 'القطعة', item_code as 'الكود', area_m2 as 'المساحة'
+        FROM inventory_out WHERE job_no = ?
+        UNION ALL
+        SELECT date as 'التاريخ', 'مرتجع' as 'النوع', '---' as 'الفني',
+               '---' as 'القطعة', sku as 'الكود', -area as 'المساحة'
+        FROM inventory WHERE sku LIKE 'RET-' || ?
+        ORDER BY date ASC
+    """, conn, params=(selected_job, selected_job))
+    conn.close()
+
+    if not job_history.empty:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("إجمالي الخامات المستخدمة", f"{job_history[job_history['المساحة']>0]['المساحة'].sum():.2f} m2")
+        c2.metric("عدد القطع المركبة", len(job_history[job_history['النوع']=='صرف']))
+        c3.metric("اسم السيارة", df_filtered.iloc[selected_index]['car'])
+
+        st.table(job_history)
+    else:
+        st.warning("لا توجد بيانات تفصيلية إضافية.")
+
+# إضافة أداة التصدير والطباعة
+if 'add_report_tools' in st.session_state:
+    st.session_state['add_report_tools'](df_filtered, report_name=f"Ledger_{selected_job if 'selected_job' in locals() else 'All'}")
+
+--- [ FILE: pages/6_المراجعة.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="المراجعة المالية - Emp", layout="wide")
+st.title("⚖️ مركز المراجعة والتحكم المالي")
+
+tab1, tab2 = st.tabs(["📤 مراجعة أذونات الصرف", "📥 مراجعة أذونات الاستلام"])
+
+# --- التبويب الأول: مراجعة الصرف ---
+with tab1:
+    conn = get_connection()
+    df_out = pd.read_sql_query("SELECT * FROM inventory_out ORDER BY id DESC", conn)
+    conn.close()
+
+    st.subheader("🛠️ البحث عن إذن صرف لتعديله")
+    # إنشاء قائمة عرض للمدير المالي (السيريال + السيارة + التاريخ) مع الاحتفاظ بالـ ID
+    out_options = {f"{r['issue_no']} | {r['car']} | {r['date']}": r['id'] for _, r in df_out.iterrows()}
+
+    selected_out_label = st.selectbox("ابحث برقم الإذن (سيريال) أو اسم السيارة", [""] + list(out_options.keys()), key="sb_out_new")
+
+    if selected_out_label:
+        edit_id = out_options[selected_out_label]
+        row = df_out[df_out['id'] == edit_id].iloc[0]
+
+        with st.form("edit_out_form"):
+            st.warning(f"تعديل الإذن: {row['issue_no']} (مسلسل داخلي: {edit_id})")
+            c1, c2, c3, c4 = st.columns(4)
+            u_job = c1.text_input("رقم Job No", value=row['job_no'])
+            u_car = c2.text_input("السيارة", value=row['car'])
+            u_tech = c3.text_input("الفني", value=row['tech'])
+            u_part = c4.text_input("اسم القطعة", value=row['part_name'])
+
+            c5, c6, c7 = st.columns(3)
+            u_w = c5.number_input("العرض (سم)", value=float(row['cut_w']))
+            u_l = c6.number_input("الطول (سم)", value=float(row['cut_l']))
+            new_area = (u_w / 100) * (u_l / 100)
+            c7.metric("المساحة المعدلة (m2)", f"{new_area:.3f}")
+
+            btn_save, btn_del = st.columns(2)
+            if btn_save.form_submit_button("💾 حفظ التعديلات", use_container_width=True):
+                try:
+                    conn = get_connection(); c = conn.cursor()
+                    diff = new_area - float(row['area_m2'])
+                    c.execute("UPDATE inventory SET area = area - ? WHERE sku = ?", (diff, row['item_code']))
+                    c.execute("""UPDATE inventory_out SET job_no=?, car=?, tech=?, part_name=?, cut_w=?, cut_l=?, area_m2=? WHERE id=?""",
+                              (u_job, u_car, u_tech, u_part, u_w, u_l, new_area, edit_id))
+                    conn.commit(); conn.close()
+                    st.success("✅ تم التحديث بنجاح"); st.rerun()
+                except Exception as e: st.error(f"خطأ: {e}")
+
+            if btn_del.form_submit_button("🗑️ حذف الإذن", use_container_width=True):
+                try:
+                    conn = get_connection(); c = conn.cursor()
+                    c.execute("UPDATE inventory SET area = area + ? WHERE sku = ?", (row['area_m2'], row['item_code']))
+                    c.execute("DELETE FROM inventory_out WHERE id=?", (edit_id,))
+                    conn.commit(); conn.close()
+                    st.success("🗑️ تم الحذف وإعادة الكمية للمخزن"); st.rerun()
+                except Exception as e: st.error(f"خطأ: {e}")
+
+    st.divider()
+    st.dataframe(df_out, use_container_width=True, hide_index=True)
+
+# --- التبويب الثاني: مراجعة الاستلام ---
+with tab2:
+    conn = get_connection()
+    df_in = pd.read_sql_query("SELECT * FROM inventory ORDER BY id DESC", conn)
+    conn.close()
+
+    st.subheader("⚙️ البحث عن صنف في المخزن لتعديله")
+    # إنشاء قائمة عرض (SKU | اسم الصنف | المورد)
+    in_options = {f"{r['sku']} | {r['name']} | {r['supplier']}": r['id'] for _, r in df_in.iterrows()}
+
+    selected_in_label = st.selectbox("ابحث بكود الصنف (SKU) أو الاسم", [""] + list(in_options.keys()), key="sb_in_new")
+
+    if selected_in_label:
+        edit_in_id = in_options[selected_in_label]
+        row_in = df_in[df_in['id'] == edit_in_id].iloc[0]
+
+        with st.form("edit_in_form"):
+            st.info(f"تعديل الصنف: {row_in['sku']} (مسلسل داخلي: {edit_in_id})")
+            cc1, cc2, cc3 = st.columns(3)
+            u_sku = cc1.text_input("كود الصنف (SKU)", value=row_in['sku'])
+            u_name = cc2.text_input("الاسم / المورد", value=row_in['name'])
+            u_price = cc3.number_input("سعر التكلفة", value=float(row_in['unit_price']))
+
+            cc4, cc5, cc6 = st.columns(3)
+            if float(row_in['width']) > 0:
+                u_width = cc4.number_input("العرض (سم)", value=float(row_in['width']))
+                u_length = cc5.number_input("الطول (سم)", value=float(row_in['length']))
+                u_area = (u_width / 100) * (u_length / 100)
+                cc6.metric("المساحة الناتجة", f"{u_area:.2f} m2")
+            else:
+                u_width, u_length = 0.0, 0.0
+                u_area = cc4.number_input("العدد / الكمية", value=float(row_in['area']))
+                cc6.info("نوع الصنف: لوازم")
+
+            btn_save_in, btn_del_in = st.columns(2)
+            if btn_save_in.form_submit_button("✅ حفظ تعديلات المخزن", use_container_width=True):
+                try:
+                    conn = get_connection(); c = conn.cursor()
+                    c.execute("""UPDATE inventory SET sku=?, name=?, width=?, length=?, area=?, unit_price=? WHERE id=?""",
+                              (u_sku, u_name, u_width, u_length, u_area, u_price, edit_in_id))
+                    conn.commit(); conn.close()
+                    st.success("✅ تم تحديث بيانات المخزن"); st.rerun()
+                except Exception as e: st.error(f"خطأ: {e}")
+
+            if btn_del_in.form_submit_button("🚨 حذف نهائي", use_container_width=True):
+                try:
+                    conn = get_connection(); c = conn.cursor()
+                    c.execute("DELETE FROM inventory WHERE id=?", (edit_in_id,))
+                    conn.commit(); conn.close()
+                    st.success("🗑️ تم الحذف"); st.rerun()
+                except Exception as e: st.error(f"خطأ: {e}")
+
+    st.divider()
+    st.dataframe(df_in, use_container_width=True, hide_index=True)
+
+--- [ FILE: pages/7_التقارير.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+import plotly.express as px
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="التقارير - Emp", layout="wide")
+st.title("📊 مركز تحليل البيانات والتقارير")
+
+# جلب البيانات
+conn = get_connection()
+df_inv = pd.read_sql_query("SELECT * FROM inventory", conn)
+df_out = pd.read_sql_query("SELECT * FROM inventory_out", conn)
+conn.close()
+
+tab1, tab2 = st.tabs(["📉 تحليل الاستهلاك", "⚠️ تنبيهات العجز"])
+
+with tab1:
+    st.subheader("🔍 فلترة استهلاك الخامة والصنف")
+    c1, c2 = st.columns(2)
+
+    # قائمة الخامات
+    cats = ["الكل"] + list(df_inv['category'].unique())
+    sel_cat = c1.selectbox("نوع الخامة", cats)
+
+    # قائمة الأصناف مفلترة بالخامة
+    if sel_cat != "الكل":
+        names = ["الكل"] + list(df_inv[df_inv['category'] == sel_cat]['name'].unique())
+        sel_name = c2.selectbox("اسم الصنف", names)
+    else:
+        sel_name = "الكل"
+
+    # دمج البيانات للتحليل
+    merged = df_out.merge(df_inv[['sku', 'category', 'name']], left_on='item_code', right_on='sku', how='left')
+    filtered = merged.copy()
+
+    if sel_cat != "الكل":
+        filtered = filtered[filtered['category'] == sel_cat]
+    if sel_name != "الكل":
+        filtered = filtered[filtered['name'] == sel_name]
+
+    st.metric("إجمالي الاستهلاك الحالي", f"{filtered['area_m2'].sum():.2f}")
+    st.dataframe(filtered[['date', 'job_no', 'car', 'part_name', 'item_code', 'area_m2']], use_container_width=True, hide_index=True)
+
+with tab2:
+    # تم إصلاح علامات التنصيص هنا باستخدام ' للخارج و " للداخل
+    st.subheader('🚨 تنبيهات نقص الأصناف (SKUs)')
+
+    # التنبيه على مستوى الصنف (SKU) لو رصيده أقل من 5 وحدات (بناءً على حسبة الـ 100)
+    low_stock = df_inv[df_inv['area'] < 5.0][['sku', 'name', 'category', 'area', 'supplier']]
+
+    if not low_stock.empty:
+        st.error(f"يوجد {len(low_stock)} أصناف رصيدها قارب على النفاذ!")
+        st.table(low_stock)
+    else:
+        st.success("✅ جميع الأصناف رصيدها آمن.")
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🔄 تحديث البيانات"):
+    st.rerun()
+
+--- [ FILE: pages/8_المقاسات.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="تحليل المقاسات - Emp", layout="wide")
+st.title("📏 محلل المقاسات والتدوير الذكي (Optimization)")
+
+conn = get_connection()
+df_out = pd.read_sql_query("SELECT * FROM inventory_out", conn)
+conn.close()
+
+# --- فلاتر التحليل ---
+with st.container(border=True):
+    c1, c2, c3 = st.columns(3)
+    f_part = c1.selectbox("فلترة بـ (اسم القطعة) - كبوت مثلاً", ["الكل"] + list(df_out['part_name'].unique()))
+    f_car = c2.text_input("فلترة بـ (نوع السيارة) - مرسيدس مثلاً")
+    f_width = c3.number_input("بحث بعرض معين (سم)", value=0.0)
+
+# تطبيق الفلاتر
+mask = pd.Series([True] * len(df_out))
+if f_part != "الكل": mask &= (df_out['part_name'] == f_part)
+if f_car: mask &= (df_out['car'].str.contains(f_car, na=False))
+if f_width > 0: mask &= (df_out['cut_w'] == f_width)
+
+filtered_data = df_out[mask]
+
+st.divider()
+
+# --- عرض النتائج ---
+st.subheader("📊 نتائج تحليل الأبعاد")
+st.dataframe(filtered_data[['date', 'car', 'part_name', 'cut_w', 'cut_l', 'area_m2', 'job_no']], use_container_width=True)
+
+# --- منطق التدوير (تدوير المقاسات) ---
+st.markdown("### 💡 تحليل فني للتدوير (Waste Reduction)")
+if f_width > 0:
+    st.info(f"عرض {f_width} سم تم استخدامه لعدد {len(filtered_data)} قطع.")
+    # عرض الأطوال الشائعة لهذا العرض
+    common_lengths = filtered_data.groupby('cut_l').size().reset_index(name='مرات التكرار')
+    st.write("أطوال تم قصها بهذا العرض:")
+    st.table(common_lengths)
+
+    st.success(f"نصيحة: لو عندك رول عرضه 152، وقصيت منه {f_width} سم، المتبقي (فضلات) هو {152 - f_width} سم. "
+               "راجع لو تقدر تستخدم المتبقي ده لقطع تانية بدل ما يترمي!")
+
+# مقارنة المقاسات لنفس القطعة
+if f_part != "الكل":
+    st.markdown(f"**مقارنة مقاسات ({f_part}) عبر الموديلات المختلفة:**")
+    comp_df = filtered_data.groupby(['car', 'cut_w', 'cut_l']).size().reset_index(name='التكرار')
+    st.dataframe(comp_df)
+
+--- [ FILE: pages/9_المستخدمين.py ] ---
+import streamlit as st
+import sqlite3
+import pandas as pd
+
+def get_connection():
+    return sqlite3.connect('/var/www/Emp_Inventory/inventory_master.db', check_same_thread=False)
+
+st.set_page_config(page_title="إدارة المستخدمين - Emp", layout="wide")
+st.title("👤 مركز التحكم في المستخدمين والصلاحيات")
+
+# --- دالة لجلب كل المستخدمين ---
+def load_users():
+    conn = get_connection()
+    df = pd.read_sql_query("SELECT id, username, role FROM users", conn)
+    conn.close()
+    return df
+
+tab1, tab2 = st.tabs(["➕ إضافة مستخدم جديد", "🛠️ تعديل وحذف"])
+
+# --- التبويب الأول: الإضافة ---
+with tab1:
+    with st.form("add_user_form"):
+        st.subheader("📝 بيانات الحساب الجديد")
+        new_user = st.text_input("اسم المستخدم (Username)")
+        new_pass = st.text_input("كلمة المرور (Password)", type="password")
+        new_role = st.selectbox("الصلاحية (Role)", ["المدير المالي", "أمين المخزن", "محاسب"])
+
+        if st.form_submit_button("🚀 إنشاء الحساب"):
+            if new_user and new_pass:
+                try:
+                    conn = get_connection(); c = conn.cursor()
+                    c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (new_user, new_pass, new_role))
+                    conn.commit(); conn.close()
+                    st.success(f"✅ تم إنشاء حساب {new_user} بنجاح!")
+                    st.rerun()
+                except Exception as e: st.error("❌ الاسم ده موجود قبل كدة!")
+            else:
+                st.warning("⚠️ كمل البيانات يا ريس!")
+
+# --- التبويب الثاني: التعديل والحذف ---
+with tab2:
+    df_users = load_users()
+    st.subheader("⚙️ إدارة الحسابات الحالية")
+
+    selected_user_id = st.selectbox("اختر المستخدم للتعديل", options=df_users['id'].tolist(),
+                                     format_func=lambda x: df_users[df_users['id']==x]['username'].iloc[0])
+
+    if selected_user_id:
+        user_row = df_users[df_users['id'] == selected_user_id].iloc[0]
+        st.divider()
+
+        c1, c2 = st.columns(2)
+        with c1:
+            u_name = st.text_input("تعديل اسم المستخدم", value=user_row['username'])
+            u_role = st.selectbox("تعديل الصلاحية", ["المدير المالي", "أمين المخزن", "محاسب"],
+                                  index=["المدير المالي", "أمين المخزن", "محاسب"].index(user_row['role']))
+        with c2:
+            u_pass = st.text_input("تغيير كلمة المرور (سيبها فاضية لو مش عاوز تغير)", type="password")
+
+        btn_save, btn_del = st.columns(2)
+
+        if btn_save.button("💾 حفظ التعديلات", use_container_width=True):
+            conn = get_connection(); c = conn.cursor()
+            if u_pass:
+                c.execute("UPDATE users SET username=?, password=?, role=? WHERE id=?", (u_name, u_pass, u_role, selected_user_id))
+            else:
+                c.execute("UPDATE users SET username=?, role=? WHERE id=?", (u_name, u_role, selected_user_id))
+            conn.commit(); conn.close()
+            st.success("✅ تم التحديث!"); st.rerun()
+
+        if btn_del.button("🗑️ حذف الحساب نهائياً", use_container_width=True):
+            if u_name == 'admin':
+                st.error("❌ ممنوع حذف الأدمن الرئيسي!")
+            else:
+                conn = get_connection(); c = conn.cursor()
+                c.execute("DELETE FROM users WHERE id=?", (selected_user_id,))
+                conn.commit(); conn.close()
+                st.success("🗑️ تم الحذف!"); st.rerun()
+
+    st.divider()
+    st.dataframe(df_users, use_container_width=True, hide_index=True)
+
+--- [ END OF PROJECT SUMMARY ] ---
+
+
+----------------------
+*****************************
+
+==================

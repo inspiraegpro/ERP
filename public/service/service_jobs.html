@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أوامر التشغيل - Wrapstyle ERP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Header */
+        .header { background: linear-gradient(135deg, #1a3a5c, #0d2137); color: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; }
+        .header h1 { margin: 0 0 10px 0; font-size: 24px; }
+        .header p { margin: 0; opacity: 0.9; font-size: 14px; }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab { padding: 12px 24px; background: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; color: #1a3a5c; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .tab.active { background: #1a3a5c; color: white; }
+        .tab:hover:not(.active) { background: #e2e8f0; }
+        
+        /* Stats */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-card h3 { color: #64748b; font-size: 14px; margin-bottom: 8px; }
+        .stat-card .number { font-size: 28px; font-weight: bold; color: #1a3a5c; }
+        
+        /* Toolbar */
+        .toolbar { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .search-box { flex: 2; min-width: 200px; }
+        .search-box label { display: block; margin-bottom: 5px; font-size: 12px; color: #64748b; font-weight: bold; }
+        .search-box input, .filter-box select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+        .filter-box { flex: 1; min-width: 150px; }
+        .btn-sync { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        
+        /* Job Card */
+        .job-card { background: white; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .job-header { background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .job-title h3 { color: #1a3a5c; margin-bottom: 5px; }
+        .job-title p { color: #64748b; font-size: 13px; }
+        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-pending-ops { background: #fef3c7; color: #d97706; }
+        .status-pending-warehouse { background: #dbeafe; color: #2563eb; }
+        .status-in-progress { background: #d1fae5; color: #059669; }
+        .status-completed { background: #e0e7ff; color: #4f46e5; }
+        
+        /* Table */
+        .job-table { padding: 20px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; color: #1e293b; font-weight: bold; position: sticky; top: 0; }
+        td select, td input { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%; min-width: 120px; }
+        td input[type="number"] { width: 80px; text-align: center; }
+        .rating-input { width: 70px; text-align: center; }
+        
+        /* Actions */
+        .job-actions { padding: 15px 20px; background: #fafafa; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-primary { background: #1a3a5c; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-light { background: #e2e8f0; color: #1e293b; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; padding: 20px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+        .modal-header h3 { color: #1a3a5c; }
+        .close-modal { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; }
+        
+        .rating-row { display: flex; align-items: center; gap: 15px; padding: 12px; background: #f8fafc; margin-bottom: 10px; border-radius: 8px; }
+        .rating-row span:first-child { flex: 2; font-weight: bold; }
+        .rating-row span:nth-child(2) { flex: 1; color: #64748b; }
+        .rating-row input { flex: 0.5; padding: 8px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; }
+        
+        .empty-state { text-align: center; padding: 60px; color: #64748b; }
+        
+        @media print {
+            .no-print, .tabs, .toolbar, .job-actions { display: none; }
+            .job-card { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🔧 مركز التشغيل - أوامر الشغل</h1>
+        <p>جميع فواتير المبيعات تظهر هنا كأوامر تشغيل. بدون أسعار - فقط الخدمات المطلوبة.</p>
+    </div>
+    
+    <div class="tabs no-print">
+        <button class="tab active" data-status="PENDING_OPS">⏳ بانتظار العمليات</button>
+        <button class="tab" data-status="PENDING_WAREHOUSE">📦 بانتظار المخزن</button>
+        <button class="tab" data-status="IN_PROGRESS">🔧 قيد التنفيذ</button>
+        <button class="tab" data-status="COMPLETED">✅ مكتمل</button>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card"><h3>📊 إجمالي الأوامر</h3><div class="number" id="statAll">0</div></div>
+        <div class="stat-card"><h3>⏳ بانتظار العمليات</h3><div class="number" id="statPendingOps">0</div></div>
+        <div class="stat-card"><h3>📦 بانتظار المخزن</h3><div class="number" id="statPendingWarehouse">0</div></div>
+        <div class="stat-card"><h3>🔧 قيد التنفيذ</h3><div class="number" id="statInProgress">0</div></div>
+    </div>
+    
+    <div class="toolbar no-print">
+        <div class="search-box">
+            <label>🔍 بحث</label>
+            <input type="text" id="searchInput" placeholder="رقم الأمر / العميل / السيارة" onkeyup="renderJobs()">
+        </div>
+        <div class="filter-box">
+            <label>📂 نوع الخدمة</label>
+            <select id="serviceFilter" onchange="renderJobs()"><option value="">الكل</option></select>
+        </div>
+        <button class="btn-sync" onclick="syncJobs()">🔄 مزامنة الفواتير</button>
+    </div>
+    
+    <div id="jobsContainer"></div>
+</div>
+
+<!-- Modal تجهيز المهمة -->
+<div id="setupModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🔧 تجهيز أمر التشغيل</h3>
+            <button class="close-modal" onclick="closeSetupModal()">&times;</button>
+        </div>
+        <div id="setupItemsList"></div>
+        <div class="modal-footer">
+            <button class="btn btn-light" onclick="closeSetupModal()">إلغاء</button>
+            <button class="btn btn-primary" onclick="submitSetup()">✅ حفظ وإرسال للمخزن</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تقييم البنود -->
+<div id="ratingModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⭐ تقييم الفنيين</h3>
+            <button class="close-modal" onclick="closeRatingModal()">&times;</button>
+        </div>
+        <div id="ratingItemsList"></div>
+        <div class="modal-footer">
+            <button class="btn btn-light" onclick="closeRatingModal()">إلغاء</button>
+            <button class="btn btn-success" onclick="submitRating()">✅ إنهاء أمر التشغيل</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    
+    // البيانات الحقيقية من API
+    let allJobs = [];
+    let products = [];
+    let technicians = [];
+    let currentStatus = 'PENDING_OPS';
+    function authHeaders(includeJson = false) {
+        const headers = {};
+        if (includeJson) headers['Content-Type'] = 'application/json';
+        const token = localStorage.getItem('token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+    
+    function checkAuth() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showMessage('❌ يرجى تسجيل الدخول أولاً', 'error');
+            setTimeout(() => window.location.href = '/login.html', 2000);
+            return false;
+        }
+        return true;
+    }
+    
+    function handleAuthError(status, message) {
+        if (status === 401 || status === 403) {
+            showMessage('❌ ' + (message || 'جلسة العمل منتهية'), 'error');
+            localStorage.removeItem('token');
+            setTimeout(() => window.location.href = '/login.html', 2000);
+            return true;
+        }
+        return false;
+    }
+    
+    // جلب البيانات من API
+    async function loadJobs() {
+        if (!checkAuth()) return;
+        
+        try {
+            console.log('Loading jobs from API...');
+            const [jobsRes, prodRes, techRes] = await Promise.all([
+                fetch(`${API}/service-jobs`, { headers: authHeaders() }),
+                fetch(`${API}/products`, { headers: authHeaders() }),
+                fetch(`${API}/hr/employees?activeOnly=true&technicianOnly=true`, { headers: authHeaders() })
+            ]);
+
+            if (handleAuthError(jobsRes.status)) return;
+
+            if (!jobsRes.ok) {
+                const errorText = await jobsRes.text();
+                throw new Error(`Jobs API failed: ${jobsRes.status} - ${errorText}`);
+            }
+
+            allJobs = await jobsRes.json();
+            products = prodRes.ok ? await prodRes.json() : [];
+            technicians = techRes.ok ? await techRes.json() : [];
+
+            console.log('Jobs loaded:', allJobs.length);
+            if (allJobs.length > 0) {
+                console.log('First job full data:', JSON.stringify(allJobs[0], null, 2));
+                console.log('First job has items?', Array.isArray(allJobs[0].items), 'count:', allJobs[0].items?.length);
+            }
+            console.log('Products loaded:', products.length);
+            console.log('Technicians loaded:', technicians.length);
+
+            fillServiceFilter();
+            renderJobs();
+        } catch (error) {
+            console.error('loadJobs error:', error);
+            showMessage('❌ فشل في تحميل البيانات: ' + error.message, 'error');
+        }
+    }
+    
+    async function syncJobs() {
+        if (!checkAuth()) return;
+        
+        try {
+            showMessage('🔄 جاري مزامنة الفواتير...', 'info');
+            const response = await fetch(`${API}/service-jobs/sync-missing-from-sales`, { 
+                method: 'POST', 
+                headers: authHeaders(true) 
+            });
+            
+            if (handleAuthError(response.status)) return;
+            
+            const result = await response.json();
+            if (response.ok) {
+                showMessage('✅ ' + result.message, 'success');
+                await loadJobs();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error('syncJobs error:', error);
+            showMessage('❌ ' + error.message, 'error');
+        }
+    }
+    
+    function fillServiceFilter() {
+        const types = [...new Set(allJobs.map(j => j.serviceType).filter(t => t))];
+        const select = document.getElementById('serviceFilter');
+        select.innerHTML = '<option value="">الكل</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+    
+    function renderStats() {
+        document.getElementById('statAll').textContent = allJobs.length;
+        document.getElementById('statPendingOps').textContent = allJobs.filter(j => j.status === 'PENDING_OPS').length;
+        document.getElementById('statPendingWarehouse').textContent = allJobs.filter(j => j.status === 'PENDING_WAREHOUSE').length;
+        document.getElementById('statInProgress').textContent = allJobs.filter(j => j.status === 'IN_PROGRESS').length;
+    }
+    
+    function renderJobs() {
+        console.log('renderJobs called, allJobs count:', allJobs.length);
+        
+        const search = document.getElementById('searchInput')?.value?.toLowerCase() || '';
+        const serviceFilter = document.getElementById('serviceFilter')?.value || '';
+        
+        let filtered = allJobs.filter(job => {
+            if (job.status !== currentStatus) return false;
+            if (search && !job.customerName?.toLowerCase().includes(search) && !job.jobOrder?.includes(search)) return false;
+            if (serviceFilter && job.serviceType !== serviceFilter) return false;
+            return true;
+        });
+        
+        console.log('Filtered jobs for status', currentStatus, ':', filtered.length);
+        
+        renderStats();
+        
+        const container = document.getElementById('jobsContainer');
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state">📭 لا توجد أوامر تشغيل في هذا التبويب</div>';
+            return;
+        }
+        
+        container.innerHTML = filtered.map(job => `
+            <div class="job-card">
+                <div class="job-header">
+                    <div class="job-title">
+                        <h3>📄 أمر تشغيل #${job.jobOrder || job.jobNumber || '-'}</h3>
+                        <p>🧾 فاتورة: ${job.salesInvoiceId?.invoiceNumber || job.invoiceNumber || '-'} | 👤 ${job.customerName || '-'} | 🚗 ${job.carName || job.carModel || '-'} | 🏷️ ${job.serviceType || '-'}</p>
+                    </div>
+                    <span class="status-badge status-${getStatusClass(job.status)}">${getStatusText(job.status)}</span>
+                </div>
+                <div class="job-table">
+                    ${renderJobItemsTable(job)}
+                </div>
+                <div class="job-actions no-print">
+                    ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician') ? `<button class="btn btn-primary" onclick="openSetupModal('${job._id}')">🔧 تجهيز المهمة</button>` : ''}
+                    ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician' || job.status === 'PENDING_WAREHOUSE') ? `<button class="btn btn-warning" onclick="openSetupModal('${job._id}')">✏️ تعديل</button>` : ''}
+                    ${job.status === 'IN_PROGRESS' ? `<button class="btn btn-success" onclick="openRatingModal('${job._id}')">⭐ تقييم وإنهاء</button>` : ''}
+                    <button class="btn btn-light" onclick="printJob('${job._id}')">🖨️ طباعة</button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function renderJobItemsTable(job) {
+        console.log('renderJobItemsTable job:', job._id, 'items:', job.items);
+        const items = job.items || [];
+        
+        if (items.length === 0) {
+            return '<p style="color:#94a3b8; padding:20px; text-align:center;">⚠️ لا توجد بنود في هذا الأمر (ID: ' + job._id + ')</p>';
+        }
+        
+        let rows = '';
+        let validRowCount = 0;
+        for (let idx = 0; idx < items.length; idx++) {
+            const item = items[idx];
+            try {
+                const partName = item.partName || item.description || item.productName || ('بند ' + (idx+1));
+                // Skip empty items
+                if (!partName || partName === '-' || partName === '') {
+                    continue;
+                }
+                validRowCount++;
+                // Extract category from partName (e.g., "Window Film - درجة 1" -> "Window Film")
+                const extractedCat = partName.split('-')[0].trim();
+                const category = extractedCat || item.materialCategory || item.category || item.serviceType || '-';
+                // Check if item has dimensions or is quantity-based
+                const hasDimensions = item.lengthCM || item.widthCM || item.area;
+                const length = hasDimensions ? Number(item.lengthCM || 0).toFixed(1) : '-';
+                const width = hasDimensions ? Number(item.widthCM || 0).toFixed(1) : '-';
+                const area = hasDimensions ? Number(item.area || 0).toFixed(2) : (item.quantity || '-');
+                // Debug product data
+                console.log(`Item ${idx} product data:`, {
+                    product: item.product,
+                    productData: item.productData,
+                    productName: item.productName
+                });
+                
+                // Try to get product name from multiple sources
+                let productName = '-';
+                if (item.productData && item.productData.name) {
+                    productName = item.productData.name;
+                } else if (item.productName) {
+                    productName = item.productName;
+                } else if (item.product) {
+                    // Find product from global products array
+                    const product = products.find(p => String(p._id) === String(item.product));
+                    if (product) {
+                        productName = product.name;
+                    }
+                }
+                const techName = item.assignedTechnicianId ? getTechnicianName(item.assignedTechnicianId) : (item.technicianName || (job.technicianAssignments && job.technicianAssignments.length > 0 ? getTechnicianName(job.technicianAssignments[0].technicianId) : '-'));
+                const rating = item.rating ? (item.rating + '/10') : '-';
+                
+                rows += `<tr>
+                    <td>${partName}</td>
+                    <td>${category}</td>
+                    <td>${length}</td>
+                    <td>${width}</td>
+                    <td>${area}</td>
+                    <td>${productName}</td>
+                    <td>${techName}</td>
+                    <td>${rating}</td>
+                </tr>`;
+            } catch (e) {
+                console.error('Error rendering item', idx, e);
+                rows += `<tr><td colspan="8" style="color:red;">خطأ في عرض البند ${idx+1}</td></tr>`;
+            }
+        }
+        
+        if (validRowCount === 0) {
+            return '<p style="color:#94a3b8; padding:20px; text-align:center;">⚠️ لا توجد بنود صالحة في هذا الأمر (ID: ' + job._id + ')</p>';
+        }
+        
+        return `<table>
+            <thead>
+                <tr>
+                    <th>القطعة/الباقة</th>
+                    <th>الخامة</th>
+                    <th>الطول (سم)</th>
+                    <th>العرض (سم)</th>
+                    <th>المساحة (م²)</th>
+                    <th>الصنف المخزني</th>
+                    <th>الفني المسند</th>
+                    <th>التقييم</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+    }
+    
+    function getStatusClass(status) {
+        const map = { PENDING_OPS: 'pending-ops', PENDING_WAREHOUSE: 'pending-warehouse', IN_PROGRESS: 'in-progress', COMPLETED: 'completed' };
+        return map[status] || 'pending-ops';
+    }
+    
+    function getStatusText(status) {
+        const map = { PENDING_OPS: '⏳ بانتظار العمليات', PENDING_WAREHOUSE: '📦 بانتظار المخزن', IN_PROGRESS: '🔧 قيد التنفيذ', COMPLETED: '✅ مكتمل' };
+        return map[status] || status;
+    }
+    
+    function getTechnicianName(id) {
+        const tech = technicians.find(t => t._id === id);
+        return tech ? tech.name : '-';
+    }
+    
+    // فتح مودال تجهيز المهمة
+    function openSetupModal(jobId) {
+        const job = allJobs.find(j => String(j._id) === String(jobId));
+        if (!job) return;
+        
+        const container = document.getElementById('setupItemsList');
+        container.innerHTML = `<input type="hidden" id="setupJobId" value="${jobId}">`;
+        
+        (job.items || []).forEach((item, idx) => {
+            // Extract category from partName (e.g., "Window Film - درجة 1" -> "window film")
+            const partName = (item.partName || '').toString();
+            const extractedCategory = partName.split('-')[0].trim().toLowerCase();
+            
+            // Fallback to other fields if partName doesn't have dash
+            const itemCategory = (item.materialCategory || item.category || item.serviceType || job.serviceType || '').toString().toLowerCase();
+            
+            // Use extracted category from partName as primary, fallback to itemCategory
+            const finalCategory = extractedCategory.includes('general') && itemCategory ? itemCategory : extractedCategory;
+            
+            console.log(`Item ${idx}: partName="${partName}" -> finalCategory="${finalCategory}"`);
+            
+            // Helper function to check if product matches category
+            function productMatchesCategory(product, extractedCat, itemCat) {
+                const pType = (product.type || '').toString().toLowerCase();
+                const pCategory = (product.category || '').toString().toLowerCase();
+                const pServiceCat = (product.serviceCategory || '').toString().toLowerCase();
+                const pName = (product.name || '').toString().toLowerCase();
+                
+                // Match against extracted category from partName (e.g., "ppf", "matt", "ceramic")
+                if (extractedCat) {
+                    // Exact match first
+                    if (pType === extractedCat || pCategory === extractedCat || pServiceCat === extractedCat) return true;
+                    
+                    // Contains match
+                    if (pType.includes(extractedCat) || pCategory.includes(extractedCat) || pName.includes(extractedCat)) return true;
+                    
+                    // Special cases: PPF matches Paint Protection Film
+                    if (extractedCat === 'ppf' && (pName.includes('paint protection') || pType.includes('ppf'))) return true;
+                    if (extractedCat === 'matt' && (pName.includes('matt') || pCategory.includes('matt'))) return true;
+                    if (extractedCat === 'window' && (pName.includes('window') || pType.includes('window'))) return true;
+                    if (extractedCat === 'ceramic' && (pName.includes('ceramic') || pType.includes('ceramic'))) return true;
+                }
+                
+                // Also check itemCategory as fallback
+                if (itemCat) {
+                    if (pType.includes(itemCat) || pCategory.includes(itemCat) || pServiceCat.includes(itemCat)) return true;
+                }
+                
+                return false;
+            }
+            
+            let filteredProducts = products.filter(p => productMatchesCategory(p, finalCategory, itemCategory));
+            
+            // Fallback: if no products match category, show all products
+            if (filteredProducts.length === 0) {
+                console.log(`No products matched category "${itemCategory}", showing all products`);
+                filteredProducts = products;
+            }
+            
+            // Check if item already has a product selected
+            const currentProductId = item.product || item.productId;
+            const hasSelectedProduct = currentProductId && filteredProducts.some(p => String(p._id) === String(currentProductId));
+            
+            // Generate product options - auto-select first if none selected
+            let productOptions = '';
+            if (filteredProducts.length === 0) {
+                productOptions = '<option value="">⚠️ لا توجد أصناف مخزنية</option>';
+            } else {
+                productOptions = filteredProducts.map((p, pIdx) => {
+                    const isSelected = String(currentProductId) === String(p._id);
+                    const isFirstDefault = !hasSelectedProduct && pIdx === 0; // Auto-select first if none selected
+                    const selected = isSelected || isFirstDefault ? 'selected' : '';
+                    // Build detailed product description with attributes
+                    const grade = p.grade || p.quality || '';
+                    const color = p.color || p.tint || '';
+                    const type = p.type || p.subtype || '';
+                    const dims = p.width ? `${p.width}cm` : '';
+                    let details = [grade, color, type, dims].filter(Boolean).join(' | ');
+                    if (details) details = ' [' + details + ']';
+                    return `<option value="${p._id}" ${selected}>${p.name}${details} (${p.code || p.inventorySlug || ''})</option>`;
+                }).join('');
+            }
+            
+            const techOptions = technicians.map(t => {
+                const selected = String(item.assignedTechnicianId) === String(t._id) || String(item.technicianId) === String(t._id) ? 'selected' : '';
+                return `<option value="${t._id}" ${selected}>${t.name}</option>`;
+            }).join('');
+            
+            const div = document.createElement('div');
+            div.className = 'rating-row';
+            div.style.flexWrap = 'wrap';
+            div.dataset.itemIndex = idx;
+            // Determine what to show for dimensions/quantity
+            const hasDims = item.lengthCM || item.widthCM;
+            const dimText = hasDims 
+                ? `<span style="color:#64748b;">${Number(item.lengthCM).toFixed(1)} × ${Number(item.widthCM || 0).toFixed(1)} سم</span>`
+                : (item.quantity ? `<span style="color:#64748b;">الكمية: ${item.quantity}</span>` : '');
+            
+            div.innerHTML = `
+                <div style="flex:100%; margin-bottom:8px;">
+                    <strong>${item.partName || item.description || 'بند ' + (idx+1)}</strong>
+                    <span style="color:#64748b; margin-right:10px;">(${finalCategory})</span>
+                    ${dimText}
+                </div>
+                <select class="product-select" style="flex:2; padding:8px;">
+                    <option value="">-- اختر الصنف المخزني --</option>
+                    ${productOptions}
+                </select>
+                <select class="tech-select" style="flex:1.5; padding:8px;">
+                    <option value="">-- اختر الفني --</option>
+                    ${techOptions}
+                </select>
+            `;
+            container.appendChild(div);
+        });
+        
+        document.getElementById('setupModal').style.display = 'flex';
+    }
+    
+    function closeSetupModal() {
+        document.getElementById('setupModal').style.display = 'none';
+    }
+    
+    async function submitSetup() {
+        const jobId = document.getElementById('setupJobId').value;
+        console.log('submitSetup called for job:', jobId);
+        
+        const rows = document.querySelectorAll('#setupItemsList .rating-row');
+        const itemsData = [];
+        const requiredProducts = [];
+        const technicianIds = new Set();
+        
+        rows.forEach((row) => {
+            const productSelect = row.querySelector('.product-select');
+            const techSelect = row.querySelector('.tech-select');
+            const productId = productSelect.value;
+            const techId = techSelect.value;
+            const itemIndex = parseInt(row.dataset.itemIndex) || 0;
+            
+            console.log(`Row ${itemIndex}: productId=${productId}, techId=${techId}`);
+            
+            if (productId) {
+                itemsData.push({
+                    itemIndex: itemIndex,
+                    productId: productId,
+                    assignedTechnicianId: techId
+                });
+                requiredProducts.push({ productId, itemIndex });
+                if (techId) technicianIds.add(techId);
+            }
+        });
+        
+        // Validation: Check if technician is selected
+        if (technicianIds.size === 0) {
+            showMessage('❌ يجب اختيار فني واحد على الأقل', 'error');
+            return;
+        }
+        
+        const technicianAssignments = Array.from(technicianIds).map(techId => ({
+            technicianId: techId,
+            assignedAt: new Date().toISOString()
+        }));
+        
+        console.log('Sending data:', { itemsData, requiredProducts, technicianAssignments });
+        
+        try {
+            const res = await fetch(`${API}/service-jobs/${jobId}/ops-setup`, {
+                method: 'PUT',
+                headers: authHeaders(true),
+                body: JSON.stringify({ itemsData, requiredProducts, technicianAssignments })
+            });
+            
+            console.log('Response status:', res.status);
+            
+            if (res.ok) {
+                const result = await res.json();
+                console.log('Response:', result);
+                closeSetupModal();
+                await loadJobs();
+                showMessage('✅ تم تجهيز المهمة وإرسالها للمخزن', 'success');
+            } else {
+                const err = await res.json();
+                console.error('Error response:', err);
+                throw new Error(err.message);
+            }
+        } catch (error) {
+            console.error('submitSetup error:', error);
+            showMessage('❌ فشل الحفظ: ' + error.message, 'error');
+        }
+    }
+    
+    // فتح مودال التقييم
+    function openRatingModal(jobId) {
+        const job = allJobs.find(j => String(j._id) === String(jobId));
+        if (!job) return;
+        
+        const container = document.getElementById('ratingItemsList');
+        container.innerHTML = `<input type="hidden" id="ratingJobId" value="${jobId}">`;
+        
+        (job.items || []).forEach((item, idx) => {
+            const techName = item.assignedTechnicianId ? getTechnicianName(item.assignedTechnicianId) : (item.technicianName || '-');
+            const div = document.createElement('div');
+            div.className = 'rating-row';
+            div.innerHTML = `
+                <span style="flex:2;">${item.partName || item.description || 'بند ' + (idx+1)}</span>
+                <span style="flex:1;">👨‍🔧 ${techName}</span>
+                <input type="number" data-idx="${idx}" class="rating-value" min="1" max="10" value="${item.rating || 10}" style="width:80px;">
+                <span>/10</span>
+            `;
+            container.appendChild(div);
+        });
+        
+        document.getElementById('ratingModal').style.display = 'flex';
+    }
+    
+    function closeRatingModal() {
+        document.getElementById('ratingModal').style.display = 'none';
+    }
+    
+    async function submitRating() {
+        const jobId = document.getElementById('ratingJobId').value;
+        
+        const items = [];
+        const ratings = document.querySelectorAll('#ratingItemsList .rating-value');
+        ratings.forEach(input => {
+            items.push({
+                index: parseInt(input.dataset.idx),
+                rating: parseInt(input.value)
+            });
+        });
+        
+        try {
+            const res = await fetch(`${API}/service-jobs/${jobId}/evaluate-items`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({ items })
+            });
+            
+            if (res.ok) {
+                closeRatingModal();
+                await loadJobs();
+                showMessage('✅ تم إنهاء أمر التشغيل وتقييم البنود بنجاح', 'success');
+            } else {
+                const err = await res.json();
+                throw new Error(err.message);
+            }
+        } catch (error) {
+            console.error('submitRating error:', error);
+            showMessage('❌ فشل حفظ التقييم: ' + error.message, 'error');
+        }
+    }
+    
+    function printJob(jobId) {
+        const job = allJobs.find(j => String(j._id) === String(jobId));
+        if (!job) return;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html><head><title>أمر تشغيل #${job.jobOrder || job.jobNumber || '-'}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h2 { color: #1a3a5c; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                th { background: #f2f2f2; }
+                .info { margin: 20px 0; }
+                .info p { margin: 5px 0; }
+            </style>
+            </head><body>
+            <h2>📄 أمر تشغيل #${job.jobOrder || job.jobNumber || '-'}</h2>
+            <div class="info">
+                <p><strong>الفاتورة:</strong> ${job.salesInvoiceId?.invoiceNumber || job.invoiceNumber || '-'}</p>
+                <p><strong>العميل:</strong> ${job.customerName || '-'} (${job.customerPhone || '-'})</p>
+                <p><strong>السيارة:</strong> ${job.carName || job.carModel || '-'} ${job.carPlate ? '- ' + job.carPlate : ''}</p>
+                <p><strong>نوع الخدمة:</strong> ${job.serviceType || '-'}</p>
+            </div>
+            <table>
+                <thead><tr><th>القطعة</th><th>الخامة</th><th>المقاس</th><th>الصنف المخزني</th><th>الفني</th><th>التقييم</th></tr></thead>
+                <tbody>
+                    ${(job.items || []).map(i => {
+                        const techName = i.assignedTechnicianId ? getTechnicianName(i.assignedTechnicianId) : (i.technicianName || '-');
+                        const size = i.lengthCM ? `${Number(i.lengthCM).toFixed(1)} × ${Number(i.widthCM || 0).toFixed(1)}` : '-';
+                        return `<tr><td>${i.partName || i.description || '-'}</td><td>${i.materialCategory || i.category || '-'}</td><td>${size}</td><td>${i.productData?.name || i.productName || '-'}</td><td>${techName}</td><td>${i.rating ? i.rating + '/10' : '-'}</td></tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <p style="margin-top: 30px; text-align: center;">تم التوليد بواسطة Wrapstyle ERP</p>
+            </body></html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+    
+    function showMessage(msg, type) {
+        const container = document.getElementById('jobsContainer');
+        const msgDiv = document.createElement('div');
+        msgDiv.style.cssText = `position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; color:white; z-index:2000; ${type === 'success' ? 'background:#10b981' : 'background:#ef4444'}`;
+        msgDiv.textContent = msg;
+        document.body.appendChild(msgDiv);
+        setTimeout(() => msgDiv.remove(), 3000);
+    }
+    
+    // تبويبات
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentStatus = tab.dataset.status;
+            renderJobs();
+        });
+    });
+    
+    // بدء التحميل من API
+    loadJobs();
+</script>
+</body>
+</html>

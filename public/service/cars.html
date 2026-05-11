@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز السيارات - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem), linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1380px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1 { margin:0 0 .7rem; font-size:clamp(1.9rem,2.2vw,2.5rem); }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.85; max-width:55rem; }
+        .tags { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+        .tag { padding:.7rem .95rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); font-weight:700; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; }
+        .module-card { text-decoration:none; color:inherit; display:block; background:var(--sf); border:1px solid var(--bd); border-radius:20px; padding:1.1rem; transition:transform .18s ease, border-color .18s ease; }
+        .module-card:hover { transform:translateY(-2px); border-color:rgba(22,58,95,.2); }
+        .module-icon { width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#edf3f8; color:var(--p); font-weight:800; font-size:1rem; margin-bottom:1rem; }
+        .module-card h3 { margin:0 0 .5rem; color:var(--p); }
+        .module-card p { margin:0; color:#6f8094; line-height:1.75; }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>موديول السيارات والأجزاء</h1>
+            <p>من هنا يتم تسجيل الموديلات والمقاسات القياسية للأجزاء. هذه البيانات تُستخدم مباشرة داخل فاتورة المبيعات وأوامر الشغل لتوليد الأجزاء المطلوبة تلقائيًا.</p>
+            <div class="tags">
+                <span class="tag">أنواع العربيات</span>
+                <span class="tag">الأجزاء</span>
+                <span class="tag">المقاسات</span>
+                <span class="tag">ربط بالمبيعات</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="grid">
+                <a class="module-card" href="/service/car_coding.html"><div class="module-icon">سي</div><h3>السيارات والمقاسات</h3><p>رفع ملف المقاسات وإدارة الموديلات والأجزاء والقياسات القياسية لكل سيارة.</p></a>
+                <a class="module-card" href="/sales/sales_invoice.html"><div class="module-icon">بيع</div><h3>الربط بالمبيعات</h3><p>اختيار السيارة داخل فاتورة البيع لتوليد الأجزاء المطلوبة واختيار الخامة لكل جزء.</p></a>
+                <a class="module-card" href="/service/service_jobs.html"><div class="module-icon">تش</div><h3>الربط بالتشغيل</h3><p>متابعة أوامر التشغيل الناتجة من المبيعات على نفس السيارة والأجزاء المحددة.</p></a>
+            </div>
+        </section>
+    </div>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

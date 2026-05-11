@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الموارد البشرية - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --p: #163a5f;
+            --s: #526277;
+            --a: #b98918;
+            --bd: rgba(22,58,95,.12);
+            --sf: rgba(255,255,255,.97);
+            --soft: #f5f7fb;
+        }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem),
+                linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--p);
+        }
+        .shell { max-width: 1380px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .card { border-radius: 24px; box-shadow: 0 18px 38px rgba(22,58,95,.08); }
+        .hero {
+            background: linear-gradient(135deg, var(--p), #244c73);
+            color: #fff;
+            padding: 2rem;
+            margin-bottom: 1.25rem;
+        }
+        .hero h1 { margin: 0 0 .7rem; font-size: clamp(1.9rem, 2.2vw, 2.5rem); }
+        .hero p { margin: 0; color: rgba(255,255,255,.85); line-height: 1.85; max-width: 55rem; }
+        .tags { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+        .tag { padding:.7rem .95rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); font-weight:700; }
+        .card { background: var(--sf); border:1px solid var(--bd); padding:1.25rem; }
+        .head { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+        .head h2 { margin:0; }
+        .hint { color:#738396; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; }
+        .module-card {
+            text-decoration:none; color:inherit; display:block; background:var(--sf);
+            border:1px solid var(--bd); border-radius:20px; padding:1.1rem;
+            transition:transform .18s ease, border-color .18s ease;
+        }
+        .module-card:hover { transform:translateY(-2px); border-color:rgba(22,58,95,.2); }
+        .module-icon {
+            width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+            background:#edf3f8; color:var(--p); font-weight:800; font-size:1.2rem; margin-bottom:1rem;
+        }
+        .module-card h3 { margin:0 0 .5rem; color:var(--p); }
+        .module-card p { margin:0; color:#6f8094; line-height:1.75; }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>موديول الموارد البشرية</h1>
+            <p>مدخل واضح لإدارة الموظفين والرواتب والتحليلات المرتبطة بها داخل Wrapstyle ERP، مع الحفاظ على نفس الطابع الحديث لباقي النظام.</p>
+            <div class="tags">
+                <span class="tag">دليل الموظفين</span>
+                <span class="tag">الرواتب</span>
+                <span class="tag">تحليل الرواتب</span>
+                <span class="tag">قسائم الرواتب</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>الوصول السريع</h2>
+                    <p class="hint">كل صفحات الموارد البشرية المهمة أصبحت مجمعة هنا.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <a class="module-card" href="/hr/employees_list.html">
+                    <div class="module-icon">م</div>
+                    <h3>دليل الموظفين</h3>
+                    <p>عرض الموظفين الحاليين والرجوع للتعديل أو المراجعة.</p>
+                </a>
+                <a class="module-card" href="/hr/employee_coding.html">
+                    <div class="module-icon">ج</div>
+                    <h3>إضافة موظف</h3>
+                    <p>فتح شاشة تسجيل أو تعديل بيانات الموظف وربط الراتب والبيانات الأساسية.</p>
+                </a>
+                <a class="module-card" href="/hr/payroll.html">
+                    <div class="module-icon">ر</div>
+                    <h3>صرف الرواتب</h3>
+                    <p>إدارة دورة الرواتب الحالية وربطها بالحالة التشغيلية والاعتماد.</p>
+                </a>
+                <a class="module-card" href="/hr/payroll_management.html">
+                    <div class="module-icon">إ</div>
+                    <h3>إدارة مسيرات الرواتب</h3>
+                    <p>متابعة المسيرات السابقة، الترحيل، وإدارة حالات الاعتماد.</p>
+                </a>
+                <a class="module-card" href="/hr/payroll_analysis.html">
+                    <div class="module-icon">ت</div>
+                    <h3>تحليل الرواتب</h3>
+                    <p>عرض تحليلات الرواتب والمؤشرات المرتبطة بالأجور والتكاليف.</p>
+                </a>
+                <a class="module-card" href="/hr/technicians.html">
+                    <div class="module-icon">ف</div>
+                    <h3>إدارة الفنيين</h3>
+                    <p>تعريف الفنيين وربطهم بالتخصصات ومتابعة تقييمات الأداء.</p>
+                </a>
+                <a class="module-card" href="/hr/payslip.html">
+                    <div class="module-icon">ق</div>
+                    <h3>قسيمة الراتب</h3>
+                    <p>الوصول إلى نموذج قسيمة الراتب والطباعة عند الحاجة.</p>
+                </a>
+            </div>
+        </section>
+    </div>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

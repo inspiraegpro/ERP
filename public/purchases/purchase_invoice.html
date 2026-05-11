@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة مشتريات - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left,rgba(185,137,24,.14),transparent 20rem),linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1380px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card,.table-wrap { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .card,.table-wrap { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .hero-row,.head,.tools,.action { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .hero h1,.head h2 { margin:0; }
+        .hero p { margin:.35rem 0 0; color:rgba(255,255,255,.86); max-width:54rem; line-height:1.85; }
+        .head p,.hint { margin:.35rem 0 0; color:#738396; }
+        .tags,.toggles { display:flex; gap:.7rem; flex-wrap:wrap; }
+        .tags { margin-top:1rem; }
+        .tag,.pill { padding:.7rem .95rem; border-radius:999px; font-weight:700; }
+        .tag { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); }
+        .pill { display:inline-flex; align-items:center; gap:.5rem; border:1px solid var(--bd); background:var(--soft); color:var(--s); }
+        .grid { display:grid; grid-template-columns:repeat(4,minmax(180px,1fr)); gap:1rem; }
+        .span2 { grid-column:span 2; } .span4 { grid-column:1 / -1; }
+        .f { display:flex; flex-direction:column; gap:.45rem; }
+        .f label { font-weight:700; color:var(--s); font-size:.92rem; }
+        .f input,.f select,.f textarea,.cell { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.97rem; }
+        .f textarea { min-height:92px; resize:vertical; }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:16px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        .msg.info { display:block; background:rgba(22,58,95,.08); color:var(--p); border:1px solid rgba(22,58,95,.12); }
+        .btn { border:none; border-radius:14px; padding:.95rem 1.15rem; font-size:.96rem; font-weight:800; cursor:pointer; text-decoration:none; box-shadow:0 10px 22px rgba(22,58,95,.12); }
+        .btn.p { background:var(--p); color:#fff; } .btn.a { background:var(--a); color:#fff; } .btn.ok { background:var(--ok); color:#fff; } .btn.l { background:#fff; color:var(--p); border:1px solid var(--bd); } .btn.d { background:rgba(159,58,56,.12); color:var(--er); box-shadow:none; }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        .sum,.import-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.9rem; margin-top:1rem; }
+        .box,.import-chip,.cost { background:var(--soft); border:1px solid var(--bd); border-radius:16px; padding:1rem; }
+        .box span,.import-chip span { display:block; color:#738396; font-size:.9rem; margin-bottom:.35rem; }
+        .box strong,.import-chip strong { font-size:1.1rem; color:var(--p); }
+        .costs { display:grid; grid-template-columns:repeat(2,minmax(160px,1fr)); gap:.85rem; }
+        .cost { display:flex; justify-content:space-between; align-items:center; gap:.8rem; }
+        .cost input { width:120px; border:1px solid rgba(82,98,119,.2); border-radius:12px; padding:.65rem .75rem; text-align:center; }
+        .hidden { display:none; }
+        @media (max-width:980px) { .grid,.costs { grid-template-columns:1fr; } .span2,.span4 { grid-column:auto; } .table-wrap { overflow-x:auto; } }
+        @media print { .no-print,.global-nav-shell { display:none!important; } .shell { padding:0; } .hero,.card,.table-wrap { box-shadow:none; border:1px solid #d7dee7; } }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <div class="hero-row">
+            <div>
+                <h1 id="screenTitle">فاتورة مشتريات</h1>
+                <p>تسجيل فاتورة المشتريات بالشكل الحديث الحالي، مع الحفاظ على الربط المحاسبي القائم وإتاحة تفاصيل محلية أو مستوردة وتحميل التكاليف الإضافية بدون الرجوع لأي واجهة قديمة.</p>
+            </div>
+            <div class="tools no-print">
+                <button class="btn l" type="button" onclick="window.print()">طباعة</button>
+                <a class="btn l" href="/purchases/purchase_list.html">سجل المشتريات</a>
+            </div>
+        </div>
+        <div class="tags">
+            <span class="tag" id="modeTag">وضع جديد</span>
+            <span class="tag" id="typeTag">فاتورة محلية</span>
+            <span class="tag">ربط محاسبي مباشر</span>
+        </div>
+    </section>
+
+    <div id="messageBox" class="msg"></div>
+    <input type="hidden" id="editId">
+    <input type="hidden" id="linkedShipmentId">
+
+    <section class="card">
+        <div class="head">
+            <div>
+                <h2>بيانات الفاتورة</h2>
+                <p>نفس منطق الحفظ الحالي، مع توضيح نوع الفاتورة وإتاحة ربط أقوى بالشحنة المستوردة عند الحاجة.</p>
+            </div>
+            <span class="hint">لن نرجع للشكل القديم، بل سنضيف ما ينقصه فقط من تفاصيل Wrapstyle.</span>
+        </div>
+        <div class="grid">
+            <div class="f span2">
+                <label>نوع الفاتورة</label>
+                <div class="toggles">
+                    <label class="pill"><input type="radio" name="invoiceType" value="local" checked onchange="handleType()"> محلية</label>
+                    <label class="pill"><input type="radio" name="invoiceType" value="imported" onchange="handleType()"> مستورد</label>
+                </div>
+            </div>
+            <div class="f"><label for="invNum">رقم الفاتورة</label><input id="invNum" placeholder="رقم فاتورة المورد"></div>
+            <div class="f"><label for="date">التاريخ</label><input type="date" id="date"></div>
+            <div class="f"><label for="supplier">المورد</label><select id="supplier"><option value="">اختر المورد</option></select></div>
+            <div class="f" style="position:relative">
+                <label for="supplier">المورد</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <select id="supplier"><option value="">اختر المورد</option></select>
+                    <button type="button" class="btn a" style="padding:0.7rem 1rem;font-size:1.2em;line-height:1;" onclick="openAddSupplierModal()" title="مورد جديد">+</button>
+                </div>
+            </div>
+            <div class="f"><label for="referenceCode">مرجع إضافي</label><input id="referenceCode" placeholder="رقم الشحنة أو أمر الشراء"></div>
+            </div>
+
+            <!-- نافذة إضافة مورد جديد -->
+            <div id="addSupplierModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.3);align-items:center;justify-content:center;">
+                <div style="background:#fff;padding:2rem 2.5rem;border-radius:18px;min-width:320px;max-width:95vw;box-shadow:0 8px 32px rgba(22,58,95,.18);display:flex;flex-direction:column;gap:1.2rem;">
+                    <h3 style="margin:0;color:#163a5f;font-size:1.2em;">إضافة مورد جديد</h3>
+                    <input id="newSupplierName" placeholder="اسم المورد الجديد" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid #ccc;font-size:1em;">
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button class="btn l" type="button" onclick="closeAddSupplierModal()">إلغاء</button>
+                        <button class="btn ok" type="button" onclick="addSupplier()">حفظ</button>
+                    </div>
+                    <div id="addSupplierMsg" style="color:#b00;font-size:.95em;"></div>
+                </div>
+            </div>
+            <script>
+            // نافذة إضافة مورد جديد
+            function openAddSupplierModal() {
+                document.getElementById('addSupplierModal').style.display = 'flex';
+                document.getElementById('newSupplierName').value = '';
+                document.getElementById('addSupplierMsg').textContent = '';
+                setTimeout(()=>document.getElementById('newSupplierName').focus(), 100);
+            }
+            function closeAddSupplierModal() {
+                document.getElementById('addSupplierModal').style.display = 'none';
+            }
+            async function addSupplier() {
+                const name = document.getElementById('newSupplierName').value.trim();
+                if (!name) {
+                    document.getElementById('addSupplierMsg').textContent = 'يرجى إدخال اسم المورد.';
+                    return;
+                }
+                document.getElementById('addSupplierMsg').textContent = '';
+                try {
+                    const res = await fetch(`${API}/suppliers`, {
+                        method: 'POST',
+                        headers: authHeaders(true),
+                        body: JSON.stringify({ name })
+                    });
+                    if (!res.ok) throw new Error('فشل إضافة المورد.');
+                    const supplier = await res.json();
+                    // أضف المورد للقائمة وحدده تلقائياً
+                    const supplierSelect = document.getElementById('supplier');
+                    const opt = document.createElement('option');
+                    opt.value = supplier._id || supplier.id || supplier.name;
+                    opt.textContent = supplier.code ? supplier.code + ' - ' + supplier.name : supplier.name;
+                    supplierSelect.appendChild(opt);
+                    supplierSelect.value = opt.value;
+                    closeAddSupplierModal();
+                    msg('تم إضافة المورد بنجاح.', 'success');
+                } catch (e) {
+                    document.getElementById('addSupplierMsg').textContent = 'حدث خطأ أثناء إضافة المورد.';
+                }
+            }
+            </script>
+            <div class="f span2 hidden" id="shipmentLookupWrap">
+                <label for="shipmentLookup">تحميل من الشحنة المستوردة</label>
+                <div class="tools" style="justify-content:flex-start">
+                    <input id="shipmentLookup" placeholder="أدخل رقم Ref أو HWB للشحنة">
+                    <button class="btn a" type="button" onclick="loadShipmentReference()">تحميل الشحنة</button>
+                    <button class="btn l" type="button" onclick="openImportShipment()">فتح شاشة المستورد</button>
+                </div>
+            </div>
+            <div class="f span4"><label for="notes">ملاحظات / شرح القيد</label><textarea id="notes" placeholder="أي ملاحظات تشغيلية أو محاسبية"></textarea></div>
+        </div>
+        <div id="shipmentSummary" class="import-summary hidden">
+            <div class="import-chip"><span>ملف الشحنة</span><strong id="shipmentRefView">-</strong></div>
+            <div class="import-chip"><span>البوليصة</span><strong id="shipmentHwbView">-</strong></div>
+            <div class="import-chip"><span>سعر الصرف</span><strong id="shipmentRateView">-</strong></div>
+            <div class="import-chip"><span>إجمالي التكلفة الواصلة</span><strong id="shipmentLandedView">-</strong></div>
+            <div class="import-chip"><span>الحالة</span><strong id="shipmentStatusView">-</strong></div>
+        </div>
+    </section>
+
+    <section class="card no-print">
+        <div class="head">
+            <div>
+                <h2>التوجيه المحاسبي</h2>
+                <p>نفس الحسابات الحالية المستخدمة في الـ backend.</p>
+            </div>
+        </div>
+        <div class="grid">
+            <div class="f"><label for="accInventory">حساب المخزن</label><select id="accInventory"></select></div>
+            <div class="f"><label for="accSupplier">حساب المورد</label><select id="accSupplier"></select></div>
+            <div class="f"><label for="accVat">حساب الضريبة</label><select id="accVat"></select></div>
+            <div class="f"><label for="landedMode">معالجة التكاليف الإضافية</label><select id="landedMode"><option value="none">بدون تحميل تلقائي</option><option value="allocate">تحميل على البنود</option></select></div>
+        </div>
+    </section>
+
+    <section class="table-wrap">
+        <div class="head">
+            <div>
+                <h2>تفاصيل البنود</h2>
+                <p>إضافة بنود يدويًا أو تحميلها من الشحنة مع الاحتفاظ بحساب التكلفة المحملة داخل الفاتورة الحالية.</p>
+            </div>
+            <div class="tools no-print">
+                <button class="btn a" type="button" onclick="addRow()">إضافة صنف</button>
+                <button class="btn l" type="button" onclick="allocateExtra()">تحميل المنتج بالتكاليف الزيادة</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="min-width:220px">الصنف</th>
+                    <th>الكمية / الرولات</th>
+                    <th>تكلفة الأساس</th>
+                    <th>التكلفة المحملة</th>
+                    <th>إجمالي السطر</th>
+                    <th class="no-print">حذف</th>
+                </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+        </table>
+        <div class="action"><span class="hint">في المستورد: لو تم تحميل الشحنة، سيتم ملء تكلفة السطر من التكلفة الواصلة أولًا ثم يمكن تحميل أي زيادات إضافية فوقها.</span></div>
+    </section>
+
+    <section class="card">
+        <div class="head">
+            <div>
+                <h2>ملخص الفاتورة</h2>
+                <p>يمكن توزيع المصاريف الإضافية على البنود بالتناسب، أو الاعتماد على تكلفة الشحنة الواصلة في حالة المستورد.</p>
+            </div>
+        </div>
+        <div class="costs">
+            <div class="cost"><label for="extraCost">مصاريف إضافية</label><input type="number" id="extraCost" value="0" min="0" step="0.01" oninput="calcTotal()"></div>
+            <div class="cost"><label for="taxVal">قيمة الضريبة</label><input type="number" id="taxVal" value="0" min="0" step="0.01" oninput="document.getElementById('autoTax').checked=false;calcTotal()"></div>
+            <div class="cost"><label for="whtVal">خصم 1%</label><input type="number" id="whtVal" value="0" min="0" step="0.01" oninput="calcTotal()"></div>
+            <div class="cost"><label for="discount">خصم إضافي</label><input type="number" id="discount" value="0" min="0" step="0.01" oninput="calcTotal()"></div>
+            <div class="cost" style="grid-column:1/-1"><label style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="autoTax" onchange="calcTotal()" style="width:auto"> تطبيق ضريبة 14% تلقائيًا</label><span class="hint">يتم تطبيقها على إجمالي البنود بعد تحميل التكاليف.</span></div>
+        </div>
+        <div class="sum">
+            <div class="box"><span>إجمالي البنود</span><strong id="subtotal">0.00</strong></div>
+            <div class="box"><span>إجمالي المصاريف المحملة</span><strong id="allocatedExtra">0.00</strong></div>
+            <div class="box"><span>الإجمالي النهائي</span><strong id="finalTotal">0.00</strong></div>
+        </div>
+        <div class="action no-print">
+            <span class="hint">لو كانت الفاتورة مستوردة ومربوطة بملف شحنة، سيتم حفظ مرجع الشحنة وتكلفة البنود المحملة داخل نفس الفاتورة.</span>
+            <button class="btn ok" id="saveButton" type="button" onclick="saveInvoice()">حفظ الفاتورة</button>
+        </div>
+    </section>
+</div>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token') || '';
+let products = [];
+let productsMap = {};
+let importShipments = [];
+let shipmentById = {};
+
+function authHeaders(includeJson = false) {
+    const headers = {};
+    if (includeJson) headers['Content-Type'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+}
+
+function msg(text, kind = 'info') {
+    const box = document.getElementById('messageBox');
+    box.className = `msg ${kind === 'success' ? 'ok' : kind === 'error' ? 'er' : 'info'}`;
+    box.textContent = text;
+}
+
+function clearMsg() {
+    const box = document.getElementById('messageBox');
+    box.className = 'msg';
+    box.textContent = '';
+}
+
+function invoiceType() {
+    return document.querySelector('input[name="invoiceType"]:checked')?.value || 'local';
+}
+
+function handleType() {
+    const imported = invoiceType() === 'imported';
+    document.getElementById('typeTag').textContent = imported ? 'فاتورة مستورد' : 'فاتورة محلية';
+    document.getElementById('screenTitle').textContent = imported ? 'فاتورة مشتريات مستوردة' : 'فاتورة مشتريات';
+    document.getElementById('shipmentLookupWrap').classList.toggle('hidden', !imported);
+    document.getElementById('shipmentSummary').classList.toggle('hidden', !imported || !document.getElementById('linkedShipmentId').value);
+
+    if (imported) {
+        msg('يمكنك الآن تحميل الشحنة المستوردة وربط تكلفتها بالفاتورة الحالية مع الحفاظ على الشكل الحديث.', 'info');
+    } else {
+        clearMsg();
+        document.getElementById('linkedShipmentId').value = '';
+        document.getElementById('shipmentSummary').classList.add('hidden');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('date').valueAsDate = new Date();
+    await loadData();
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) {
+        await loadForEdit(id);
+    } else {
+        addRow();
+    }
+    handleType();
+    calcTotal();
+});
+
+async function loadData() {
+    try {
+        const [pRes, sRes, aRes, shRes] = await Promise.all([
+            fetch(`${API}/products`),
+            fetch(`${API}/suppliers`),
+            fetch(`${API}/accounts`),
+            fetch(`${API}/import-shipments`)
+        ]);
+
+        products = await pRes.json();
+        const suppliers = await sRes.json();
+        const accounts = await aRes.json();
+        importShipments = shRes.ok ? await shRes.json() : [];
+
+        productsMap = {};
+        shipmentById = {};
+        products.forEach((product) => { productsMap[product._id] = product; });
+        importShipments.forEach((shipment) => { shipmentById[shipment._id] = shipment; });
+
+        const supplierSelect = document.getElementById('supplier');
+        supplierSelect.innerHTML = '<option value="">اختر المورد</option>';
+        suppliers.forEach((supplier) => {
+            supplierSelect.innerHTML += `<option value="${supplier._id}">${supplier.code ? supplier.code + ' - ' : ''}${supplier.name}</option>`;
+        });
+
+        ['accInventory', 'accSupplier', 'accVat'].forEach((id) => {
+            const select = document.getElementById(id);
+            select.innerHTML = '<option value="">اختر الحساب</option>';
+            accounts.filter((account) => account.isTransactional).forEach((account) => {
+                select.innerHTML += `<option value="${account._id}">${account.code} - ${account.name}</option>`;
+            });
+        });
+    } catch (error) {
+        console.error(error);
+        msg(`فشل تحميل البيانات الأساسية: ${error.message}`, 'error');
+    }
+}
+
+function productOptions(selected = '') {
+    return [
+        '<option value="">اختر الصنف</option>',
+        ...products.map((product) => `<option value="${product._id}" ${String(selected) === String(product._id) ? 'selected' : ''}>${product.name}</option>`)
+    ].join('');
+}
+
+function addRow(data = {}) {
+    const quantity = Number(data.quantity || 1);
+    const baseCost = Number(data.cost || data.unitCost || data.baseCost || 0);
+    const loadedCost = Number(data.loadedCost || baseCost);
+    const total = Number(data.lineTotal || (quantity * loadedCost));
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>
+            <select class="cell prod" onchange="calcRow(this)">${productOptions(data.product)}</select>
+            <div class="hint material-hint" style="margin-top:6px;"></div>
+            <input type="hidden" class="len" value="${Number(data.length || 0)}">
+            <input type="hidden" class="wid" value="${Number(data.width || 0)}">
+            <input type="hidden" class="foreign" value="${Number(data.unitForeignPrice || 0)}">
+            <input type="hidden" class="materialType" value="${String(data.materialType || '')}">
+            <input type="hidden" class="productCode" value="${String(data.productCode || '')}">
+        </td>
+        <td><input class="cell qty" type="number" min="1" step="1" value="${quantity}" oninput="calcRow(this)"></td>
+        <td><input class="cell cost" type="number" min="0" step="0.01" value="${baseCost.toFixed(2)}" oninput="calcRow(this)"></td>
+        <td><input class="cell loaded" type="number" step="0.01" value="${loadedCost.toFixed(2)}" readonly></td>
+        <td><input class="cell total" type="number" step="0.01" value="${total.toFixed(2)}" readonly></td>
+        <td class="no-print"><button class="btn d" type="button" onclick="this.closest('tr').remove();calcTotal()">حذف</button></td>
+    `;
+
+    document.getElementById('itemsBody').appendChild(row);
+    calcRow(row.querySelector('.prod'));
+}
+
+function calcRow(element) {
+    const row = element.closest('tr');
+    const productId = row.querySelector('.prod').value;
+    const costInput = row.querySelector('.cost');
+    const quantity = Number(row.querySelector('.qty').value || 0);
+
+    if (element.classList.contains('prod') && productId && productsMap[productId]) {
+        const product = productsMap[productId];
+        row.querySelector('.len').value = Number(product.dimensions?.length || 0);
+        row.querySelector('.wid').value = Number(product.dimensions?.width || 0);
+        // Auto-fill linked material + code for purchase lines
+        const materialType = String(product.materialType || product.type || '').trim();
+        const productCode = String(product.code || product.barcode || product.inventorySlug || product._id || '').trim();
+        row.querySelector('.materialType').value = materialType;
+        row.querySelector('.productCode').value = productCode;
+        const hint = row.querySelector('.material-hint');
+        if (hint) {
+            hint.textContent = materialType ? `الخامة: ${materialType} | كود الصنف: ${productCode || '-'}` : (productCode ? `كود الصنف: ${productCode}` : '');
+        }
+        if (Number(costInput.value || 0) === 0) {
+            costInput.value = Number(product.pricing?.lastPurchasePrice || 0).toFixed(2);
+        }
+    }
+
+    const loaded = Number(row.querySelector('.loaded').value || costInput.value || 0);
+    row.querySelector('.total').value = (quantity * loaded).toFixed(2);
+    calcTotal();
+}
+
+function allocateExtra() {
+    const rows = [...document.querySelectorAll('#itemsBody tr')];
+    const extra = Number(document.getElementById('extraCost').value || 0);
+
+    if (!rows.length) {
+        msg('أضف بندًا واحدًا على الأقل قبل تحميل التكاليف الإضافية.', 'error');
+        return;
+    }
+
+    const base = rows.reduce((sum, row) => {
+        const quantity = Number(row.querySelector('.qty').value || 0);
+        const cost = Number(row.querySelector('.cost').value || 0);
+        return sum + (quantity * cost);
+    }, 0);
+
+    if (base <= 0 || extra <= 0) {
+        msg('يجب وجود بنود ومصاريف إضافية أكبر من صفر لتوزيعها.', 'error');
+        return;
+    }
+
+    rows.forEach((row) => {
+        const quantity = Number(row.querySelector('.qty').value || 0);
+        const cost = Number(row.querySelector('.cost').value || 0);
+        const line = quantity * cost;
+        const ratio = line / base;
+        const added = extra * ratio;
+        const loaded = quantity > 0 ? cost + (added / quantity) : cost;
+        row.querySelector('.loaded').value = loaded.toFixed(2);
+        row.querySelector('.total').value = (quantity * loaded).toFixed(2);
+    });
+
+    msg('تم تحميل التكاليف الإضافية على البنود الحالية بالتناسب.', 'success');
+    calcTotal();
+}
+
+function calcTotal() {
+    const rows = [...document.querySelectorAll('#itemsBody tr')];
+    const subtotal = rows.reduce((sum, row) => sum + Number(row.querySelector('.total').value || 0), 0);
+    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+
+    const extra = Number(document.getElementById('extraCost').value || 0);
+    if (document.getElementById('autoTax').checked) {
+        document.getElementById('taxVal').value = (subtotal * 0.14).toFixed(2);
+    }
+
+    const tax = Number(document.getElementById('taxVal').value || 0);
+    const wht = Number(document.getElementById('whtVal').value || 0);
+    const discount = Number(document.getElementById('discount').value || 0);
+
+    document.getElementById('allocatedExtra').textContent = extra.toFixed(2);
+    document.getElementById('finalTotal').textContent = ((subtotal + tax) - (wht + discount)).toFixed(2);
+}
+
+function findShipmentByLookup(value) {
+    const lookup = String(value || '').trim();
+    if (!lookup) return null;
+    return importShipments.find((shipment) =>
+        String(shipment._id) === lookup ||
+        String(shipment.shipmentRef || '') === lookup ||
+        String(shipment.hwbNumber || '') === lookup
+    ) || null;
+}
+
+function getImportedPieceCost(item, shipment) {
+    const productId = item.product?._id || item.product;
+    const product = productsMap[productId];
+    const area = ((Number(product?.dimensions?.length || 0) * Number(product?.dimensions?.width || 0)) / 10000) || 0;
+    if (Number(item.unitLandedCost || 0) > 0 && area > 0) return Number(item.unitLandedCost) * area;
+    if (Number(item.unitForeignPrice || 0) > 0 && Number(shipment.exchangeRate || 0) > 0) return Number(item.unitForeignPrice) * Number(shipment.exchangeRate || 0);
+    return Number(item.unitLandedCost || item.unitCost || item.cost || 0);
+}
+
+function fillShipmentSummary(shipment) {
+    document.getElementById('shipmentRefView').textContent = shipment.shipmentRef || '-';
+    document.getElementById('shipmentHwbView').textContent = shipment.hwbNumber || '-';
+    document.getElementById('shipmentRateView').textContent = Number(shipment.exchangeRate || 0).toFixed(2);
+    document.getElementById('shipmentLandedView').textContent = Number(shipment.totalLandedCost || 0).toFixed(2);
+    document.getElementById('shipmentStatusView').textContent = shipment.status || 'Draft';
+    document.getElementById('shipmentSummary').classList.remove('hidden');
+}
+
+function populateFromShipment(shipment) {
+    document.getElementById('linkedShipmentId').value = shipment._id || '';
+    document.getElementById('referenceCode').value = shipment.shipmentRef || shipment.hwbNumber || '';
+    document.getElementById('shipmentLookup').value = shipment.shipmentRef || shipment.hwbNumber || '';
+    if (shipment.supplier) document.getElementById('supplier').value = shipment.supplier?._id || shipment.supplier;
+
+    if (shipment.date || shipment.arrivalDate) {
+        const shipmentDate = String(shipment.date || shipment.arrivalDate || '').split('T')[0];
+        if (shipmentDate) document.getElementById('date').value = shipmentDate;
+    }
+
+    document.getElementById('itemsBody').innerHTML = '';
+    (shipment.items || []).forEach((item) => {
+        const productId = item.product?._id || item.product;
+        const importedCost = getImportedPieceCost(item, shipment);
+        addRow({
+            product: productId,
+            length: productsMap[productId]?.dimensions?.length || 0,
+            width: productsMap[productId]?.dimensions?.width || 0,
+            quantity: Number(item.quantity || 1),
+            cost: importedCost,
+            loadedCost: importedCost,
+            unitForeignPrice: Number(item.unitForeignPrice || 0),
+            lineTotal: Number(item.quantity || 0) * importedCost
+        });
+    });
+
+    fillShipmentSummary(shipment);
+    msg(`تم تحميل بيانات الشحنة ${shipment.shipmentRef || shipment.hwbNumber || ''} داخل الفاتورة الحالية.`, 'success');
+    calcTotal();
+}
+
+function loadShipmentReference() {
+    clearMsg();
+    const value = document.getElementById('shipmentLookup').value.trim() || document.getElementById('referenceCode').value.trim();
+    if (!value) {
+        msg('أدخل رقم Ref أو HWB أولًا لتحميل الشحنة.', 'error');
+        return;
+    }
+    const shipment = findShipmentByLookup(value);
+    if (!shipment) {
+        msg('لم يتم العثور على شحنة مستوردة بهذا المرجع.', 'error');
+        return;
+    }
+    populateFromShipment(shipment);
+}
+
+function collectItems() {
+    return [...document.querySelectorAll('#itemsBody tr')].map((row) => {
+        const product = row.querySelector('.prod').value;
+        if (!product) return null;
+        const baseCost = Number(row.querySelector('.cost').value || 0);
+        const loadedCost = Number(row.querySelector('.loaded').value || baseCost);
+        return {
+            product,
+            productCode: row.querySelector('.productCode')?.value || undefined,
+            materialType: row.querySelector('.materialType')?.value || undefined,
+            length: row.querySelector('.len').value,
+            width: row.querySelector('.wid').value,
+            quantity: row.querySelector('.qty').value,
+            cost: loadedCost,
+            baseCost,
+            loadedCost,
+            unitForeignPrice: Number(row.querySelector('.foreign').value || 0),
+            lineTotal: row.querySelector('.total').value
+        };
+    }).filter(Boolean);
+}
+
+async function saveInvoice() {
+    clearMsg();
+    const items = collectItems();
+    const supplier = document.getElementById('supplier').value;
+    const accInventory = document.getElementById('accInventory').value;
+    const accSupplier = document.getElementById('accSupplier').value;
+
+    if (!items.length) {
+        msg('أضف صنفًا واحدًا على الأقل قبل الحفظ.', 'error');
+        return;
+    }
+    if (!supplier) {
+        msg('اختر المورد أولًا.', 'error');
+        return;
+    }
+    if (!accInventory || !accSupplier) {
+        msg('يرجى اختيار حسابي المخزن والمورد قبل الحفظ.', 'error');
+        return;
+    }
+
+    const id = document.getElementById('editId').value;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API}/purchases/${id}` : `${API}/purchases`;
+
+    const payload = {
+        invoiceType: invoiceType(),
+        invoiceNumber: document.getElementById('invNum').value.trim() || undefined,
+        date: document.getElementById('date').value,
+        supplier,
+        referenceCode: document.getElementById('referenceCode').value.trim(),
+        linkedShipmentId: document.getElementById('linkedShipmentId').value || undefined,
+        accInventory,
+        accSupplier,
+        accVat: document.getElementById('accVat').value,
+        notes: document.getElementById('notes').value,
+        landedMode: document.getElementById('landedMode').value,
+        items,
+        subtotal: Number(document.getElementById('subtotal').textContent || 0),
+        totalExtraCosts: Number(document.getElementById('extraCost').value || 0),
+        totalTax: Number(document.getElementById('taxVal').value || 0),
+        whtAmount: Number(document.getElementById('whtVal').value || 0),
+        totalDiscount: Number(document.getElementById('discount').value || 0),
+        totalAmount: Number(document.getElementById('finalTotal').textContent || 0)
+    };
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: authHeaders(true),
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || result.error || 'فشل حفظ فاتورة المشتريات.');
+        msg(id ? 'تم تحديث الفاتورة بنجاح.' : 'تم حفظ الفاتورة بنجاح.', 'success');
+        setTimeout(() => { window.location.href = '/purchases/purchase_list.html'; }, 1200);
+    } catch (error) {
+        console.error(error);
+        msg(error.message || 'حدث خطأ أثناء الحفظ.', 'error');
+    }
+}
+
+async function loadForEdit(id) {
+    try {
+        const response = await fetch(`${API}/purchases/${id}`);
+        const invoice = await response.json();
+
+        document.getElementById('editId').value = invoice._id;
+        document.getElementById('screenTitle').textContent = 'تحديث فاتورة مشتريات';
+        document.getElementById('modeTag').textContent = 'وضع تعديل';
+        document.getElementById('saveButton').textContent = 'تحديث الفاتورة';
+        document.getElementById('invNum').value = invoice.invoiceNumber || '';
+        document.getElementById('date').value = String(invoice.date || '').split('T')[0];
+        document.getElementById('notes').value = invoice.notes || '';
+        document.getElementById('referenceCode').value = invoice.referenceCode || '';
+        document.getElementById('linkedShipmentId').value = invoice.linkedShipmentId || '';
+        document.getElementById('supplier').value = invoice.supplier?._id || invoice.supplier || '';
+        document.getElementById('accInventory').value = invoice.accInventory || '';
+        document.getElementById('accSupplier').value = invoice.accSupplier || '';
+        document.getElementById('accVat').value = invoice.accVat || '';
+        document.getElementById('extraCost').value = Number(invoice.totalExtraCosts || 0);
+        document.getElementById('taxVal').value = Number(invoice.totalTax || 0);
+        document.getElementById('whtVal').value = Number(invoice.whtAmount || 0);
+        document.getElementById('discount').value = Number(invoice.totalDiscount || 0);
+        document.getElementById('landedMode').value = invoice.landedMode || 'none';
+
+        const typeRadio = document.querySelector(`input[name="invoiceType"][value="${invoice.invoiceType || 'local'}"]`);
+        if (typeRadio) typeRadio.checked = true;
+
+        document.getElementById('itemsBody').innerHTML = '';
+        (invoice.items || []).forEach((item) => addRow({
+            product: item.product?._id || item.product,
+            length: item.customDimensions?.length || item.length || 0,
+            width: item.customDimensions?.width || item.width || 0,
+            quantity: item.quantity || 1,
+            cost: item.baseCost || item.cost || 0,
+            loadedCost: item.loadedCost || item.cost || 0,
+            unitForeignPrice: item.unitForeignPrice || 0,
+            lineTotal: item.lineTotal || 0
+        }));
+
+        if (invoice.linkedShipmentId && shipmentById[invoice.linkedShipmentId]) {
+            fillShipmentSummary(shipmentById[invoice.linkedShipmentId]);
+        }
+
+        handleType();
+        calcTotal();
+    } catch (error) {
+        console.error(error);
+        msg('تعذر تحميل الفاتورة المطلوبة للتعديل.', 'error');
+    }
+}
+
+function openImportShipment() {
+    window.location.href = '/inventory/import_shipment.html';
+}
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

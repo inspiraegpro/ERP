@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة الرواتب والترحيل</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1000px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-top: 0; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center; }
+        th { background: #f8fafc; color: #334155; }
+        
+        .badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+        .badge-draft { background: #fef3c7; color: #b45309; } /* Draft */
+        .badge-posted { background: #dcfce7; color: #166534; } /* Posted */
+
+        .btn { padding: 5px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-post { background: #3b82f6; color: white; }
+        .btn-post:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-view { background: #e2e8f0; color: #334155; margin-left: 5px; }
+
+        /* تنسيق النافذة المنبثقة (Modal) */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 25px; border-radius: 8px; width: 50%; max-width: 500px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .close { float: left; font-size: 24px; cursor: pointer; color: #aaa; }
+        
+        .form-group { margin-bottom: 15px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #475569; }
+        .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; }
+        .form-hint { font-size: 11px; color: #64748b; margin-top: 3px; }
+
+        .btn-confirm { background: #10b981; color: white; width: 100%; padding: 10px; font-size: 16px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>💰 سجل مسيرات الرواتب</h2>
+        <button onclick="window.location.href='payroll_create.html'" style="background:#0f172a; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">+ إنشاء مسير جديد</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>الشهر</th>
+                <th>عدد الموظفين</th>
+                <th>إجمالي الصافي</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="payrollTable"></tbody>
+    </table>
+</div>
+
+<div id="postModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3 style="margin-top:0; color:#3b82f6;">⚙️ توجيه قيد الرواتب</h3>
+        <p style="font-size:13px; color:#666;">اختر الحسابات التي سيتم إنشاء القيد عليها:</p>
+        
+        <input type="hidden" id="currentPayrollId">
+
+        <div class="form-group">
+            <label>1. حساب مصروف الرواتب (المدين) <span style="color:red">*</span></label>
+            <select id="salaryAcc"></select>
+            <div class="form-hint">عادة يكون: 5300 - رواتب وأجور</div>
+        </div>
+
+        <div class="form-group">
+            <label>2. حساب الصرف (الخزنة/البنك) <span style="color:red">*</span></label>
+            <select id="treasuryAcc"></select>
+            <div class="form-hint">الجهة التي ستخرج منها الأموال (الدائن)</div>
+        </div>
+
+        <div class="form-group">
+            <label>3. حساب تسوية السلف (اختياري)</label>
+            <select id="loansAcc">
+                <option value="">-- تخطي (لا يوجد سلف) --</option>
+            </select>
+            <div class="form-hint">يتم اختياره لخصم السلف من الموظفين (دائن)</div>
+        </div>
+
+        <div class="form-group">
+            <label>4. حساب الجزاءات/الخصومات (اختياري)</label>
+            <select id="penaltiesAcc">
+                <option value="">-- تخطي (لا يوجد جزاءات) --</option>
+            </select>
+            <div class="form-hint">يعتبر إيراد متنوع أو تخفيض للمصروف (دائن)</div>
+        </div>
+
+        <button class="btn btn btn-confirm" onclick="confirmPost()">✅ اعتماد وترحيل القيد</button>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let allAccounts = [];
+
+    window.onload = async () => {
+        await loadAccounts();
+        await loadPayrolls();
+    };
+
+    // 1. تحميل الحسابات لملء القوائم
+    async function loadAccounts() {
+        try {
+            const res = await fetch(`${API}/accounts`);
+            allAccounts = await res.json();
+            
+            // فلتر الحسابات الفرعية فقط
+            const subAccounts = allAccounts.filter(a => a.isTransactional);
+
+            // دالة لملء القائمة
+            const fillSelect = (id, list) => {
+                const sel = document.getElementById(id);
+                // نضيف الخيار الافتراضي لو القائمة مش سلف أو جزاءات
+                if(id !== 'loansAcc' && id !== 'penaltiesAcc') sel.innerHTML = '<option value="">-- اختر الحساب --</option>';
+                
+                list.forEach(acc => {
+                    sel.innerHTML += `<option value="${acc._id}">${acc.code} - ${acc.name}</option>`;
+                });
+            };
+
+            // ملء القوائم (يمكنك هنا عمل فلترة أذكى لو حبيت، مثلا تعرض المصاريف بس في قائمة المصروف)
+            // حالياً سأعرض كل الحسابات الفرعية لضمان الحرية الكاملة لك
+            fillSelect('salaryAcc', subAccounts);
+            fillSelect('treasuryAcc', subAccounts);
+            fillSelect('loansAcc', subAccounts);
+            fillSelect('penaltiesAcc', subAccounts);
+
+        } catch (e) { console.error('خطأ في تحميل الحسابات', e); }
+    }
+
+    // 2. تحميل جدول الرواتب
+    async function loadPayrolls() {
+        try {
+            const res = await fetch(`${API}/hr/payroll`);
+            const data = await res.json();
+            const tbody = document.getElementById('payrollTable');
+            
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">لا توجد مسيرات رواتب مسجلة</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(p => `
+                <tr>
+                    <td style="font-weight:bold">${p.month}</td>
+                    <td>${p.details.length}</td>
+                    <td style="color:#166534; font-weight:bold">${p.totalAmount.toLocaleString()}</td>
+                    <td>
+                        <span class="badge ${p.status === 'Posted' ? 'badge-posted' : 'badge-draft'}">
+                            ${p.status === 'Posted' ? 'مرحل (Posted)' : 'مسودة (Draft)'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-post" onclick="openPostModal('${p._id}')" ${p.status === 'Posted' ? 'disabled' : ''}>
+                            🚀 ترحيل
+                        </button>
+                        <button class="btn btn-view" onclick="alert('لسه هنعمل صفحة التفاصيل')">👁️ عرض</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    // 3. فتح النافذة
+    function openPostModal(id) {
+        document.getElementById('currentPayrollId').value = id;
+        document.getElementById('postModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('postModal').style.display = 'none';
+    }
+
+    // 4. تنفيذ الترحيل (إرسال الـ IDs للباك إند) 🔥
+    async function confirmPost() {
+        const id = document.getElementById('currentPayrollId').value;
+        
+        // تجميع الحسابات المختارة
+        const payload = {
+            salaryAccountId: document.getElementById('salaryAcc').value,
+            treasuryAccountId: document.getElementById('treasuryAcc').value,
+            loansAccountId: document.getElementById('loansAcc').value || null,
+            penaltiesAccountId: document.getElementById('penaltiesAcc').value || null
+        };
+
+        if(!payload.salaryAccountId || !payload.treasuryAccountId) {
+            alert('يجب اختيار حساب الرواتب وحساب الصرف على الأقل!');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/hr/payroll/${id}/post`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload) // إرسال الحسابات
+            });
+            
+            const json = await res.json();
+            if(res.ok) {
+                alert(json.message);
+                closeModal();
+                loadPayrolls(); // تحديث الجدول
+            } else {
+                alert('خطأ: ' + json.message);
+            }
+        } catch (e) { alert('خطأ في الاتصال بالسيرفر'); }
+    }
+
+    // إغلاق النافذة عند الضغط خارجها
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('postModal')) closeModal();
+    }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

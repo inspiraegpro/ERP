@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>ميزان مراجعة الموردين</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; background: #e0f2fe; padding: 15px; border-radius: 6px; }
+        input, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
+        button { background: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
+        th { background: #1e293b; color: white; }
+        
+        /* جعل الصف قابل للضغط */
+        tbody tr { cursor: pointer; transition: 0.2s; }
+        tbody tr:hover { background: #dbeafe; transform: scale(1.005); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📊 ميزان مراجعة الموردين</h2>
+    <div class="filters">
+        <div><label>من تاريخ</label><input type="date" id="fromDate"></div>
+        <div><label>إلى تاريخ</label><input type="date" id="toDate"></div>
+        <div><label>بحث بالاسم</label><input type="text" id="search" onkeyup="filterTable()" placeholder="اكتب الاسم..."></div>
+        <div style="display:flex; align-items:flex-end"><button onclick="loadData()">تحديث التقرير</button></div>
+    </div>
+
+    <table id="table">
+        <thead>
+            <tr>
+                <th>الكود</th>
+                <th>اسم المورد</th>
+                <th>رصيد سابق</th>
+                <th>حركة مدينة (سداد)</th>
+                <th>حركة دائنة (شراء)</th>
+                <th>الرصيد الحالي</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+            <tr style="background:#e2e8f0; font-weight:bold"><td colspan="2">الإجمالي</td><td id="tOpen">0</td><td id="tDeb">0</td><td id="tCred">0</td><td id="tEnd">0</td></tr>
+        </tfoot>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+    const today = new Date();
+    document.getElementById('toDate').valueAsDate = today;
+    document.getElementById('fromDate').valueAsDate = new Date(today.getFullYear(), 0, 1);
+
+    window.onload = loadData;
+
+    async function loadData() {
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        const tbody = document.querySelector('#table tbody');
+        
+        tbody.innerHTML = '<tr><td colspan="6">جار التحميل...</td></tr>';
+
+        try {
+            const res = await fetch(`${API}/reports/suppliers-balance-summary?fromDate=${from}&toDate=${to}`);
+            const data = await res.json();
+            
+            tbody.innerHTML = '';
+            if(!data.length) { tbody.innerHTML = '<tr><td colspan="6">لا توجد بيانات</td></tr>'; return; }
+
+            let sOpen=0, sDeb=0, sCred=0, sEnd=0;
+
+            data.forEach(row => {
+                sOpen += row.openingBalance; sDeb += row.periodDebit; sCred += row.periodCredit; sEnd += row.closingBalance;
+                
+                const tr = document.createElement('tr');
+                
+                // 🔥🔥 هنا النقل للصفحة التانية عند الضغط 🔥🔥
+                tr.onclick = () => { window.location.href = `/purchases/supplier_report.html?id=${row.id}`; };
+                
+                tr.innerHTML = `
+                    <td>${row.code}</td>
+                    <td style="font-weight:bold; color:#2563eb; text-align:right">${row.name}</td>
+                    <td>${fmt(row.openingBalance)}</td>
+                    <td style="color:red">${fmt(row.periodDebit)}</td>
+                    <td style="color:green">${fmt(row.periodCredit)}</td>
+                    <td style="font-weight:bold; background:#f8fafc">${fmt(row.closingBalance)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('tOpen').innerText = fmt(sOpen);
+            document.getElementById('tDeb').innerText = fmt(sDeb);
+            document.getElementById('tCred').innerText = fmt(sCred);
+            document.getElementById('tEnd').innerText = fmt(sEnd);
+
+        } catch (e) { alert('خطأ: ' + e.message); }
+    }
+
+    function filterTable() {
+        const txt = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('#table tbody tr').forEach(tr => {
+            const name = tr.cells[1]?.innerText.toLowerCase();
+            tr.style.display = name?.includes(txt) ? '' : 'none';
+        });
+    }
+
+    function fmt(n) { return n.toLocaleString('en-US', {minimumFractionDigits:2}); }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

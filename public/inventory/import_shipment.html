@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملف شحنة استيراد - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --p: #163a5f;
+            --s: #526277;
+            --a: #b98918;
+            --ok: #1f6f5f;
+            --er: #9f3a38;
+            --bd: rgba(22, 58, 95, 0.12);
+            --sf: rgba(255, 255, 255, 0.97);
+            --soft: #f5f7fb;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185, 137, 24, 0.14), transparent 20rem),
+                linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--p);
+        }
+
+        .shell {
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+
+        .hero,
+        .card,
+        .table-wrap {
+            border-radius: 24px;
+            box-shadow: 0 18px 38px rgba(22, 58, 95, 0.08);
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--p), #244c73);
+            color: #fff;
+            padding: 2rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .card,
+        .table-wrap {
+            background: var(--sf);
+            border: 1px solid var(--bd);
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero-row,
+        .head,
+        .tools,
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .hero h1,
+        .head h2 {
+            margin: 0;
+        }
+
+        .hero p {
+            margin: 0.45rem 0 0;
+            color: rgba(255, 255, 255, 0.86);
+            line-height: 1.85;
+            max-width: 58rem;
+        }
+
+        .tags {
+            display: flex;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .tag,
+        .status-chip,
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+
+        .tag {
+            padding: 0.7rem 0.95rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .status-chip {
+            padding: 0.55rem 0.85rem;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .head p,
+        .hint {
+            margin: 0.35rem 0 0;
+            color: #738396;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+
+        .span2 { grid-column: span 2; }
+        .span4 { grid-column: 1 / -1; }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .field label {
+            font-weight: 700;
+            color: var(--s);
+            font-size: 0.92rem;
+        }
+
+        .field input,
+        .field select,
+        .field textarea,
+        .cell {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(82, 98, 119, 0.2);
+            border-radius: 14px;
+            padding: 0.85rem 0.95rem;
+            background: #fff;
+            color: var(--p);
+            font-size: 0.97rem;
+        }
+
+        .field textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .msg {
+            display: none;
+            padding: 1rem 1.1rem;
+            border-radius: 16px;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .msg.ok {
+            display: block;
+            background: rgba(31, 111, 95, 0.1);
+            color: var(--ok);
+            border: 1px solid rgba(31, 111, 95, 0.18);
+        }
+
+        .msg.er {
+            display: block;
+            background: rgba(159, 58, 56, 0.1);
+            color: var(--er);
+            border: 1px solid rgba(159, 58, 56, 0.18);
+        }
+
+        .msg.info {
+            display: block;
+            background: rgba(22, 58, 95, 0.08);
+            color: var(--p);
+            border: 1px solid rgba(22, 58, 95, 0.12);
+        }
+
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 0.95rem 1.15rem;
+            font-size: 0.96rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 22px rgba(22, 58, 95, 0.12);
+            text-decoration: none;
+        }
+
+        .btn.primary { background: var(--p); color: #fff; }
+        .btn.accent { background: var(--a); color: #fff; }
+        .btn.success { background: var(--ok); color: #fff; }
+        .btn.light {
+            background: #fff;
+            color: var(--p);
+            border: 1px solid var(--bd);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            padding: 0.8rem 1.05rem;
+            border: 1px solid var(--bd);
+            background: var(--soft);
+            color: var(--s);
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--p);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            background: #eef2f7;
+            color: var(--p);
+            padding: 1rem 0.8rem;
+            border-bottom: 1px solid var(--bd);
+            font-size: 0.9rem;
+        }
+
+        tbody td {
+            padding: 0.75rem 0.65rem;
+            border-bottom: 1px solid rgba(82, 98, 119, 0.12);
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .remove-btn {
+            border: none;
+            background: rgba(159, 58, 56, 0.1);
+            color: var(--er);
+            border-radius: 10px;
+            padding: 0.55rem 0.75rem;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .summary-grid,
+        .ledger-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .summary-card {
+            background: var(--soft);
+            border: 1px solid var(--bd);
+            border-radius: 16px;
+            padding: 1rem;
+        }
+
+        .summary-card span {
+            display: block;
+            color: #738396;
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .summary-card strong {
+            font-size: 1.15rem;
+            color: var(--p);
+        }
+
+        .ledger-state {
+            font-weight: 800;
+        }
+
+        @media (max-width: 980px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .span2,
+            .span4 {
+                grid-column: auto;
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+            }
+        }
+
+        @media print {
+            .no-print,
+            .global-nav-shell {
+                display: none !important;
+            }
+
+            .shell {
+                padding: 0;
+            }
+
+            .hero,
+            .card,
+            .table-wrap {
+                box-shadow: none;
+                border: 1px solid #d7dee7;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <div class="hero-row">
+            <div>
+                <h1 id="screenTitle">ملف شحنة استيراد</h1>
+                <p>إدارة الشحنة المستوردة بنفس الواجهة الحديثة الحالية، مع الحفاظ على التوزيع الفعلي للتكلفة، ربط المورد الأجنبي والوسيط، والمصاريف المحلية والترحيل المالي بدون الرجوع لأي تصميم قديم.</p>
+            </div>
+            <div class="tools no-print">
+                <span class="status-chip" id="statusBadge">مسودة</span>
+                <button class="btn light" type="button" onclick="window.print()">طباعة</button>
+                <button class="btn light" type="button" onclick="location.href='/inventory/import_list.html'">العودة إلى سجل الشحنات</button>
+            </div>
+        </div>
+        <div class="tags">
+            <span class="tag">ربط مباشر بالمشتريات المستوردة</span>
+            <span class="tag">توزيع تكلفة الشحنة</span>
+            <span class="tag">ترحيل مالي محكوم</span>
+        </div>
+    </section>
+
+    <div id="messageBox" class="msg"></div>
+
+    <section class="card">
+        <div class="head">
+            <div>
+                <h2>البيانات الأساسية</h2>
+                <p>مرجع الشحنة والمورد الأجنبي وبيانات الوصول التي يعتمد عليها التسعير والترحيل.</p>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="field">
+                <label for="shipmentRef">رقم الملف المرجعي</label>
+                <input id="shipmentRef" placeholder="مثال: IMP-2026-001">
+            </div>
+            <div class="field">
+                <label for="hwbNumber">رقم البوليصة / HWB</label>
+                <input id="hwbNumber" placeholder="أدخل رقم البوليصة">
+            </div>
+            <div class="field">
+                <label for="supplierSelect">المورد الأجنبي</label>
+                <select id="supplierSelect">
+                    <option value="">جار التحميل...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="arrivalDate">تاريخ الوصول</label>
+                <input type="date" id="arrivalDate">
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="head">
+            <div>
+                <h2>تفاصيل الشحنة</h2>
+                <p>تبويبات واضحة لإدارة الأصناف، تسوية الوسيط، والمصاريف المحلية المؤثرة على التكلفة النهائية.</p>
+            </div>
+        </div>
+
+        <div class="tabs no-print">
+            <button class="tab-btn active" type="button" data-panel="itemsPanel">الأصناف</button>
+            <button class="tab-btn" type="button" data-panel="bankPanel">الوسيط وسعر الصرف</button>
+            <button class="tab-btn" type="button" data-panel="expensesPanel">المصاريف المحلية</button>
+            <button class="tab-btn" type="button" data-panel="ledgerPanel">التوجيه المحاسبي</button>
+        </div>
+
+        <div id="itemsPanel" class="tab-panel active">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الكمية</th>
+                            <th>السعر الأجنبي</th>
+                            <th>تكلفة القطعة بعد التحميل</th>
+                            <th>تكلفة المتر / الوحدة المساحية</th>
+                            <th>إجمالي السطر</th>
+                            <th class="no-print">إزالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+            </div>
+            <div class="action-row no-print">
+                <span class="hint">يتم حساب تكلفة القطعة المحملة تلقائيًا بعد احتساب سعر الصرف والعمولة والمصاريف غير الضريبية.</span>
+                <button class="btn accent" type="button" onclick="addItemRow()">إضافة صنف</button>
+            </div>
+        </div>
+
+        <div id="bankPanel" class="tab-panel">
+            <div class="grid">
+                <div class="field span2">
+                    <label for="intermediarySupplier">المورد الوسيط / الوادزريم</label>
+                    <select id="intermediarySupplier">
+                        <option value="">اختر المورد الوسيط</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="exchangeRate">سعر الصرف</label>
+                    <input type="number" id="exchangeRate" step="0.0001" min="0" value="1">
+                </div>
+                <div class="field">
+                    <label for="commRate">نسبة العمولة البنكية</label>
+                    <input type="number" id="commRate" step="0.0001" min="0" value="0.008">
+                </div>
+            </div>
+        </div>
+
+        <div id="expensesPanel" class="tab-panel">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المصروف</th>
+                            <th>المبلغ</th>
+                            <th>المورد / الجهة</th>
+                            <th>ضريبة؟</th>
+                            <th class="no-print">إزالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesBody"></tbody>
+                </table>
+            </div>
+            <div class="action-row no-print">
+                <span class="hint">المصاريف غير الضريبية تدخل في تكلفة التحميل، بينما الضريبية تعرض محاسبيًا دون إضافتها لتحميل الصنف.</span>
+                <button class="btn accent" type="button" onclick="addExpenseRow()">إضافة مصروف</button>
+            </div>
+        </div>
+
+        <div id="ledgerPanel" class="tab-panel">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الحساب</th>
+                            <th>مدين</th>
+                            <th>دائن</th>
+                            <th>ملاحظة</th>
+                            <th class="no-print">إزالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerBody"></tbody>
+                </table>
+            </div>
+            <div class="action-row no-print">
+                <div class="tools">
+                    <button class="btn light" type="button" onclick="addLedgerRow()">إضافة سطر</button>
+                    <button class="btn accent" type="button" onclick="autoFillLedgerImport()">ملء تلقائي</button>
+                </div>
+                <span class="hint">الملء التلقائي يعتمد على ملخص التكاليف الحالي للشحنة.</span>
+            </div>
+            <div class="ledger-summary">
+                <div class="summary-card">
+                    <span>إجمالي المدين</span>
+                    <strong id="sumDr">0.00</strong>
+                </div>
+                <div class="summary-card">
+                    <span>إجمالي الدائن</span>
+                    <strong id="sumCr">0.00</strong>
+                </div>
+                <div class="summary-card">
+                    <span>حالة التوازن</span>
+                    <strong class="ledger-state" id="balanceState">غير متوازن</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <span>قيمة البضاعة المحلية</span>
+                <strong id="viewGoods">0.00</strong>
+            </div>
+            <div class="summary-card">
+                <span>العمولات البنكية</span>
+                <strong id="viewComms">0.00</strong>
+            </div>
+            <div class="summary-card">
+                <span>المصاريف المحلية المحملة</span>
+                <strong id="viewExp">0.00</strong>
+            </div>
+            <div class="summary-card">
+                <span>إجمالي الشحنة</span>
+                <strong id="viewFinalTotal">0.00</strong>
+            </div>
+            <div class="summary-card">
+                <span>متوسط تكلفة القطعة</span>
+                <strong id="viewItemCost">0.00</strong>
+            </div>
+            <div class="summary-card">
+                <span>تكلفة المتر / الوحدة المساحية</span>
+                <strong id="viewUnitCost">0.00</strong>
+            </div>
+        </div>
+
+        <div class="action-row no-print" style="margin-top: 1.25rem;">
+            <span class="hint">عند الترحيل المالي سيتم استخدام مسار الشحنة الحالي في الخلفية لحساب التكلفة الفعلية وتحديث حالة المستند.</span>
+            <div class="tools">
+                <button id="saveBtn" class="btn primary" type="button" onclick="saveShipment()">حفظ كمسودة</button>
+                <button id="postBtn" class="btn success" type="button" onclick="confirmFinancialPost()">ترحيل مالي وإقفال</button>
+                <button id="cancelPostBtn" class="btn danger" type="button" onclick="cancelFinancialPost()" style="display: none; background: #9f3a38;">إلغاء الترحيل المالي</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    const API = '/api';
+    let shipmentId = new URLSearchParams(window.location.search).get('id');
+    let products = [];
+    let suppliers = [];
+    let accounts = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        bindTabs();
+        bindRecalcEvents();
+        document.getElementById('arrivalDate').valueAsDate = new Date();
+        await loadMasterData();
+
+        if (shipmentId && shipmentId !== 'null') {
+            await loadShipment(shipmentId);
+        } else {
+            addItemRow();
+            initDefaultExpenses();
+            setStatusBadge('مسودة', 'draft');
+            setMessage('تم فتح نموذج شحنة جديد. يمكنك البدء بإدخال البنود والمصاريف ثم الحفظ كمسودة.', 'info');
+        }
+    });
+
+    function bindTabs() {
+        document.querySelectorAll('.tab-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach((item) => item.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
+                button.classList.add('active');
+                document.getElementById(button.dataset.panel).classList.add('active');
+            });
+        });
+    }
+
+    function bindRecalcEvents() {
+        document.getElementById('exchangeRate').addEventListener('input', recalcShipment);
+        document.getElementById('commRate').addEventListener('input', recalcShipment);
+    }
+
+    function setMessage(message, type = 'info') {
+        const box = document.getElementById('messageBox');
+        box.className = `msg ${type === 'error' ? 'er' : type === 'success' ? 'ok' : 'info'}`;
+        box.textContent = message;
+    }
+
+    function clearMessage() {
+        const box = document.getElementById('messageBox');
+        box.className = 'msg';
+        box.textContent = '';
+    }
+
+    function setStatusBadge(text, mode = 'draft') {
+        const badge = document.getElementById('statusBadge');
+        badge.textContent = text;
+        badge.style.background = mode === 'posted' ? 'rgba(31,111,95,.2)' : 'rgba(255,255,255,.14)';
+    }
+
+    async function loadMasterData() {
+        try {
+            const [productsResponse, suppliersResponse, accountsResponse] = await Promise.all([
+                fetch(`${API}/products`),
+                fetch(`${API}/suppliers`),
+                fetch(`${API}/accounts`)
+            ]);
+
+            products = productsResponse.ok ? await productsResponse.json() : [];
+            suppliers = suppliersResponse.ok ? await suppliersResponse.json() : [];
+            accounts = accountsResponse.ok ? await accountsResponse.json() : [];
+
+            fillSuppliers();
+        } catch (error) {
+            console.error(error);
+            setMessage('تعذر تحميل البيانات المرجعية الخاصة بالأصناف أو الموردين أو الحسابات.', 'error');
+        }
+    }
+
+    function fillSuppliers() {
+        const supplierSelect = document.getElementById('supplierSelect');
+        const intermediarySelect = document.getElementById('intermediarySupplier');
+        const options = ['<option value=\"\">اختر المورد</option>']
+            .concat(suppliers.map((supplier) => `<option value="${supplier._id}">${supplier.code ? supplier.code + ' - ' : ''}${supplier.name || 'مورد'}</option>`))
+            .join('');
+
+        supplierSelect.innerHTML = options;
+        intermediarySelect.innerHTML = options.replace('اختر المورد', 'اختر المورد الوسيط');
+    }
+
+    function initDefaultExpenses() {
+        const defaults = [
+            { description: 'جمارك', isVat: false },
+            { description: 'ضريبة VAT', isVat: true },
+            { description: 'تخليص', isVat: false },
+            { description: 'نافذة', isVat: false },
+            { description: 'أرضيات', isVat: false }
+        ];
+
+        defaults.forEach((item) => addExpenseRow(item));
+    }
+
+    function productOptions(selectedId = '') {
+        return ['<option value=\"\">اختر الصنف</option>']
+            .concat(products.map((product) => `<option value="${product._id}" ${String(selectedId) === String(product._id) ? 'selected' : ''}>${product.name || 'صنف'}</option>`))
+            .join('');
+    }
+
+    function supplierOptions(selectedId = '') {
+        return ['<option value=\"\">اختر الجهة</option>']
+            .concat(suppliers.map((supplier) => `<option value="${supplier._id}" ${String(selectedId) === String(supplier._id) ? 'selected' : ''}>${supplier.code ? supplier.code + ' - ' : ''}${supplier.name || 'مورد'}</option>`))
+            .join('');
+    }
+
+    function accountOptions(selectedId = '') {
+        return ['<option value=\"\">اختر الحساب</option>']
+            .concat(accounts
+                .filter((account) => account.isTransactional)
+                .map((account) => `<option value="${account._id}" ${String(selectedId) === String(account._id) ? 'selected' : ''}>${account.code || ''} - ${account.name || 'حساب'}</option>`))
+            .join('');
+    }
+
+    function addItemRow(data = {}) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><select class="cell p-id">${productOptions(data.product?._id || data.product || '')}</select></td>
+            <td><input class="cell qty" type="number" min="0" step="0.01" value="${Number(data.quantity || 1).toFixed(2)}"></td>
+            <td><input class="cell price" type="number" min="0" step="0.01" value="${Number(data.unitForeignPrice || 0).toFixed(2)}"></td>
+            <td><input class="cell landed" type="number" readonly value="${Number(resolvePieceCost(data)).toFixed(2)}"></td>
+            <td><input class="cell unit-area-cost" type="number" readonly value="0.00" style="font-weight:700;color:#b98918;"></td>
+            <td><input class="cell line-total" type="number" readonly value="0.00"></td>
+            <td class="no-print"><button type="button" class="remove-btn">حذف</button></td>
+        `;
+
+        document.getElementById('itemsBody').appendChild(row);
+
+        row.querySelector('.remove-btn').addEventListener('click', () => {
+            row.remove();
+            recalcShipment();
+        });
+
+        row.querySelectorAll('select, input.qty, input.price').forEach((element) => {
+            element.addEventListener('input', recalcShipment);
+            element.addEventListener('change', recalcShipment);
+        });
+
+        recalcShipment();
+    }
+
+    function addExpenseRow(data = {}) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input class="cell e-desc" value="${data.description || ''}"></td>
+            <td><input class="cell e-amt" type="number" min="0" step="0.01" value="${Number(data.amount || 0).toFixed(2)}"></td>
+            <td><select class="cell e-vendor">${supplierOptions(data.vendor?._id || data.vendor || '')}</select></td>
+            <td><input class="is-vat" type="checkbox" ${data.isVat ? 'checked' : ''}></td>
+            <td class="no-print"><button type="button" class="remove-btn">حذف</button></td>
+        `;
+
+        document.getElementById('expensesBody').appendChild(row);
+
+        row.querySelector('.remove-btn').addEventListener('click', () => {
+            row.remove();
+            recalcShipment();
+        });
+
+        row.querySelectorAll('input, select').forEach((element) => {
+            element.addEventListener('input', recalcShipment);
+            element.addEventListener('change', recalcShipment);
+        });
+
+        recalcShipment();
+    }
+
+    function addLedgerRow(data = {}) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><select class="cell l-acc">${accountOptions(data.acc || '')}</select></td>
+            <td><input class="cell l-dr" type="number" min="0" step="0.01" value="${Number(data.dr || 0).toFixed(2)}"></td>
+            <td><input class="cell l-cr" type="number" min="0" step="0.01" value="${Number(data.cr || 0).toFixed(2)}"></td>
+            <td><input class="cell l-note" value="${data.note || ''}"></td>
+            <td class="no-print"><button type="button" class="remove-btn">حذف</button></td>
+        `;
+
+        document.getElementById('ledgerBody').appendChild(row);
+
+        row.querySelector('.remove-btn').addEventListener('click', () => {
+            row.remove();
+            calcLedgerSums();
+        });
+
+        row.querySelectorAll('input, select').forEach((element) => {
+            element.addEventListener('input', calcLedgerSums);
+            element.addEventListener('change', calcLedgerSums);
+        });
+
+        calcLedgerSums();
+    }
+
+    function resolvePieceCost(item) {
+        if (item.unitLandedCost && item.product) {
+            return Number(item.unitLandedCost || 0);
+        }
+        return 0;
+    }
+
+    function getProductArea(product) {
+        const unit = String(product?.unit || '').toLowerCase();
+        const isPiece = unit.includes('قطعة') || unit.includes('عدد') || unit.includes('piece') || product?.isPiece;
+        if (isPiece) return 1;
+
+        const length = Number(product?.dimensions?.length || 0);
+        const width = Number(product?.dimensions?.width || 0);
+        if (!length || !width) return 0;
+        return (length * width) / 10000;
+    }
+
+    function recalcShipment() {
+        const rate = Number(document.getElementById('exchangeRate').value || 1);
+        const commRate = Number(document.getElementById('commRate').value || 0);
+        let totalUSD = 0;
+        let totalArea = 0;
+        let totalQty = 0;
+
+        const itemRows = Array.from(document.querySelectorAll('#itemsBody tr'));
+        itemRows.forEach((row) => {
+            const productId = row.querySelector('.p-id').value;
+            const qty = Number(row.querySelector('.qty').value || 0);
+            const price = Number(row.querySelector('.price').value || 0);
+            const lineTotal = qty * price;
+            const product = products.find((entry) => String(entry._id) === String(productId));
+            const area = getProductArea(product);
+
+            row.querySelector('.line-total').value = lineTotal.toFixed(2);
+            totalUSD += lineTotal;
+            totalQty += qty;
+            totalArea += qty * area;
+        });
+
+        const goodsEGP = totalUSD * rate;
+        const comms = goodsEGP * commRate;
+        let expEGP = 0;
+
+        document.querySelectorAll('#expensesBody tr').forEach((row) => {
+            if (!row.querySelector('.is-vat').checked) {
+                expEGP += Number(row.querySelector('.e-amt').value || 0);
+            }
+        });
+
+        const finalTotal = goodsEGP + comms + expEGP;
+        const itemAverage = totalQty > 0 ? finalTotal / totalQty : 0;
+        const areaAverage = totalArea > 0 ? finalTotal / totalArea : 0;
+
+        document.getElementById('viewGoods').textContent = goodsEGP.toFixed(2);
+        document.getElementById('viewComms').textContent = comms.toFixed(2);
+        document.getElementById('viewExp').textContent = expEGP.toFixed(2);
+        document.getElementById('viewFinalTotal').textContent = finalTotal.toFixed(2);
+        document.getElementById('viewItemCost').textContent = itemAverage.toFixed(2);
+        document.getElementById('viewUnitCost').textContent = areaAverage.toFixed(2);
+
+        itemRows.forEach((row) => {
+            const productId = row.querySelector('.p-id').value;
+            const qty = Number(row.querySelector('.qty').value || 0);
+            const price = Number(row.querySelector('.price').value || 0);
+            const lineGoodsLocal = qty * price * rate;
+            const ratio = goodsEGP > 0 ? lineGoodsLocal / goodsEGP : (itemRows.length ? 1 / itemRows.length : 0);
+            const pieceLoaded = qty > 0 ? (lineGoodsLocal + (comms * ratio) + (expEGP * ratio)) / qty : 0;
+            row.querySelector('.landed').value = pieceLoaded.toFixed(2);
+            
+            // Calculate unit area cost (تكلفة المتر / الوحدة المساحية)
+            const product = products.find((entry) => String(entry._id) === String(productId));
+            const area = getProductArea(product);
+            const unitAreaCost = area > 0 ? pieceLoaded / area : 0;
+            const unitAreaCostInput = row.querySelector('.unit-area-cost');
+            if (unitAreaCostInput) unitAreaCostInput.value = unitAreaCost.toFixed(2);
+        });
+
+        calcLedgerSums();
+    }
+
+    function autoFillLedgerImport() {
+        const goodsEGP = Number(document.getElementById('viewGoods').textContent || 0);
+        const comms = Number(document.getElementById('viewComms').textContent || 0);
+        const expEGP = Number(document.getElementById('viewExp').textContent || 0);
+        const finalTotal = Number(document.getElementById('viewFinalTotal').textContent || 0);
+
+        const ledgerBody = document.getElementById('ledgerBody');
+        ledgerBody.innerHTML = '';
+
+        if (goodsEGP > 0) addLedgerRow({ dr: goodsEGP, note: 'قيمة البضاعة الأجنبية بعد التحويل' });
+        if (comms > 0) addLedgerRow({ dr: comms, note: 'عمولات بنكية محملة على الشحنة' });
+        if (expEGP > 0) addLedgerRow({ dr: expEGP, note: 'مصاريف محلية غير ضريبية' });
+        if (finalTotal > 0) addLedgerRow({ cr: finalTotal, note: 'إجمالي مستحقات الشحنة' });
+
+        calcLedgerSums();
+    }
+
+    function calcLedgerSums() {
+        let debit = 0;
+        let credit = 0;
+
+        document.querySelectorAll('.l-dr').forEach((input) => {
+            debit += Number(input.value || 0);
+        });
+
+        document.querySelectorAll('.l-cr').forEach((input) => {
+            credit += Number(input.value || 0);
+        });
+
+        document.getElementById('sumDr').textContent = debit.toFixed(2);
+        document.getElementById('sumCr').textContent = credit.toFixed(2);
+
+        const state = document.getElementById('balanceState');
+        if (Math.abs(debit - credit) < 0.001) {
+            state.textContent = 'متوازن';
+            state.style.color = '#1f6f5f';
+        } else {
+            state.textContent = 'غير متوازن';
+            state.style.color = '#9f3a38';
+        }
+    }
+
+    function collectData() {
+        return {
+            _id: shipmentId || undefined,
+            shipmentRef: document.getElementById('shipmentRef').value.trim(),
+            hwbNumber: document.getElementById('hwbNumber').value.trim(),
+            supplier: document.getElementById('supplierSelect').value,
+            arrivalDate: document.getElementById('arrivalDate').value,
+            exchangeRate: Number(document.getElementById('exchangeRate').value || 0),
+            bankCommissionRate: Number(document.getElementById('commRate').value || 0),
+            intermediarySupplier: document.getElementById('intermediarySupplier').value,
+            items: Array.from(document.querySelectorAll('#itemsBody tr')).map((row) => ({
+                product: row.querySelector('.p-id').value,
+                quantity: Number(row.querySelector('.qty').value || 0),
+                unitForeignPrice: Number(row.querySelector('.price').value || 0),
+                unitLandedCost: Number(row.querySelector('.landed').value || 0),
+                unitAreaCost: Number(row.querySelector('.unit-area-cost')?.value || 0)
+            })),
+            costLines: Array.from(document.querySelectorAll('#expensesBody tr')).map((row) => ({
+                description: row.querySelector('.e-desc').value.trim(),
+                amount: Number(row.querySelector('.e-amt').value || 0),
+                vendor: row.querySelector('.e-vendor').value,
+                isVat: row.querySelector('.is-vat').checked
+            }))
+        };
+    }
+
+    async function saveShipment() {
+        clearMessage();
+        const payload = collectData();
+
+        if (!payload.shipmentRef) {
+            setMessage('أدخل رقم الملف المرجعي للشحنة قبل الحفظ.', 'error');
+            return null;
+        }
+
+        if (!payload.items.length) {
+            setMessage('أضف بندًا واحدًا على الأقل داخل الشحنة قبل الحفظ.', 'error');
+            return null;
+        }
+
+        try {
+            const response = await fetch(`${API}/import-shipments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || 'فشل حفظ الشحنة.');
+            }
+
+            if (!shipmentId && result._id) {
+                shipmentId = result._id;
+                window.history.replaceState({}, '', `/inventory/import_shipment.html?id=${shipmentId}`);
+            }
+
+            setMessage('تم حفظ الشحنة كمسودة بنجاح.', 'success');
+            setStatusBadge('مسودة', 'draft');
+            return result;
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر حفظ الشحنة.', 'error');
+            return null;
+        }
+    }
+
+    async function confirmFinancialPost() {
+        clearMessage();
+
+        if (!document.getElementById('intermediarySupplier').value) {
+            setMessage('اختر المورد الوسيط أولًا قبل الترحيل المالي.', 'error');
+            return;
+        }
+
+        if (!confirm('هل تريد ترحيل هذه الشحنة ماليًا وإقفالها؟')) {
+            return;
+        }
+
+        const saved = await saveShipment();
+        if (!saved && !shipmentId) return;
+
+        try {
+            const response = await fetch(`${API}/import-shipments/${shipmentId}/post-financial`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || 'فشل الترحيل المالي.');
+            }
+
+            setMessage(result.message || 'تم الترحيل المالي بنجاح.', 'success');
+            await loadShipment(shipmentId);
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر تنفيذ الترحيل المالي.', 'error');
+        }
+    }
+
+    async function loadShipment(id) {
+        try {
+            const response = await fetch(`${API}/import-shipments/${id}`);
+            if (!response.ok) {
+                throw new Error('تعذر تحميل الشحنة المطلوبة.');
+            }
+
+            const data = await response.json();
+            shipmentId = id;
+            document.getElementById('shipmentRef').value = data.shipmentRef || '';
+            document.getElementById('hwbNumber').value = data.hwbNumber || '';
+            document.getElementById('supplierSelect').value = data.supplier?._id || data.supplier || '';
+            document.getElementById('arrivalDate').value = data.arrivalDate ? String(data.arrivalDate).split('T')[0] : '';
+            document.getElementById('exchangeRate').value = data.exchangeRate || 1;
+            document.getElementById('commRate').value = data.bankCommissionRate || 0.008;
+            document.getElementById('intermediarySupplier').value = data.intermediarySupplier?._id || data.intermediarySupplier || '';
+
+            document.getElementById('itemsBody').innerHTML = '';
+            document.getElementById('expensesBody').innerHTML = '';
+            document.getElementById('ledgerBody').innerHTML = '';
+
+            (data.items || []).forEach((item) => addItemRow(item));
+            if (data.costLines?.length) {
+                data.costLines.forEach((item) => addExpenseRow(item));
+            } else {
+                initDefaultExpenses();
+            }
+
+            if (data.status === 'FinancialPosted' || data.status === 'Closed' || data.status === 'Received') {
+                setStatusBadge('تم الترحيل المالي', 'posted');
+                document.getElementById('saveBtn').style.display = 'none';
+                document.getElementById('postBtn').style.display = 'none';
+                document.getElementById('cancelPostBtn').style.display = (data.status === 'FinancialPosted') ? 'inline-block' : 'none';
+                document.querySelectorAll('input, select, textarea, button.remove-btn').forEach((element) => {
+                    element.disabled = true;
+                });
+            } else {
+                setStatusBadge('مسودة', 'draft');
+                document.getElementById('saveBtn').style.display = '';
+                document.getElementById('postBtn').style.display = '';
+                document.getElementById('cancelPostBtn').style.display = 'none';
+                document.querySelectorAll('input, select, textarea, button.remove-btn').forEach((element) => {
+                    element.disabled = false;
+                });
+            }
+
+            recalcShipment();
+            setMessage('تم تحميل الشحنة بنجاح.', 'info');
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'فشل تحميل بيانات الشحنة.', 'error');
+        }
+    }
+
+    async function cancelFinancialPost() {
+        clearMessage();
+        if (!confirm('هل أنت متأكد من إلغاء الترحيل المالي؟ سيؤدي ذلك إلى حذف قيد اليومية وإرجاع الشحنة كمسودة.')) return;
+
+        try {
+            const response = await fetch(`${API}/import-shipments/${shipmentId}/cancel-financial`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || 'فشل إلغاء الترحيل المالي.');
+            }
+
+            setMessage(result.message || 'تم إلغاء الترحيل المالي بنجاح.', 'success');
+            await loadShipment(shipmentId);
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر تنفيذ إلغاء الترحيل المالي.', 'error');
+        }
+    }
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

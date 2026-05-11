@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات المالية | Wrapstyle ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--secondary);
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background-color: #fff;
+            font-size: 15px;
+            transition: all 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 12px center;
+            background-size: 16px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .toast {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .toast.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .toast.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    </style>
+</head>
+<body>
+    <div class="container" dir="rtl">
+        <h1>إعدادات الربط المحاسبي</h1>
+        <form id="settingsForm">
+            <div class="form-group">
+                <label>حساب الإيرادات الافتراضي</label>
+                <select id="defaultRevenueAccountId" name="defaultRevenueAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب تكلفة البضاعة (COGS)</label>
+                <select id="defaultCogsAccountId" name="defaultCogsAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب المخزون الافتراضي</label>
+                <select id="defaultInventoryAccountId" name="defaultInventoryAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب ضريبة المبيعات (Output VAT)</label>
+                <select id="defaultVatOutputAccountId" name="defaultVatOutputAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب ضريبة المشتريات (Input VAT)</label>
+                <select id="defaultVatInputAccountId" name="defaultVatInputAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب الخصم المسموح به / المكتسب</label>
+                <select id="defaultDiscountAccountId" name="defaultDiscountAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب الخزينة الرئيسي</label>
+                <select id="defaultTreasuryAccountId" name="defaultTreasuryAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب العملاء الافتراضي</label>
+                <select id="defaultCustomerAccountId" name="defaultCustomerAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب الموردين الافتراضي</label>
+                <select id="defaultSupplierAccountId" name="defaultSupplierAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب ضريبة خصم المنبع</label>
+                <select id="defaultWhtAccountId" name="defaultWhtAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب مشتريات وسيط (ترانزيت)</label>
+                <select id="defaultTransitAccountId" name="defaultTransitAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب مصروف الرواتب</label>
+                <select id="defaultSalariesExpenseAccountId" name="defaultSalariesExpenseAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب الرواتب المستحقة</label>
+                <select id="defaultSalariesPayableAccountId" name="defaultSalariesPayableAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب مصروف الصيانة</label>
+                <select id="defaultMaintenanceExpenseAccountId" name="defaultMaintenanceExpenseAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>حساب السلف والعهد الافتراضي</label>
+                <select id="defaultAdvancesAccountId" name="defaultAdvancesAccountId"></select>
+            </div>
+            <button type="submit">حفظ الإعدادات</button>
+        </form>
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <script>
+        const toast = document.getElementById('toast');
+        
+        function showToast(msg, type) {
+            toast.textContent = msg;
+            toast.className = 'toast ' + type;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
+
+        async function init() {
+            try {
+                // Fetch Accounts
+                const accRes = await fetch('/api/accounts');
+                const accounts = await accRes.json();
+                
+                const selects = document.querySelectorAll('select');
+                selects.forEach(select => {
+                    select.innerHTML = '<option value="">-- اختر الحساب --</option>';
+                    accounts.sort((a,b) => a.code.localeCompare(b.code)).forEach(acc => {
+                        const opt = document.createElement('option');
+                        opt.value = acc._id;
+                        opt.textContent = `${acc.code} | ${acc.name}`;
+                        select.appendChild(opt);
+                    });
+                });
+
+                // Fetch Current Settings
+                const setRes = await fetch('/api/financial-settings');
+                const settings = await setRes.json();
+                if (settings) {
+                    Object.keys(settings).forEach(key => {
+                        const el = document.getElementById(key);
+                        if (el) el.value = settings[key];
+                    });
+                }
+            } catch (err) {
+                showToast('فشل في تحميل البيانات', 'error');
+            }
+        }
+
+        document.getElementById('settingsForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'جاري الحفظ...';
+
+            try {
+                const res = await fetch('/api/financial-settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('تم حفظ الإعدادات بنجاح', 'success');
+                } else {
+                    showToast('خطأ: ' + result.message, 'error');
+                }
+            } catch (err) {
+                showToast('تعذر الاتصال بالخادم', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'حفظ الإعدادات';
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>

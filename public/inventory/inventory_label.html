@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملصق الباركود</title>
+    <style>
+        :root { --ink: #111827; --soft: #6b7280; --line: #d1d5db; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: #f3f4f6; color: var(--ink); }
+        .toolbar { padding: 12px; text-align: center; }
+        .btn { border: none; background: #163a5f; color: #fff; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 700; }
+        .shell { display: flex; justify-content: center; padding: 12px; }
+        .label {
+            width: 50mm;
+            min-height: 30mm;
+            background: #fff;
+            border: 1px solid var(--line);
+            padding: 2.5mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 2mm;
+        }
+        .topline { display: flex; justify-content: space-between; font-size: 8pt; font-weight: 700; }
+        .name { font-size: 9pt; line-height: 1.2; font-weight: 700; min-height: 8mm; }
+        .size {
+            font-size: 18pt;
+            font-weight: 900;
+            line-height: 1;
+            text-align: center;
+            letter-spacing: .2mm;
+        }
+        .meta { font-size: 7pt; color: var(--soft); display: flex; justify-content: space-between; gap: 4px; }
+        .barcode-wrap { display: flex; flex-direction: column; align-items: center; gap: 1mm; }
+        .barcode-text { font-size: 8pt; font-weight: 800; letter-spacing: .4mm; }
+        svg { width: 100%; height: 10mm; }
+        .empty { text-align: center; color: var(--soft); padding: 24px; }
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none !important; }
+            .shell { padding: 0; }
+            .label { border: none; width: 50mm; min-height: 30mm; padding: 2mm; }
+            @page { size: 50mm 30mm; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button class="btn" onclick="window.print()">طباعة الليبول</button>
+    </div>
+    <div class="shell">
+        <div id="label" class="label" style="display:none;">
+            <div class="topline">
+                <span id="itemType">-</span>
+                <span id="materialType">-</span>
+            </div>
+            <div id="productName" class="name">-</div>
+            <div id="sizeText" class="size">-</div>
+            <div class="meta">
+                <span id="areaText">-</span>
+                <span id="parentText"></span>
+            </div>
+            <div class="barcode-wrap">
+                <svg id="barcodeSvg" viewBox="0 0 320 70" preserveAspectRatio="none"></svg>
+                <div id="barcodeText" class="barcode-text">-</div>
+            </div>
+        </div>
+        <div id="emptyState" class="empty">لا يوجد باركود محدد للطباعة.</div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token') || '';
+        const params = new URLSearchParams(window.location.search);
+        const barcode = params.get('barcode') || '';
+
+        const code39Map = {
+            '0': 'nnnwwnwnn', '1': 'wnnwnnnnw', '2': 'nnwwnnnnw', '3': 'wnwwnnnnn',
+            '4': 'nnnwwnnnw', '5': 'wnnwwnnnn', '6': 'nnwwwnnnn', '7': 'nnnwnnwnw',
+            '8': 'wnnwnnwnn', '9': 'nnwwnnwnn', 'A': 'wnnnnwnnw', 'B': 'nnwnnwnnw',
+            'C': 'wnwnnwnnn', 'D': 'nnnnwwnnw', 'E': 'wnnnwwnnn', 'F': 'nnwnwwnnn',
+            'G': 'nnnnnwwnw', 'H': 'wnnnnwwnn', 'I': 'nnwnnwwnn', 'J': 'nnnnwwwnn',
+            'K': 'wnnnnnnww', 'L': 'nnwnnnnww', 'M': 'wnwnnnnwn', 'N': 'nnnnwnnww',
+            'O': 'wnnnwnnwn', 'P': 'nnwnwnnwn', 'Q': 'nnnnnnwww', 'R': 'wnnnnnwwn',
+            'S': 'nnwnnnwwn', 'T': 'nnnnwnwwn', 'U': 'wwnnnnnnw', 'V': 'nwwnnnnnw',
+            'W': 'wwwnnnnnn', 'X': 'nwnnwnnnw', 'Y': 'wwnnwnnnn', 'Z': 'nwwnwnnnn',
+            '-': 'nwnnnnwnw', '.': 'wwnnnnwnn', ' ': 'nwwnnnwnn', '$': 'nwnwnwnnn',
+            '/': 'nwnwnnnwn', '+': 'nwnnnwnwn', '%': 'nnnwnwnwn', '*': 'nwnnwnwnn'
+        };
+
+        function authHeaders() {
+            return token ? { Authorization: `Bearer ${token}` } : {};
+        }
+
+        function renderCode39(target, input) {
+            const value = `*${String(input || '').toUpperCase()}*`;
+            let x = 0;
+            const height = 64;
+            const thin = 2;
+            const wide = 5;
+            const gap = 2;
+            const parts = [];
+
+            for (const char of value) {
+                const pattern = code39Map[char] || code39Map['-'];
+                for (let i = 0; i < pattern.length; i++) {
+                    const width = pattern[i] === 'w' ? wide : thin;
+                    if (i % 2 === 0) {
+                        parts.push(`<rect x="${x}" y="0" width="${width}" height="${height}" fill="#000"></rect>`);
+                    }
+                    x += width;
+                }
+                x += gap;
+            }
+
+            target.setAttribute('viewBox', `0 0 ${x} ${height}`);
+            target.innerHTML = parts.join('');
+        }
+
+        async function loadLabel() {
+            if (!barcode) return;
+
+            const response = await fetch(`/api/inventory/lookup/${encodeURIComponent(barcode)}`, {
+                headers: authHeaders()
+            });
+
+            if (!response.ok) {
+                document.getElementById('emptyState').textContent = 'تعذر تحميل بيانات الباركود.';
+                return;
+            }
+
+            const item = await response.json();
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('label').style.display = 'flex';
+
+            document.getElementById('itemType').textContent = item.itemType === 'roll' ? 'رول' : 'قطعة';
+            document.getElementById('materialType').textContent = item.materialType || '-';
+            document.getElementById('productName').textContent = item.productName || '-';
+            document.getElementById('sizeText').textContent = `${Math.round(item.lengthCm || 0)} × ${Math.round(item.widthCm || 0)} سم`;
+            document.getElementById('areaText').textContent = `${Number(item.area || 0).toFixed(2)} م²`;
+            document.getElementById('parentText').textContent = item.parentRollCode ? `من: ${item.parentRollCode}` : '';
+            document.getElementById('barcodeText').textContent = item.barcode_id || barcode;
+            renderCode39(document.getElementById('barcodeSvg'), item.barcode_id || barcode);
+        }
+
+        loadLabel().catch(() => {
+            document.getElementById('emptyState').textContent = 'تعذر تجهيز الليبول.';
+        });
+    </script>
+</body>
+</html>

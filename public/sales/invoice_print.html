@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نموذج أمر التشغيل - Wrapstyle ERP</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background: #f3f4f6;
+            color: #0f172a;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .toolbar { text-align: center; padding: 1rem; }
+        .toolbar button {
+            border: none;
+            border-radius: 12px;
+            padding: .8rem 1.4rem;
+            font-weight: 800;
+            background: #163a5f;
+            color: #fff;
+            cursor: pointer;
+        }
+        .sheet {
+            width: 210mm;
+            min-height: 297mm;
+            background: #fff;
+            margin: 0 auto 1.5rem;
+            border: 1px solid #d6dbe3;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .1);
+            padding: 12mm 14mm;
+        }
+        .top {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 3px solid #163a5f;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+        .brand { font-size: 26px; font-weight: 900; color: #163a5f; margin-bottom: 4px; }
+        .muted { color: #475569; font-size: 12px; line-height: 1.7; }
+        .title { text-align: center; font-size: 30px; font-weight: 900; margin: 10px 0 14px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .info-row { display: flex; border: 1px solid #0f172a; min-height: 38px; }
+        .label {
+            width: 130px;
+            background: #eef2f7;
+            border-left: 1px solid #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            padding: 6px 8px;
+        }
+        .value {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            font-weight: 700;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { border: 1px solid #0f172a; padding: 9px 7px; text-align: center; font-size: 12px; }
+        th { background: #163a5f; color: #fff; font-weight: 800; }
+        .final-total {
+            margin-top: 16px;
+            border: 2px solid #163a5f;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 26px;
+            font-weight: 900;
+            color: #163a5f;
+            display: flex;
+            justify-content: space-between;
+        }
+        .notes { margin-top: 12px; border: 1px solid #0f172a; min-height: 54px; padding: 10px; }
+        .signs { display: flex; justify-content: space-between; gap: 12px; margin-top: 34px; }
+        .sign { flex: 1; text-align: center; padding-top: 30px; border-top: 1px solid #0f172a; font-weight: 700; }
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none !important; }
+            .sheet { margin: 0; box-shadow: none; border: none; width: auto; min-height: auto; }
+            @page { size: A4; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar"><button onclick="window.print()">طباعة</button></div>
+    <div class="sheet">
+        <div class="top">
+            <div>
+                <div class="brand">Wrapstyle ERP</div>
+                <div class="muted">WrapStyle Job Order Template</div>
+                <div class="muted">Cloud Nine Mall, New Cairo</div>
+            </div>
+            <div class="muted" style="text-align:left">
+                الهاتف: +2012 00 999 333<br>
+                البريد: cairo@wrapstyle.com<br>
+                الموقع: wrapstyle.com
+            </div>
+        </div>
+
+        <h1 class="title">أمر تشغيل / فاتورة مبيعات</h1>
+
+        <div class="info-grid">
+            <div class="info-row"><div class="label">رقم الفاتورة</div><div class="value" id="invoiceNumber">-</div></div>
+            <div class="info-row"><div class="label">التاريخ</div><div class="value" id="invoiceDate">-</div></div>
+            <div class="info-row"><div class="label">العميل</div><div class="value" id="customerName">-</div></div>
+            <div class="info-row"><div class="label">السيارة</div><div class="value" id="carName">-</div></div>
+            <div class="info-row"><div class="label">نوع السيارة</div><div class="value" id="vehicleType">-</div></div>
+            <div class="info-row"><div class="label">الموديل / اللوحة</div><div class="value" id="vehicleMeta">-</div></div>
+            <div class="info-row"><div class="label">لون السيارة</div><div class="value" id="vehicleColor">-</div></div>
+            <div class="info-row"><div class="label">نوع الخدمة</div><div class="value" id="serviceType">-</div></div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>القطعة</th>
+                    <th>الخدمة/الخامة</th>
+                    <th>الإجمالي</th>
+                </tr>
+            </thead>
+            <tbody id="itemsBody">
+                <tr><td colspan="3">جاري التحميل...</td></tr>
+            </tbody>
+        </table>
+
+        <div class="final-total">
+            <span>الإجمالي النهائي</span>
+            <span id="finalTotal">0.00</span>
+        </div>
+
+        <div class="notes">
+            <strong>ملاحظات:</strong>
+            <div id="notesText">-</div>
+        </div>
+
+        <div class="signs">
+            <div class="sign">توقيع الموظف</div>
+            <div class="sign">توقيع العميل</div>
+            <div class="sign">الختم</div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+
+        function safe(v) {
+            return String(v || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        function number(v) { return (Number(v) || 0).toFixed(2); }
+        function date(v) {
+            if (!v) return '-';
+            const d = new Date(v);
+            if (Number.isNaN(d.getTime())) return String(v);
+            return d.toLocaleDateString('ar-EG');
+        }
+
+        async function fetchJson(url) {
+            const res = await fetch(url);
+            const text = await res.text();
+            let data = null;
+            if (text) {
+                try { data = JSON.parse(text); }
+                catch {
+                    if (text.trim().startsWith('<')) throw new Error('الخادم أعاد HTML بدل JSON.');
+                    throw new Error(text.slice(0, 180));
+                }
+            }
+            if (!res.ok) throw new Error(data?.error || data?.message || `فشل الطلب: ${res.status}`);
+            return data;
+        }
+
+        function render(invoice) {
+            document.getElementById('invoiceNumber').textContent = invoice.invoiceNumber || '-';
+            document.getElementById('invoiceDate').textContent = date(invoice.date);
+            document.getElementById('customerName').textContent = invoice.customer?.name || invoice.customerName || '-';
+            document.getElementById('carName').textContent =
+                invoice.carName ||
+                invoice.carModel?.fullModelName ||
+                `${invoice.carModel?.brand || ''} ${invoice.carModel?.model || ''}`.trim() ||
+                '-';
+            document.getElementById('vehicleType').textContent = invoice.vehicleType || invoice.carCategory || '-';
+            document.getElementById('vehicleMeta').textContent = [invoice.vehicleModel, invoice.vehiclePlate].filter(Boolean).join(' - ') || '-';
+            document.getElementById('vehicleColor').textContent = invoice.vehicleColor || invoice.carColor || '-';
+            document.getElementById('serviceType').textContent = invoice.serviceType || '-';
+            document.getElementById('finalTotal').textContent = number(invoice.finalTotal || invoice.totalWithVat);
+            document.getElementById('notesText').textContent = invoice.remarks || invoice.note || '-';
+
+            const body = document.getElementById('itemsBody');
+            const rows = (invoice.items || []).map((item) => {
+                const lineTotal = Number(item.total || item.price || 0);
+                return `
+                    <tr>
+                        <td>${safe(item.partName || '-')}</td>
+                        <td>${safe(item.product?.name || item.productName || '-')}</td>
+                        <td>${number(lineTotal)}</td>
+                    </tr>
+                `;
+            });
+
+            body.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="3">لا توجد بنود.</td></tr>';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const id = new URLSearchParams(window.location.search).get('id');
+            if (!id) {
+                alert('رقم الفاتورة غير صالح.');
+                return;
+            }
+            try {
+                const invoice = await fetchJson(`${API}/sales/${id}`);
+                render(invoice);
+            } catch (error) {
+                console.error(error);
+                alert(error.message || 'تعذر تحميل الفاتورة.');
+            }
+        });
+    </script>
+</body>
+</html>

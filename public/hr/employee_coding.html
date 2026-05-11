@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيانات الموظف - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left,rgba(185,137,24,.14),transparent 20rem),linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1180px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1,.section-title { margin:0; }
+        .hero p { margin:.45rem 0 0; color:rgba(255,255,255,.85); line-height:1.85; max-width:56rem; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .section-title { color:var(--p); font-size:1.05rem; font-weight:800; margin-bottom:1rem; }
+        .grid { display:grid; grid-template-columns:repeat(2,minmax(220px,1fr)); gap:1rem; }
+        .field { display:flex; flex-direction:column; gap:.45rem; }
+        .field label { font-weight:700; color:var(--s); font-size:.92rem; }
+        .field input,.field select,.readonly-input { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.96rem; }
+        .readonly-input { background:#f4f7fb; font-weight:700; }
+        .span2 { grid-column:span 2; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .btn { border:none; border-radius:14px; padding:.95rem 1.15rem; font-size:.95rem; font-weight:800; cursor:pointer; box-shadow:0 10px 22px rgba(22,58,95,.12); }
+        .btn.primary { background:var(--p); color:#fff; } .btn.accent { background:var(--a); color:#fff; } .btn.success { background:var(--ok); color:#fff; } .btn.danger { background:#ef4444; color:#fff; } .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:16px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        .modal { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:1300; }
+        .modal.open { display:flex; }
+        .modal-card { width:min(760px,92vw); background:#fff; border-radius:24px; border:1px solid var(--bd); box-shadow:0 18px 38px rgba(22,58,95,.18); }
+        .modal-header,.modal-footer { padding:1rem 1.25rem; border-bottom:1px solid rgba(82,98,119,.12); }
+        .modal-footer { border-bottom:none; border-top:1px solid rgba(82,98,119,.12); }
+        .modal-body { padding:1.25rem; }
+        .net-box { text-align:center; background:#f0fdf4; border:1px solid #86efac; border-radius:18px; padding:1rem; }
+        .net-box strong { display:block; color:#166534; font-size:1.5rem; margin-top:.35rem; }
+        @media (max-width:980px) { .grid { grid-template-columns:1fr; } .span2 { grid-column:auto; } }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1 id="pageTitle">تكويد موظف جديد</h1>
+        <p>إدارة بيانات الموظف الشخصية والوظيفية والمالية، مع دعم إنهاء الخدمة والزيادات وروابط الرواتب داخل Wrapstyle ERP.</p>
+    </section>
+
+    <div id="messageBox" class="msg"></div>
+    <input type="hidden" id="editId">
+
+    <section class="card">
+        <div class="section-title">البيانات الشخصية</div>
+        <div class="grid">
+            <div class="field"><label for="code">كود الموظف</label><input id="code" placeholder="EMP-001"></div>
+            <div class="field"><label for="name">اسم الموظف</label><input id="name"></div>
+            <div class="field"><label for="nid">الرقم القومي</label><input id="nid"></div>
+            <div class="field"><label for="insId">الرقم التأميني</label><input id="insId"></div>
+            <div class="field"><label for="dept">القسم</label><input id="dept"></div>
+            <div class="field"><label for="job">الوظيفة</label><input id="job"></div>
+            <div class="field"><label for="hireDate">تاريخ التعيين</label><input type="date" id="hireDate"></div>
+            <div class="field"><label for="vacBalance">رصيد الإجازات الحالي</label><input type="number" id="vacBalance" value="21"></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="section-title">حالة الوظيفة</div>
+        <div class="grid">
+            <div class="field">
+                <label for="status">الحالة</label>
+                <select id="status">
+                    <option value="Active">نشط</option>
+                    <option value="Resigned">مستقيل</option>
+                    <option value="Terminated">منتهي الخدمة</option>
+                </select>
+            </div>
+            <div class="field"><label for="termDate">تاريخ المغادرة</label><input type="date" id="termDate"></div>
+            <div class="field span2"><label for="termReason">سبب المغادرة / ملاحظات</label><input id="termReason"></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="section-title">تفاصيل الراتب</div>
+        <div class="grid">
+            <div class="field"><label for="basic">الراتب الأساسي</label><input type="number" id="basic" value="0"></div>
+            <div class="field"><label for="variable">الراتب المتغير</label><input type="number" id="variable" value="0"></div>
+            <div class="field"><label for="trans">بدل انتقال</label><input type="number" id="trans" value="0"></div>
+            <div class="field"><label for="other">بدلات أخرى</label><input type="number" id="other" value="0"></div>
+            <div class="field"><label for="incen">حوافز</label><input type="number" id="incen" value="0"></div>
+            <div class="field"><label for="insSalary">الأجر التأميني</label><input id="insSalary" class="readonly-input" readonly></div>
+            <div class="field span2"><label for="totalSalary">إجمالي الراتب الشهري</label><input id="totalSalary" class="readonly-input" readonly></div>
+        </div>
+        <div class="toolbar" style="margin-top:1rem;">
+            <button class="btn success" type="button" onclick="openIncrementModal()">زيادة راتب</button>
+            <button class="btn danger" type="button" onclick="openTerminationModal()">إنهاء خدمة / تصفية</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="toolbar">
+            <a class="btn light" href="/hr/employees_list.html">العودة إلى دليل الموظفين</a>
+            <button class="btn primary" id="saveBtn" type="button" onclick="save()">حفظ الموظف</button>
+        </div>
+    </section>
+</div>
+
+<div id="termModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header"><strong>إجراء تصفية وإنهاء خدمة</strong></div>
+        <div class="modal-body">
+            <div class="grid">
+                <div class="field"><label for="tDate">تاريخ ترك العمل</label><input type="date" id="tDate"></div>
+                <div class="field"><label for="tReason">سبب المغادرة</label><select id="tReason"><option value="Resignation">استقالة</option><option value="Termination">إنهاء عقد</option></select></div>
+                <div class="field"><label for="tDaysWorked">أيام العمل هذا الشهر</label><input id="tDaysWorked" class="readonly-input" readonly></div>
+                <div class="field"><label for="tSalaryDue">مستحق الراتب</label><input id="tSalaryDue" class="readonly-input" readonly></div>
+                <div class="field"><label for="tVacBal">رصيد الإجازات</label><input id="tVacBal" class="readonly-input" readonly></div>
+                <div class="field"><label for="tVacVal">قيمة رصيد الإجازات</label><input type="number" id="tVacVal"></div>
+                <div class="field span2"><label for="tDeductions">خصومات / عهد / سلف</label><input type="number" id="tDeductions" value="0"></div>
+            </div>
+            <div class="net-box">
+                صافي التصفية
+                <strong id="tNet">0.00</strong>
+            </div>
+        </div>
+        <div class="modal-footer toolbar">
+            <button class="btn light" type="button" onclick="closeTerminationModal()">إلغاء</button>
+            <button class="btn danger" type="button" onclick="submitTermination()">تأكيد الإنهاء</button>
+        </div>
+    </div>
+</div>
+
+<div id="incModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header"><strong>تطبيق زيادة راتب</strong></div>
+        <div class="modal-body">
+            <div class="grid">
+                <div class="field"><label for="incOldTotal">الراتب الحالي</label><input id="incOldTotal" class="readonly-input" readonly></div>
+                <div class="field"><label for="incReason">سبب الزيادة</label><input id="incReason" placeholder="مثال: زيادة سنوية"></div>
+                <div class="field"><label for="incNewBasic">الأساسي الجديد</label><input type="number" id="incNewBasic"></div>
+                <div class="field"><label for="incNewVar">المتغير الجديد</label><input type="number" id="incNewVar"></div>
+            </div>
+        </div>
+        <div class="modal-footer toolbar">
+            <button class="btn light" type="button" onclick="closeIncrementModal()">إلغاء</button>
+            <button class="btn success" type="button" onclick="submitIncrement()">تأكيد الزيادة</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api/hr';
+    const token = localStorage.getItem('token') || '';
+
+    function authHeaders(includeJson = false) {
+        const headers = {};
+        if (includeJson) headers['Content-Type'] = 'application/json';
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        bindLiveCalculations();
+        document.getElementById('hireDate').valueAsDate = new Date();
+        applyQueryDefaults();
+        const id = new URLSearchParams(window.location.search).get('id');
+        if (id) await loadEmployeeForEdit(id);
+        calcSalaries();
+    });
+
+    function applyQueryDefaults() {
+        const params = new URLSearchParams(window.location.search);
+        if (!document.getElementById('editId').value) {
+            const jobTitle = params.get('jobTitle');
+            const department = params.get('department');
+            if (jobTitle) document.getElementById('job').value = jobTitle;
+            if (department) document.getElementById('dept').value = department;
+        }
+    }
+
+    function setMessage(message, type = 'ok') {
+        const box = document.getElementById('messageBox');
+        box.className = `msg ${type === 'error' ? 'er' : 'ok'}`;
+        box.textContent = message;
+    }
+
+    function bindLiveCalculations() {
+        ['basic', 'variable', 'trans', 'other', 'incen'].forEach((id) => {
+            document.getElementById(id).addEventListener('input', calcSalaries);
+        });
+        document.getElementById('hireDate').addEventListener('change', calcAutoVacation);
+        document.getElementById('tDate').addEventListener('change', calcSettlement);
+        document.getElementById('tVacVal').addEventListener('input', calcTotalSettlement);
+        document.getElementById('tDeductions').addEventListener('input', calcTotalSettlement);
+    }
+
+    function calcAutoVacation() {
+        const hireDateVal = document.getElementById('hireDate').value;
+        if (!hireDateVal) return;
+        const hireDate = new Date(hireDateVal);
+        const currentYear = new Date().getFullYear();
+        const hireYear = hireDate.getFullYear();
+        let balance = 21;
+        if (hireYear === currentYear) {
+            const monthOfHire = hireDate.getMonth();
+            const remainingMonths = 12 - monthOfHire;
+            balance = (21 / 12) * remainingMonths;
+        }
+        document.getElementById('vacBalance').value = balance.toFixed(2);
+    }
+
+    function calcSalaries() {
+        const basic = Number(document.getElementById('basic').value || 0);
+        const variable = Number(document.getElementById('variable').value || 0);
+        const trans = Number(document.getElementById('trans').value || 0);
+        const other = Number(document.getElementById('other').value || 0);
+        const incen = Number(document.getElementById('incen').value || 0);
+        document.getElementById('insSalary').value = (basic + variable).toFixed(2);
+        document.getElementById('totalSalary').value = (basic + variable + trans + other + incen).toFixed(2);
+    }
+
+    async function loadEmployeeForEdit(id) {
+        try {
+            const res = await fetch(`${API}/employees/${id}`);
+            const emp = await res.json();
+            if (!res.ok) throw new Error(emp.message || 'تعذر تحميل الموظف.');
+            document.getElementById('pageTitle').textContent = 'تعديل بيانات موظف';
+            document.getElementById('saveBtn').textContent = 'تحديث البيانات';
+            document.getElementById('editId').value = id;
+            document.getElementById('code').value = emp.code || '';
+            document.getElementById('name').value = emp.name || '';
+            document.getElementById('nid').value = emp.nationalId || '';
+            document.getElementById('insId').value = emp.insuranceId || '';
+            document.getElementById('dept').value = emp.department || '';
+            document.getElementById('job').value = emp.jobTitle || '';
+            if (emp.hireDate) document.getElementById('hireDate').value = String(emp.hireDate).split('T')[0];
+            document.getElementById('vacBalance').value = Number(emp.vacationBalance || 0).toFixed(2);
+            document.getElementById('status').value = emp.status || 'Active';
+            if (emp.terminationDate) document.getElementById('termDate').value = String(emp.terminationDate).split('T')[0];
+            document.getElementById('termReason').value = emp.terminationReason || '';
+            document.getElementById('basic').value = Number(emp.basicSalary || 0);
+            document.getElementById('variable').value = Number(emp.variableSalary || 0);
+            document.getElementById('trans').value = Number(emp.transportAllowance || 0);
+            document.getElementById('other').value = Number(emp.otherAllowance || 0);
+            document.getElementById('incen').value = Number(emp.incentives || 0);
+            calcSalaries();
+        } catch (e) {
+            setMessage(e.message || 'تعذر تحميل الموظف.', 'error');
+        }
+    }
+
+    async function save() {
+        const id = document.getElementById('editId').value;
+        const data = {
+            _id: id || null,
+            code: document.getElementById('code').value.trim(),
+            name: document.getElementById('name').value.trim(),
+            nationalId: document.getElementById('nid').value.trim(),
+            insuranceId: document.getElementById('insId').value.trim(),
+            department: document.getElementById('dept').value.trim(),
+            jobTitle: document.getElementById('job').value.trim(),
+            hireDate: document.getElementById('hireDate').value,
+            vacationBalance: Number(document.getElementById('vacBalance').value || 0),
+            status: document.getElementById('status').value,
+            terminationDate: document.getElementById('termDate').value,
+            terminationReason: document.getElementById('termReason').value.trim(),
+            basicSalary: Number(document.getElementById('basic').value || 0),
+            variableSalary: Number(document.getElementById('variable').value || 0),
+            insuranceSalary: Number(document.getElementById('insSalary').value || 0),
+            transportAllowance: Number(document.getElementById('trans').value || 0),
+            otherAllowance: Number(document.getElementById('other').value || 0),
+            incentives: Number(document.getElementById('incen').value || 0),
+            totalSalary: Number(document.getElementById('totalSalary').value || 0)
+        };
+        if (!data.name) {
+            setMessage('اسم الموظف مطلوب.', 'error');
+            return;
+        }
+        try {
+            const res = await fetch(`${API}/employees`, { method:'POST', headers: authHeaders(true), body: JSON.stringify(data) });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل حفظ الموظف.');
+            setMessage(id ? 'تم تحديث بيانات الموظف بنجاح.' : 'تم حفظ الموظف بنجاح.');
+            setTimeout(() => {
+                window.location.href = id ? '/hr/employees_list.html' : `/hr/employee_coding.html?id=${id || ''}`.replace(/id=$/, '');
+                if (!id) window.location.href = '/hr/employees_list.html';
+            }, 800);
+        } catch (e) {
+            setMessage(e.message || 'تعذر حفظ الموظف.', 'error');
+        }
+    }
+
+    function openTerminationModal() {
+        if (!document.getElementById('editId').value) {
+            setMessage('احفظ الموظف أولاً قبل تنفيذ إنهاء الخدمة.', 'error');
+            return;
+        }
+        document.getElementById('termModal').classList.add('open');
+        document.getElementById('tDate').valueAsDate = new Date();
+        calcSettlement();
+    }
+    function closeTerminationModal() { document.getElementById('termModal').classList.remove('open'); }
+    function calcSettlement() {
+        const totalSal = Number(document.getElementById('totalSalary').value || 0);
+        const dayRate = totalSal / 30;
+        const tDate = new Date(document.getElementById('tDate').value || new Date());
+        const dayOfMonth = tDate.getDate();
+        document.getElementById('tDaysWorked').value = dayOfMonth;
+        document.getElementById('tSalaryDue').value = Math.round(dayOfMonth * dayRate).toFixed(2);
+        const vacBal = Number(document.getElementById('vacBalance').value || 0);
+        document.getElementById('tVacBal').value = vacBal.toFixed(2);
+        document.getElementById('tVacVal').value = Math.round(vacBal * dayRate).toFixed(2);
+        calcTotalSettlement();
+    }
+    function calcTotalSettlement() {
+        const sal = Number(document.getElementById('tSalaryDue').value || 0);
+        const vac = Number(document.getElementById('tVacVal').value || 0);
+        const ded = Number(document.getElementById('tDeductions').value || 0);
+        document.getElementById('tNet').textContent = (sal + vac - ded).toFixed(2);
+    }
+    async function submitTermination() {
+        if (!confirm('هل أنت متأكد من تنفيذ إنهاء الخدمة؟')) return;
+        const id = document.getElementById('editId').value;
+        try {
+            const res = await fetch(`${API}/employees/${id}/terminate`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    terminationDate: document.getElementById('tDate').value,
+                    terminationReason: document.getElementById('tReason').value,
+                    status: 'Terminated'
+                })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل إنهاء الخدمة.');
+            window.location.href = '/hr/employees_list.html';
+        } catch (e) {
+            setMessage(e.message || 'تعذر إنهاء الخدمة.', 'error');
+        }
+    }
+
+    function openIncrementModal() {
+        if (!document.getElementById('editId').value) {
+            setMessage('احفظ الموظف أولًا قبل تطبيق الزيادة.', 'error');
+            return;
+        }
+        document.getElementById('incOldTotal').value = document.getElementById('totalSalary').value;
+        document.getElementById('incNewBasic').value = document.getElementById('basic').value;
+        document.getElementById('incNewVar').value = document.getElementById('variable').value;
+        document.getElementById('incModal').classList.add('open');
+    }
+    function closeIncrementModal() { document.getElementById('incModal').classList.remove('open'); }
+    async function submitIncrement() {
+        if (!confirm('هل تريد تطبيق زيادة الراتب؟')) return;
+        const id = document.getElementById('editId').value;
+        try {
+            const res = await fetch(`${API}/employees/${id}/increment`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    newBasic: Number(document.getElementById('incNewBasic').value || 0),
+                    newVariable: Number(document.getElementById('incNewVar').value || 0),
+                    reason: document.getElementById('incReason').value.trim()
+                })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل تطبيق الزيادة.');
+            window.location.reload();
+        } catch (e) {
+            setMessage(e.message || 'تعذر تطبيق الزيادة.', 'error');
+        }
+    }
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wrapstyle ERP - لوحة القيادة</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/common-functions.js"></script>
+    <style>
+        body { font-family: "Segoe UI", Tahoma, sans-serif; }
+        .dashboard-shell { display: grid; gap: 1.5rem; }
+        .hero-panel {
+            background: linear-gradient(135deg, #163a5f 0%, #204d73 55%, #315f7c 100%);
+            color: #fff;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 22px 44px rgba(22,58,95,0.18);
+            display: grid;
+            grid-template-columns: 1.8fr 1fr;
+            gap: 1.5rem;
+        }
+        .hero-copy h1 { margin: 0 0 0.75rem 0; font-size: 2.1rem; line-height: 1.3; }
+        .hero-copy p { margin: 0; color: rgba(255,255,255,0.82); line-height: 1.8; }
+        .hero-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.9rem; margin-top: 1.5rem; }
+        .hero-action {
+            display: flex; align-items: center; justify-content: center; min-height: 58px;
+            border-radius: 14px; text-decoration: none; color: #fff; font-weight: 700;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.12);
+            transition: transform .2s ease, background .2s ease;
+        }
+        .hero-action:hover { transform: translateY(-2px); background: rgba(255,255,255,0.18); }
+        .hero-summary {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 18px;
+            padding: 1.25rem;
+            display: grid;
+            gap: 1rem;
+        }
+        .hero-summary h3 { margin: 0; font-size: 1rem; color: rgba(255,255,255,0.88); }
+        .hero-summary-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
+        .hero-summary-item { background: rgba(255,255,255,0.08); border-radius: 14px; padding: 1rem; }
+        .hero-summary-item .label { display: block; color: rgba(255,255,255,0.7); font-size: .9rem; margin-bottom: .35rem; }
+        .hero-summary-item .value { font-size: 1.4rem; font-weight: 800; }
+        .dashboard-stats-grid, .kpi-grid, .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .stat-card, .kpi-card, .quick-card, .admin-panel, .chart-box {
+            background: #fff; border-radius: 18px; border: 1px solid var(--border-color);
+            box-shadow: 0 16px 34px rgba(15,23,42,0.06);
+        }
+        .stat-card, .kpi-card { padding: 1.25rem; display: flex; align-items: center; gap: 1rem; }
+        .stat-icon, .kpi-icon {
+            width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; background: #edf3f8; color: var(--primary-color); font-weight: 800;
+        }
+        .stat-info h3, .kpi-info h3, .admin-metric h4 { margin: 0; color: var(--text-muted); font-size: .92rem; font-weight: 700; }
+        .num, .kpi-value, .admin-value { margin-top: .35rem; color: var(--primary-color); font-size: 1.55rem; font-weight: 800; }
+        .layout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+        .chart-box { padding: 1.35rem; }
+        .chart-box h3, .panel-title { margin: 0 0 1rem 0; color: var(--primary-color); font-size: 1.05rem; font-weight: 800; }
+        .quick-card {
+            padding: 1.1rem; text-decoration: none; color: #1f2937; display: flex; align-items: center; gap: .85rem;
+            transition: transform .2s ease, border-color .2s ease;
+        }
+        .quick-card:hover { transform: translateY(-2px); border-color: rgba(22,58,95,.25); }
+        .quick-card .quick-icon {
+            width: 48px; height: 48px; border-radius: 14px; background: #edf3f8;
+            display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 800;
+        }
+        .quick-card strong { display: block; color: var(--primary-color); margin-bottom: .15rem; }
+        .quick-card span { color: var(--text-muted); font-size: .9rem; }
+        .inventory-status { display: grid; gap: .85rem; }
+        .inventory-line { display: grid; gap: .35rem; }
+        .inventory-line header { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: .92rem; font-weight: 700; }
+        .inventory-bar { width: 100%; height: 10px; border-radius: 999px; background: #e6ecf2; overflow: hidden; }
+        .inventory-fill { height: 100%; border-radius: 999px; }
+        .inventory-fill.healthy { background: linear-gradient(90deg,#1f6f5f,#2f8c75); }
+        .inventory-fill.low { background: linear-gradient(90deg,#b98918,#d2a63b); }
+        .inventory-fill.out { background: linear-gradient(90deg,#9f3a38,#c05b58); }
+        .admin-panel { padding: 1.35rem; display: none; }
+        .admin-panel.visible { display: block; }
+        .admin-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 1rem; }
+        .admin-metric { background: #f7f9fb; border: 1px solid #e1e7ee; border-radius: 14px; padding: 1rem; }
+        .admin-note { margin-top: .9rem; color: var(--text-muted); font-size: .86rem; }
+        @media (max-width:992px) { .hero-panel, .layout-grid { grid-template-columns: 1fr; } }
+        @media (max-width:760px) { .hero-actions, .hero-summary-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <main class="main-content">
+        <div class="dashboard-shell">
+            <section class="hero-panel">
+                <div class="hero-copy">
+                    <h1>لوحة قيادة تنفيذية لمتابعة المبيعات والمخزون والخزينة لحظة بلحظة</h1>
+                    <p>راقب الأرصدة، تابع حالة المخزن، وانتقل مباشرة إلى أوامر التشغيل الأساسية والمالية من مكان واحد بواجهة أعمال أوضح وأكثر احترافية.</p>
+                    <div class="hero-actions">
+                        <a href="/inventory/stock_in.html" class="hero-action">إذن الاستلام</a>
+                        <a href="/inventory/stock_out.html" class="hero-action">إذن الصرف</a>
+                        <a href="/purchases/purchases.html" class="hero-action">المشتريات</a>
+                        <a href="/service/service_jobs.html" class="hero-action">التشغيل</a>
+                        <a href="/financial/accounts.html" class="hero-action">الحسابات</a>
+                        <a href="/financial/journal.html" class="hero-action">قيود اليومية</a>
+                        <a href="/financial/financial_reports.html" class="hero-action">الدفاتر والتقارير</a>
+                    </div>
+                </div>
+                <aside class="hero-summary">
+                    <h3>ملخص فوري</h3>
+                    <div class="hero-summary-grid">
+                        <div class="hero-summary-item"><span class="label">إجمالي الأرصدة</span><span class="value" id="val-total-balances">0.00</span></div>
+                        <div class="hero-summary-item"><span class="label">عدد الأصناف</span><span class="value" id="val-products-count">0</span></div>
+                        <div class="hero-summary-item"><span class="label">الرولات النشطة</span><span class="value" id="val-active-rolls">0</span></div>
+                        <div class="hero-summary-item"><span class="label">فواتير الشهر</span><span class="value" id="val-sales-count">0</span></div>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="dashboard-stats-grid">
+                <div class="stat-card"><div class="stat-icon">بيع</div><div class="stat-info"><h3>مبيعات الشهر</h3><div class="num" id="val-sales">0.00</div></div></div>
+                <div class="stat-card"><div class="stat-icon">خز</div><div class="stat-info"><h3>رصيد الخزينة</h3><div class="num" id="val-cash">0.00</div></div></div>
+                <div class="stat-card"><div class="stat-icon">مخ</div><div class="stat-info"><h3>قيمة المخزون</h3><div class="num" id="val-stock">0.00</div></div></div>
+                <div class="stat-card"><div class="stat-icon">عم</div><div class="stat-info"><h3>مديونيات العملاء</h3><div class="num" id="val-receivables">0.00</div></div></div>
+                <div class="stat-card"><div class="stat-icon">ورد</div><div class="stat-info"><h3>التزامات الموردين</h3><div class="num" id="val-payables">0.00</div></div></div>
+            </section>
+
+            <section class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-icon">ر</div><div class="kpi-info"><h3>عدد الرولات النشطة</h3><div class="kpi-value" id="val-active-rolls-card">0</div></div></div>
+                <div class="kpi-card"><div class="kpi-icon">ح</div><div class="kpi-info"><h3>عدد حسابات الخزينة</h3><div class="kpi-value" id="val-treasury-accounts">0</div></div></div>
+                <div class="kpi-card"><div class="kpi-icon">تن</div><div class="kpi-info"><h3>أصناف تحتاج متابعة</h3><div class="kpi-value" id="val-low-stock">0</div></div></div>
+                <div class="kpi-card"><div class="kpi-icon">نف</div><div class="kpi-info"><h3>أصناف بدون رصيد</h3><div class="kpi-value" id="val-out-stock">0</div></div></div>
+            </section>
+
+            <section class="layout-grid">
+                <div class="chart-box">
+                    <h3>تحليل الأرصدة</h3>
+                    <canvas id="assetsChart" height="140"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h3>حالة المخزن</h3>
+                    <div class="inventory-status">
+                        <div class="inventory-line"><header><span>سليم</span><span id="healthy-products-label">0</span></header><div class="inventory-bar"><div id="healthy-bar" class="inventory-fill healthy" style="width:0%"></div></div></div>
+                        <div class="inventory-line"><header><span>منخفض</span><span id="low-products-label">0</span></header><div class="inventory-bar"><div id="low-bar" class="inventory-fill low" style="width:0%"></div></div></div>
+                        <div class="inventory-line"><header><span>بدون رصيد</span><span id="out-products-label">0</span></header><div class="inventory-bar"><div id="out-bar" class="inventory-fill out" style="width:0%"></div></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 class="panel-title">الوصول السريع</h3>
+                <div class="quick-grid">
+                    <a href="/inventory/stock_in.html" class="quick-card"><div class="quick-icon">وارد</div><div><strong>إذن الاستلام</strong><span>استلام خامات أو أصناف وإضافتها للمخزن</span></div></a>
+                    <a href="/inventory/stock_out.html" class="quick-card"><div class="quick-icon">صرف</div><div><strong>إذن الصرف</strong><span>صرف خامات أو رولات وربطها بأمر التشغيل</span></div></a>
+                    <a href="/sales/sales.html" class="quick-card"><div class="quick-icon">بيع</div><div><strong>فاتورة بيع</strong><span>تسجيل بيع جديد ومتابعة حركة الإيراد</span></div></a>
+                    <a href="/service/service_jobs.html" class="quick-card"><div class="quick-icon">تش</div><div><strong>أوامر التشغيل</strong><span>إسناد الفنيين ومتابعة مسار التنفيذ والصرف والتقييم</span></div></a>
+                    <a href="/purchases/purchases.html" class="quick-card"><div class="quick-icon">شراء</div><div><strong>فاتورة شراء</strong><span>إضافة فاتورة شراء وربطها بالمورد والمخزون</span></div></a>
+                    <a href="/financial/accounts.html" class="quick-card"><div class="quick-icon">حس</div><div><strong>شجرة الحسابات</strong><span>إدارة الحسابات الرئيسية والفرعية والهيكل المحاسبي</span></div></a>
+                    <a href="/financial/journal.html" class="quick-card"><div class="quick-icon">قيد</div><div><strong>قيود اليومية</strong><span>مراجعة القيود المحاسبية وفتح سندات القيد</span></div></a>
+                    <a href="/financial/financial_reports.html" class="quick-card"><div class="quick-icon">دف</div><div><strong>الدفاتر والتقارير</strong><span>ميزان المراجعة ودفتر الأستاذ والقوائم والتحليلات</span></div></a>
+                    <a href="/financial/treasury.html" class="quick-card"><div class="quick-icon">خز</div><div><strong>الخزينة</strong><span>تسجيل حركات الخزينة ومتابعة الأرصدة</span></div></a>
+                    <a href="/service/cars.html" class="quick-card"><div class="quick-icon">سي</div><div><strong>السيارات والمقاسات</strong><span>إدارة الموديلات والأجزاء والمقاسات وربطها بالمبيعات</span></div></a>
+                    <a href="/hr/hr.html" class="quick-card"><div class="quick-icon">HR</div><div><strong>الموارد البشرية</strong><span>الموظفون والرواتب والتحليلات المرتبطة بها</span></div></a>
+                    <a href="/inventory/products.html" class="quick-card"><div class="quick-icon">صنف</div><div><strong>المنتجات</strong><span>إدارة الأصناف والبطاقات والبيانات الأساسية</span></div></a>
+                    <a href="/sales/customers.html" class="quick-card"><div class="quick-icon">عمل</div><div><strong>العملاء</strong><span>متابعة العملاء والأرصدة والحسابات</span></div></a>
+                    <a href="/purchases/suppliers.html" class="quick-card"><div class="quick-icon">ورد</div><div><strong>الموردون</strong><span>إدارة الموردين والأرصدة والربط مع المشتريات</span></div></a>
+                </div>
+            </section>
+
+            <section id="adminPanel" class="admin-panel">
+                <h3 class="panel-title">مؤشرات الأدمن</h3>
+                <div class="admin-grid">
+                    <div class="admin-metric"><h4>تكلفة المخزون</h4><div class="admin-value" id="val-admin-cost">0.00</div></div>
+                    <div class="admin-metric"><h4>المستخدمون النشطون</h4><div class="admin-value" id="val-active-users">0</div></div>
+                    <div class="admin-metric"><h4>إجمالي المستخدمين</h4><div class="admin-value" id="val-total-users">0</div></div>
+                </div>
+                <div class="admin-note">يتم احتساب المستخدمين النشطين اعتمادًا على آخر نشاط مسجل خلال آخر 15 دقيقة.</div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API = '/api';
+        let assetsChart;
+
+        function getCurrentUser() {
+            try {
+                return JSON.parse(localStorage.getItem('user') || '{}');
+            } catch {
+                return {};
+            }
+        }
+
+        function formatCurrency(value) {
+            return Number(value || 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function checkAuthStatus() {
+            const user = getCurrentUser();
+            if (String(user.role || '').toLowerCase() === 'admin') {
+                document.getElementById('adminPanel').classList.add('visible');
+            }
+        }
+
+        function updateInventoryBars(inventory) {
+            const total = Math.max(Number(inventory.totalProducts) || 0, 1);
+            const healthy = Number(inventory.healthyProducts) || 0;
+            const low = Number(inventory.lowStockProducts) || 0;
+            const out = Number(inventory.outOfStockProducts) || 0;
+
+            document.getElementById('healthy-products-label').textContent = healthy;
+            document.getElementById('low-products-label').textContent = low;
+            document.getElementById('out-products-label').textContent = out;
+            document.getElementById('healthy-bar').style.width = `${(healthy / total) * 100}%`;
+            document.getElementById('low-bar').style.width = `${(low / total) * 100}%`;
+            document.getElementById('out-bar').style.width = `${(out / total) * 100}%`;
+        }
+
+        function initAssetsChart(data) {
+            if (assetsChart) assetsChart.destroy();
+            const ctx = document.getElementById('assetsChart').getContext('2d');
+            assetsChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['الخزينة', 'المخزون', 'مديونيات العملاء', 'التزامات الموردين'],
+                    datasets: [{
+                        data: [data.cash, data.stock, data.receivables, data.payables],
+                        backgroundColor: ['#163a5f', '#1f6f5f', '#b98918', '#9f3a38'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { family: 'Segoe UI' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadDashboardStats() {
+            try {
+                const data = await apiCall(`${API}/reports/dashboard-executive`);
+                document.getElementById('val-sales').textContent = formatCurrency(data.sales.total);
+                document.getElementById('val-cash').textContent = formatCurrency(data.cash);
+                document.getElementById('val-stock').textContent = formatCurrency(data.stock);
+                document.getElementById('val-receivables').textContent = formatCurrency(data.receivables);
+                document.getElementById('val-payables').textContent = formatCurrency(data.payables);
+                document.getElementById('val-total-balances').textContent = formatCurrency(data.balances.total);
+                document.getElementById('val-products-count').textContent = Number(data.inventory.totalProducts || 0).toLocaleString('ar-EG');
+                document.getElementById('val-active-rolls').textContent = Number(data.inventory.activeRolls || 0).toLocaleString('ar-EG');
+                document.getElementById('val-sales-count').textContent = Number(data.sales.count || 0).toLocaleString('ar-EG');
+                document.getElementById('val-active-rolls-card').textContent = Number(data.inventory.activeRolls || 0).toLocaleString('ar-EG');
+                document.getElementById('val-treasury-accounts').textContent = Number(data.balances.treasuryAccounts || 0).toLocaleString('ar-EG');
+                document.getElementById('val-low-stock').textContent = Number(data.inventory.lowStockProducts || 0).toLocaleString('ar-EG');
+                document.getElementById('val-out-stock').textContent = Number(data.inventory.outOfStockProducts || 0).toLocaleString('ar-EG');
+                document.getElementById('val-admin-cost').textContent = formatCurrency(data.admin.stockCost);
+                document.getElementById('val-active-users').textContent = Number(data.admin.activeUsers || 0).toLocaleString('ar-EG');
+                document.getElementById('val-total-users').textContent = Number(data.admin.totalUsers || 0).toLocaleString('ar-EG');
+                updateInventoryBars(data.inventory);
+                initAssetsChart(data);
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuthStatus();
+            loadDashboardStats();
+        });
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

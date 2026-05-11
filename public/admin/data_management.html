@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مركز البيانات الموحد (Unified Data Center)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; color: #1e293b; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        
+        /* Header */
+        .header { background: #0f172a; color: white; padding: 20px; text-align: center; }
+        .header h2 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0 0; opacity: 0.8; font-size: 14px; }
+
+        /* Tabs */
+        .tabs { display: flex; background: #1e293b; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; color: #94a3b8; font-weight: bold; transition: 0.2s; border-bottom: 3px solid transparent; }
+        .tab:hover { background: #334155; color: white; }
+        .tab.active { background: #334155; color: white; border-bottom-color: #3b82f6; }
+        .tab.danger { color: #fca5a5; }
+        .tab.danger.active { border-bottom-color: #ef4444; background: #450a0a; }
+
+        /* Content */
+        .content { padding: 30px; display: none; }
+        .content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Form Elements */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #475569; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
+        .form-control:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+
+        /* Cards */
+        .option-card { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+        .option-card:hover { border-color: #3b82f6; background: #eff6ff; }
+        .option-card input[type="radio"] { transform: scale(1.2); }
+
+        /* Buttons */
+        .btn { padding: 12px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+        .btn-primary { background: #3b82f6; color: white; width: 100%; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; width: 100%; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline { background: white; border: 1px solid #cbd5e1; color: #475569; }
+        .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+
+        /* Alerts */
+        .alert { padding: 15px; border-radius: 6px; margin-top: 20px; display: none; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        /* Hints */
+        .hint { font-size: 13px; color: #64748b; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>📂 مركز البيانات الموحد</h2>
+        <p>استيراد وتصدير وإدارة جميع بيانات النظام من مكان واحد</p>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="setTab('export')">📤 التصدير (Export)</div>
+        <div class="tab" onclick="setTab('import')">📥 الاستيراد (Import)</div>
+        <div class="tab" onclick="setTab('integrity')">🩺 فحص النظام (Health Check)</div>
+        <div class="tab danger" onclick="setTab('reset')">⚠️ ضبط النظام (Reset)</div>
+    </div>
+
+    <!-- 1. EXPORT SECTION -->
+    <div id="tab-export" class="content active">
+        <div class="form-group">
+            <label>1. اختر نوع البيانات:</label>
+            <select id="exportModule" class="form-control">
+                <optgroup label="البيانات الأساسية">
+                    <option value="accounts">📚 شجرة الحسابات (Chart of Accounts)</option>
+                    <option value="products">📦 الأصناف والمخزون</option>
+                    <option value="customers">👥 العملاء</option>
+                    <option value="suppliers">🏭 الموردين</option>
+                    <option value="cars">🚗 كتالوج السيارات (Cars Catalog)</option>
+                </optgroup>
+                <optgroup label="الحركات اليومية">
+                    <option value="sales_invoices">🛍️ فواتير المبيعات</option>
+                    <option value="purchase_invoices">🛒 فواتير المشتريات (مخزني)</option>
+                    <option value="general_purchases">🛠️ فواتير مصروفات / خدمات</option>
+                    <option value="stock_transactions">📦 حركات المخزن (وارد/صادر)</option>
+                    <option value="treasury">💰 حركة الخزينة والبنك</option>
+                    <option value="payroll">👷 الرواتب والأجور (جديد)</option>
+                    <option value="import_shipments">🚢 شحنات الاستيراد والتخليص</option>
+                    <option value="journal">📒 قيود اليومية (Journal Entries)</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>2. نطاق التاريخ (للحركات فقط):</label>
+            <div class="row">
+                <div class="col">
+                    <input type="date" id="exportFrom" class="form-control">
+                    <div class="hint">من تاريخ</div>
+                </div>
+                <div class="col">
+                    <input type="date" id="exportTo" class="form-control">
+                    <div class="hint">إلى تاريخ</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" style="margin-top: 30px;">
+            <div class="col">
+                <button onclick="downloadTemplate()" class="btn btn-outline" style="width:100%">📄 تحميل قالب فارغ (Template)</button>
+            </div>
+            <div class="col">
+                <button onclick="doExport()" class="btn btn-primary">⬇️ تصدير البيانات (Excel)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. INTEGRITY SECTION -->
+    <div id="tab-integrity" class="content">
+        <div class="header" style="background: #0ea5e9; border-radius: 8px; margin-bottom: 20px;">
+            <h3>🩺 فحص سلامة البيانات المالية</h3>
+            <p>أداة لكشف وحذف القيود المحاسبية المعلقة (Orphaned Entries) التي لا ترتبط بأي مستند</p>
+        </div>
+
+        <div style="text-align: center; padding: 20px;">
+            <button onclick="checkIntegrity()" class="btn btn-primary" style="width: auto; font-size: 18px;">🔎 بدء الفحص الشامل</button>
+        </div>
+
+        <div id="integrityLoading" style="display:none; text-align:center; padding:20px; color:#0284c7;">
+            جاري الفحص...
+        </div>
+
+        <div id="integrityResult" style="display:none; margin-top:20px;">
+            <div class="row">
+                <div class="col" style="background:white; padding:15px; border-radius:8px; border:1px solid #ddd; text-align:center;">
+                    <h4 style="margin:0; color:#64748b;">إجمالي القيود</h4>
+                    <h2 id="intTotal" style="margin:10px 0; color:#334155;">0</h2>
+                </div>
+                <div class="col" style="background:white; padding:15px; border-radius:8px; border:1px solid #ddd; text-align:center;">
+                    <h4 style="margin:0; color:#64748b;">تم فحصها</h4>
+                    <h2 id="intChecked" style="margin:10px 0; color:#0ea5e9;">0</h2>
+                </div>
+                <div class="col" style="background:#fef2f2; padding:15px; border-radius:8px; border:1px solid #fca5a5; text-align:center;">
+                    <h4 style="margin:0; color:#dc2626;">قيود يتيمة (Orphans)</h4>
+                    <h2 id="intOrphans" style="margin:10px 0; color:#dc2626;">0</h2>
+                </div>
+            </div>
+
+            <div id="orphanList" style="margin-top: 20px; max-height: 300px; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <!-- Table -->
+                <table style="width:100%; border-collapse: collapse; font-size:13px;">
+                    <thead style="background:#f8fafc; position:sticky; top:0;">
+                        <tr>
+                            <th style="padding:10px; text-align:right;">#</th>
+                            <th style="padding:10px; text-align:right;">المرجع (Ref)</th>
+                            <th style="padding:10px; text-align:right;">التاريخ</th>
+                            <th style="padding:10px; text-align:right;">الوصف</th>
+                            <th style="padding:10px; text-align:right;">المبلغ</th>
+                            <th style="padding:10px; text-align:right;">النوع المحتمل</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orphanBody"></tbody>
+                </table>
+            </div>
+
+            <div id="cleanupAction" style="margin-top: 20px; text-align: center; display: none;">
+                <p style="color: #dc2626; font-weight: bold;">⚠️ تم العثور على قيود معلقة. هل تريد تنظيفها؟</p>
+                <button onclick="cleanupOrphans()" class="btn btn-danger" style="width: auto;">🧹 حذف القيود المعلقة (Fix Integrity)</button>
+            </div>
+            
+            <div id="cleanSuccess" class="alert alert-success" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <!-- 2. IMPORT SECTION -->
+    <div id="tab-import" class="content">
+        <div class="form-group">
+            <label>1. اختر نوع البيانات للاستيراد:</label>
+            <select id="importModule" class="form-control" onchange="updateImportOptions()">
+                <optgroup label="البيانات الأساسية">
+                    <option value="accounts">📚 شجرة الحسابات</option>
+                    <option value="products">📦 الأصناف</option>
+                    <option value="customers">👥 العملاء</option>
+                    <option value="suppliers">🏭 الموردين</option>
+                    <option value="cars">🚗 كتالوج السيارات</option>
+                </optgroup>
+                <optgroup label="الحركات اليومية">
+                    <option value="sales_invoices">🛍️ فواتير المبيعات</option>
+                    <option value="purchase_invoices">🛒 فواتير المشتريات (مخزني)</option>
+                    <option value="general_purchases">🛠️ فواتير مصروفات / خدمات</option>
+                    <option value="stock_transactions">📦 حركات المخزن</option>
+                    <option value="treasury">💰 حركة الخزينة والبنك</option>
+                    <option value="payroll">👷 الرواتب والأجور</option>
+                    <option value="import_shipments">🚢 شحنات الاستيراد والتخليص</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>2. اختر ملف Excel:</label>
+            <input type="file" id="importFile" class="form-control" accept=".xlsx, .xls">
+            <div class="hint">تأكد من استخدام القالب الصحيح لتجنب الأخطاء.</div>
+        </div>
+
+        <div class="row" style="margin-bottom: 20px;">
+            <div class="col">
+                <button onclick="previewImport()" class="btn btn-outline" style="width:100%">فحص الملف قبل الاستيراد (Preview)</button>
+            </div>
+        </div>
+
+        <div id="previewBox" style="display:none; margin-bottom:20px; background:#f8fafc; border:1px solid #dbe4ee; border-radius:10px; padding:15px;">
+            <h4 style="margin-top:0;">ملخص الملف</h4>
+            <div id="previewMeta" style="margin-bottom:15px; color:#475569;"></div>
+            <div id="previewWarnings" style="margin-bottom:15px;"></div>
+            <div style="overflow:auto; border:1px solid #e2e8f0; border-radius:8px; background:white;">
+                <table style="width:100%; border-collapse: collapse; font-size:13px;">
+                    <thead id="previewHead" style="background:#eef2f7;"></thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>3. خيارات الاستبدال والحذف:</label>
+            
+            <label class="option-card">
+                <input type="radio" name="importMode" value="append" checked onchange="toggleDateRange(false)">
+                <div>
+                    <strong>إضافة فقط (Append)</strong>
+                    <div class="hint">إضافة البيانات الجديدة للموجودة حالياً (دون حذف القديم).</div>
+                </div>
+            </label>
+
+            <label class="option-card" id="opt-wipe">
+                <input type="radio" name="importMode" value="wipe" onchange="toggleDateRange(false)">
+                <div>
+                    <strong style="color:#dc2626">حذف الكل واستبدال (Full Wipe)</strong>
+                    <div class="hint">حذف جميع البيانات القديمة من هذا النوع واستبدالها بالملف.</div>
+                </div>
+            </label>
+
+            <label class="option-card" id="opt-period">
+                <input type="radio" name="importMode" value="period" onchange="toggleDateRange(true)">
+                <div>
+                    <strong style="color:#d97706">حذف فترة محددة واستبدال (Period Replace)</strong>
+                    <div class="hint">حذف البيانات في الفترة المحددة فقط واستبدالها بالملف.</div>
+                </div>
+            </label>
+        </div>
+
+        <div id="importDateRange" class="form-group" style="display:none; background:#fff7ed; padding:15px; border-radius:8px; border:1px solid #ffedd5;">
+            <label style="color:#c2410c">حدد الفترة التي سيتم حذف بياناتها:</label>
+            <div class="row">
+                <div class="col">
+                    <input type="date" id="importFrom" class="form-control">
+                </div>
+                <div class="col">
+                    <input type="date" id="importTo" class="form-control">
+                </div>
+            </div>
+            <div class="hint" style="color:#c2410c">⚠️ سيتم حذف جميع الحركات في هذه الفترة قبل استيراد الملف الجديد.</div>
+        </div>
+
+        <button onclick="doImport()" class="btn btn-success" style="margin-top:10px;">🚀 رفع واستيراد البيانات</button>
+        
+        <div id="importResult" class="alert"></div>
+    </div>
+
+    <!-- 3. RESET SECTION -->
+    <div id="tab-reset" class="content">
+        <div style="text-align:center; padding: 40px;">
+            <h3 style="color:#dc2626; font-size:22px;">💣 منطقة الخطر (Danger Zone)</h3>
+            <p style="margin-bottom:30px;">هنا يمكنك تصفير النظام بالكامل والبدء من جديد.</p>
+
+            <div class="option-card" style="border-color:#fca5a5; background:#fef2f2; text-align:right;">
+                <label style="display:flex; gap:10px; align-items:center; cursor:pointer;">
+                    <input type="checkbox" id="resetAccounts" style="transform:scale(1.5)">
+                    <div>
+                        <strong style="font-size:16px;">حذف شجرة الحسابات أيضاً (Chart of Accounts)</strong>
+                        <div class="hint">عند التفعيل، سيتم حذف جميع الحسابات وإعادة بنائها عند الاستيراد القادم.</div>
+                    </div>
+                </label>
+            </div>
+
+            <button onclick="doReset()" class="btn btn-danger" style="margin-top:20px; width:100%; padding:15px; font-size:16px;">💥 تنفيذ إعادة ضبط المصنع (Factory Reset)</button>
+        </div>
+        <div id="resetResult" class="alert"></div>
+    </div>
+
+</div>
+
+<script>
+    // Init Dates
+    const today = new Date().toISOString().split('T')[0];
+    const firstDay = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]; // Jan 1st
+    
+    document.getElementById('exportTo').value = today;
+    document.getElementById('exportFrom').value = firstDay;
+    document.getElementById('importTo').value = today;
+    document.getElementById('importFrom').value = firstDay;
+
+    function setTab(id) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        
+        // Handle Tab Buttons
+        const tabBtns = document.querySelectorAll('.tab');
+        if(id === 'export') tabBtns[0].classList.add('active');
+        if(id === 'import') tabBtns[1].classList.add('active');
+        if(id === 'integrity') tabBtns[2].classList.add('active');
+        if(id === 'reset') tabBtns[3].classList.add('active');
+
+        document.getElementById(`tab-${id}`).classList.add('active');
+    }
+
+    // --- Integrity Check ---
+    let orphanIds = [];
+
+    async function checkIntegrity() {
+        document.getElementById('integrityLoading').style.display = 'block';
+        document.getElementById('integrityResult').style.display = 'none';
+        
+        try {
+            const res = await <!-- TODO: Endpoint /api/journal/integrity/check needs to be implemented -->
+            fetch('/api/journal/integrity/check');
+            const data = await res.json();
+            
+            document.getElementById('integrityLoading').style.display = 'none';
+            document.getElementById('integrityResult').style.display = 'block';
+            
+            // Stats
+            document.getElementById('intTotal').innerText = data.stats.total;
+            document.getElementById('intChecked').innerText = data.stats.checked;
+            document.getElementById('intOrphans').innerText = data.stats.orphans;
+            
+            // List
+            const tbody = document.getElementById('orphanBody');
+            tbody.innerHTML = '';
+            orphanIds = [];
+
+            if (data.orphans.length > 0) {
+                data.orphans.forEach((o, idx) => {
+                    orphanIds.push(o._id);
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px;">${idx + 1}</td>
+                            <td style="padding:8px; font-weight:bold; color:#dc2626;">${o.referenceNumber}</td>
+                            <td style="padding:8px;">${new Date(o.date).toLocaleDateString('en-GB')}</td>
+                            <td style="padding:8px;">${o.description || '-'}</td>
+                            <td style="padding:8px;">${o.amount.toFixed(2)}</td>
+                            <td style="padding:8px;">${o.likelyType}</td>
+                        </tr>
+                    `);
+                });
+                document.getElementById('cleanupAction').style.display = 'block';
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center; color:green;">✅ النظام سليم (No orphans found)</td></tr>';
+                document.getElementById('cleanupAction').style.display = 'none';
+            }
+
+        } catch (e) {
+            alert('Error: ' + e.message);
+            document.getElementById('integrityLoading').style.display = 'none';
+        }
+    }
+
+    async function cleanupOrphans() {
+        if (!orphanIds.length) return;
+        if (!confirm(`سيتم حذف ${orphanIds.length} قيد محاسبي معلق نهائياً.\nهل أنت متأكد؟`)) return;
+
+        try {
+            const res = await fetch('/api/journal/integrity/cleanup', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids: orphanIds })
+            });
+            const json = await res.json();
+            if (res.ok) {
+                document.getElementById('cleanupAction').style.display = 'none';
+                document.getElementById('cleanSuccess').style.display = 'block';
+                document.getElementById('cleanSuccess').innerText = json.message;
+                // Refresh list
+                setTimeout(checkIntegrity, 2000);
+            } else {
+                alert('Error: ' + json.message);
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
+    }
+
+    function toggleDateRange(show) {
+        document.getElementById('importDateRange').style.display = show ? 'block' : 'none';
+    }
+
+    function updateImportOptions() {
+        const mod = document.getElementById('importModule').value;
+        const isMaster = ['accounts','products','customers','suppliers'].includes(mod);
+        
+        // Master data usually doesn't have "Period Replace" logic easily applied (no date field usually)
+        // Except maybe Products created date? But usually we Wipe All or Append.
+        const periodOpt = document.getElementById('opt-period');
+        
+        if (isMaster) {
+            periodOpt.style.display = 'none';
+            // If period was selected, switch to append
+            const radios = document.getElementsByName('importMode');
+            if(radios[2].checked) radios[0].checked = true;
+            toggleDateRange(false);
+        } else {
+            periodOpt.style.display = 'flex';
+        }
+    }
+
+    // --- Actions ---
+
+    function downloadTemplate() {
+        const mod = document.getElementById('exportModule').value;
+        window.location.href = `/api/data/export/${mod}?template=true`;
+    }
+
+    function doExport() {
+        const mod = document.getElementById('exportModule').value;
+        const from = document.getElementById('exportFrom').value;
+        const to = document.getElementById('exportTo').value;
+        window.location.href = `/api/data/export/${mod}?from=${from}&to=${to}`;
+    }
+
+    async function doImport() {
+        const mod = document.getElementById('importModule').value;
+        const fileInput = document.getElementById('importFile');
+        const mode = document.querySelector('input[name="importMode"]:checked').value;
+        
+        if (!fileInput.files.length) return alert('⚠️ يرجى اختيار ملف');
+
+        // Warnings
+        let msg = "هل أنت متأكد من الاستيراد؟";
+        if (mode === 'wipe') msg = `⚠️ تحذير: سيتم حذف جميع بيانات [${mod}] القديمة!`;
+        if (mode === 'period') msg = `⚠️ تحذير: سيتم حذف بيانات [${mod}] في الفترة المحددة!`;
+        
+        if (!confirm(msg)) return;
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('wipeData', mode === 'wipe');
+        formData.append('replacePeriod', mode === 'period');
+        formData.append('fromDate', document.getElementById('importFrom').value);
+        formData.append('toDate', document.getElementById('importTo').value);
+
+        const resDiv = document.getElementById('importResult');
+        resDiv.style.display = 'block';
+        resDiv.className = 'alert';
+        resDiv.style.background = '#e0f2fe';
+        resDiv.innerText = '⏳ جاري المعالجة...';
+
+        try {
+            const res = await fetch(`/api/data/import/${mod}`, { method: 'POST', body: formData });
+            const json = await res.json();
+            
+            if (res.ok) {
+                resDiv.className = 'alert alert-success';
+                resDiv.innerText = `✅ تم بنجاح: ${json.message || 'تم الاستيراد'}`;
+                fileInput.value = '';
+            } else {
+                resDiv.className = 'alert alert-error';
+                resDiv.innerText = `❌ خطأ: ${json.message}`;
+            }
+        } catch (e) {
+            resDiv.className = 'alert alert-error';
+            resDiv.innerText = `❌ خطأ اتصال: ${e.message}`;
+        }
+    }
+
+    async function previewImport() {
+        const mod = document.getElementById('importModule').value;
+        const fileInput = document.getElementById('importFile');
+
+        if (!fileInput.files.length) {
+            return alert('يرجى اختيار ملف أولاً');
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        const previewBox = document.getElementById('previewBox');
+        const previewMeta = document.getElementById('previewMeta');
+        const previewWarnings = document.getElementById('previewWarnings');
+        const previewHead = document.getElementById('previewHead');
+        const previewBody = document.getElementById('previewBody');
+
+        previewBox.style.display = 'block';
+        previewMeta.innerText = 'جار فحص الملف...';
+        previewWarnings.innerHTML = '';
+        previewHead.innerHTML = '';
+        previewBody.innerHTML = '';
+
+        try {
+            const res = await fetch(`/api/data/preview-import/${mod}`, {
+                method: 'POST',
+                body: formData
+            });
+            const json = await res.json();
+
+            if (!res.ok) {
+                throw new Error(json.message || 'فشل فحص الملف');
+            }
+
+            previewMeta.innerHTML = `
+                <strong>نوع البيانات:</strong> ${json.type}<br>
+                <strong>اسم الشيت:</strong> ${json.sheetName}<br>
+                <strong>عدد الصفوف:</strong> ${json.rowCount}<br>
+                <strong>الصفوف الفارغة:</strong> ${json.emptyRows}
+            `;
+
+            if (json.missingRequiredColumns && json.missingRequiredColumns.length) {
+                previewWarnings.innerHTML = `
+                    <div class="alert alert-error" style="display:block;">
+                        الأعمدة المطلوبة المفقودة: ${json.missingRequiredColumns.join(', ')}
+                    </div>
+                `;
+            } else {
+                previewWarnings.innerHTML = `
+                    <div class="alert alert-success" style="display:block;">
+                        الفحص المبدئي ناجح ويمكن متابعة الاستيراد.
+                    </div>
+                `;
+            }
+
+            if (json.headers && json.headers.length) {
+                previewHead.innerHTML = `<tr>${json.headers.map(h => `<th style="padding:10px; text-align:right;">${h}</th>`).join('')}</tr>`;
+            }
+
+            if (json.sampleRows && json.sampleRows.length) {
+                previewBody.innerHTML = json.sampleRows.map((row) => `
+                    <tr>
+                        ${json.headers.map((header) => `<td style="padding:8px; border-top:1px solid #eef2f7;">${row[header] ?? ''}</td>`).join('')}
+                    </tr>
+                `).join('');
+            } else {
+                previewBody.innerHTML = '<tr><td style="padding:15px;">لا توجد بيانات داخل الملف.</td></tr>';
+            }
+        } catch (e) {
+            previewWarnings.innerHTML = `<div class="alert alert-error" style="display:block;">${e.message}</div>`;
+            previewMeta.innerText = 'تعذر فحص الملف.';
+        }
+    }
+
+    async function doReset() {
+        const wipeAcc = document.getElementById('resetAccounts').checked;
+        const msg = wipeAcc 
+            ? "⚠️ تحذير نهائي!! سيتم حذف كل البيانات + شجرة الحسابات.\nهل أنت متأكد؟"
+            : "⚠️ تحذير! سيتم تصفير جميع الحركات.\nهل أنت متأكد؟";
+        
+        if(!confirm(msg)) return;
+
+        const resDiv = document.getElementById('resetResult');
+        resDiv.style.display = 'block';
+        resDiv.innerText = '⏳ جاري الحذف...';
+
+        try {
+            const res = await fetch(`/api/data/nuke-everything?wipeAccounts=${wipeAcc}`, { method: 'DELETE' });
+            const json = await res.json();
+            
+            if (res.ok) {
+                resDiv.className = 'alert alert-success';
+                resDiv.innerText = json.message;
+            } else {
+                resDiv.className = 'alert alert-error';
+                resDiv.innerText = json.message;
+            }
+        } catch (e) {
+            resDiv.innerText = 'Error: ' + e.message;
+        }
+    }
+
+    // Initial check
+    updateImportOptions();
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

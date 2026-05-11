@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --login-primary: #163a5f;
+            --login-secondary: #526277;
+            --login-accent: #b98918;
+            --login-success: #1f6f5f;
+            --login-danger: #9f3a38;
+            --login-surface: rgba(255,255,255,0.97);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185, 137, 24, 0.16), transparent 24rem),
+                radial-gradient(circle at bottom right, rgba(22, 58, 95, 0.2), transparent 28rem),
+                linear-gradient(145deg, #eef3f8 0%, #f9fbfd 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            color: var(--login-primary);
+        }
+
+        .login-shell {
+            width: min(980px, 100%);
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            background: var(--login-surface);
+            border: 1px solid rgba(22, 58, 95, 0.1);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 28px 70px rgba(22, 58, 95, 0.16);
+        }
+
+        .hero-pane {
+            padding: 3rem;
+            background: linear-gradient(155deg, #163a5f 0%, #21486e 55%, #526277 100%);
+            color: #fff;
+        }
+
+        .hero-pane h1 {
+            margin: 0 0 1rem;
+            font-size: clamp(2rem, 3vw, 2.8rem);
+        }
+
+        .hero-pane p {
+            margin: 0;
+            line-height: 1.9;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .hero-tags {
+            display: grid;
+            gap: 0.9rem;
+            margin-top: 2rem;
+        }
+
+        .hero-tag {
+            padding: 0.9rem 1rem;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            font-weight: 700;
+        }
+
+        .form-pane {
+            padding: 2.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-pane h2 {
+            margin: 0 0 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .form-pane .subtext {
+            margin: 0 0 1.75rem;
+            color: var(--login-secondary);
+            line-height: 1.8;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            margin-bottom: 1.1rem;
+        }
+
+        .field label {
+            font-weight: 700;
+            color: var(--login-secondary);
+        }
+
+        .field input {
+            padding: 0.95rem 1rem;
+            border: 1px solid rgba(82, 98, 119, 0.2);
+            border-radius: 14px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: var(--login-primary);
+            box-shadow: 0 0 0 4px rgba(22, 58, 95, 0.08);
+        }
+
+        .primary-btn {
+            width: 100%;
+            padding: 1rem 1.1rem;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--login-primary), #244c73);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 16px 30px rgba(22, 58, 95, 0.18);
+        }
+
+        .primary-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.75;
+        }
+
+        .alert {
+            display: none;
+            margin-bottom: 1rem;
+            padding: 0.95rem 1rem;
+            border-radius: 14px;
+            font-weight: 700;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.error {
+            background: rgba(159, 58, 56, 0.1);
+            color: var(--login-danger);
+            border: 1px solid rgba(159, 58, 56, 0.2);
+        }
+
+        .alert.success {
+            background: rgba(31, 111, 95, 0.1);
+            color: var(--login-success);
+            border: 1px solid rgba(31, 111, 95, 0.18);
+        }
+
+        .credential-box {
+            margin-top: 1.4rem;
+            padding: 1rem;
+            border-radius: 16px;
+            background: #f7f9fc;
+            border: 1px solid rgba(22, 58, 95, 0.08);
+            color: var(--login-secondary);
+        }
+
+        .credential-box strong {
+            color: var(--login-primary);
+        }
+
+        @media (max-width: 900px) {
+            .login-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-pane,
+            .form-pane {
+                padding: 2rem 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-shell">
+        <section class="hero-pane">
+            <h1>Wrapstyle ERP</h1>
+            <p>منصة تشغيل ومتابعة موحدة لإدارة المبيعات والمشتريات والمخزون والخزينة والموارد البشرية بواجهة احترافية واحدة.</p>
+            <div class="hero-tags">
+                <div class="hero-tag">تشغيل يومي سريع من شاشة واحدة</div>
+                <div class="hero-tag">تقارير مالية احترافية وربط محاسبي مباشر</div>
+                <div class="hero-tag">نسخ احتياطي ومراجعة وتدقيق على مستوى الإنتاج</div>
+            </div>
+        </section>
+
+        <section class="form-pane">
+            <h2>تسجيل الدخول</h2>
+            <p class="subtext">استخدم حسابك للدخول إلى النظام. بعد نجاح الدخول سيتم تحويلك مباشرة إلى لوحة القيادة الجديدة.</p>
+
+            <div id="alertBox" class="alert"></div>
+
+            <form id="loginForm">
+                <div class="field">
+                    <label for="username">اسم المستخدم</label>
+                    <input id="username" name="username" type="text" autocomplete="username" placeholder="أدخل اسم المستخدم" required>
+                </div>
+
+                <div class="field">
+                    <label for="password">كلمة المرور</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" placeholder="أدخل كلمة المرور" required>
+                </div>
+
+                <button class="primary-btn" type="submit" id="loginBtn">دخول إلى النظام</button>
+            </form>
+
+            <div class="credential-box">
+                <div><strong>بيانات الدخول الافتراضية:</strong> admin / admin123</div>
+                <div style="margin-top:0.5rem;">يُنصح بتغيير كلمة مرور الإدارة بعد التحقق من اكتمال التشغيل.</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API = '/api';
+
+        function showAlert(message, type = 'error') {
+            const box = document.getElementById('alertBox');
+            box.className = `alert show ${type}`;
+            box.textContent = message;
+        }
+
+        function clearAlert() {
+            const box = document.getElementById('alertBox');
+            box.className = 'alert';
+            box.textContent = '';
+        }
+
+        if (localStorage.getItem('token')) {
+            window.location.href = '/index.html';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            clearAlert();
+
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'جارٍ التحقق...';
+
+            try {
+                const payload = {
+                    username: document.getElementById('username').value.trim(),
+                    password: document.getElementById('password').value
+                };
+
+                const response = await fetch(`${API}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'تعذر تسجيل الدخول');
+                }
+
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+                showAlert('تم تسجيل الدخول بنجاح. جارٍ التحويل...', 'success');
+                setTimeout(() => window.location.href = '/index.html', 900);
+            } catch (error) {
+                showAlert(error.message || 'فشل الاتصال بالخادم');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'دخول إلى النظام';
+            }
+        });
+    </script>
+</body>
+</html>

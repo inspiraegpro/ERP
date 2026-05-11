@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة مصفوفة أسعار العزل - Wrapstyle</title>
+    <link rel="stylesheet" href="../improved-styles.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f1f5f9; padding: 30px; color: #1e293b; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #f1f5f9; }
+        th { background: #f8fafc; color: #475569; font-weight: 600; }
+        input, select { padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; width: 100%; box-sizing: border-box; }
+        .net-badge { background: #dcfce7; color: #166534; padding: 5px 10px; border-radius: 6px; font-weight: bold; }
+        .btn-save { background: #2563eb; color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .btn-add { background: #475569; color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; margin-left: 10px; }
+        .btn-delete { color: #ef4444; background: none; border: none; font-size: 20px; cursor: pointer; }
+        .status-msg { padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="statusMsg" class="status-msg"></div>
+    <div class="header">
+        <div>
+            <h1 style="margin:0;">مصفوفة أسعار العزل الحراري</h1>
+            <p style="margin:5px 0 0 0; color:#64748b;">أدخل السعر الشامل، وسيقوم النظام بحساب السعر الصافي للفاتورة والضرائب.</p>
+        </div>
+        <div>
+            <button class="btn-add" onclick="addNewRow()">➕ باقة جديدة</button>
+            <button class="btn-save" onclick="saveMatrix()">💾 حفظ الأسعار</button>
+        </div>
+    </div>
+
+    <table id="mainTable">
+        <thead>
+            <tr>
+                <th style="width: 200px;">فئة السيارة</th>
+                <th>اسم الباقة / الجزء</th>
+                <th style="width: 200px;">السعر شامل (14%)</th>
+                <th style="width: 200px;">الصافي (محاسبياً)</th>
+                <th style="width: 50px;"></th>
+            </tr>
+        </thead>
+        <tbody id="matrixBody"></tbody>
+    </table>
+</div>
+
+<script>
+    let matrixData = [];
+    const VAT_RATE = 1.14;
+
+    function showStatus(msg, isError = true) {
+        const div = document.getElementById('statusMsg');
+        div.style.display = 'block';
+        div.style.background = isError ? '#fee2e2' : '#dcfce7';
+        div.style.color = isError ? '#991b1b' : '#166534';
+        div.innerText = msg;
+    }
+
+    async function loadMatrix() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/pricing/matrix', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            matrixData = await response.json();
+            
+            if (matrixData.length === 0) {
+                showStatus("⚠️ لم يتم العثور على بيانات، سيتم بدء مصفوفة جديدة.");
+                return;
+            }
+
+            renderTable();
+        } catch (e) {
+            showStatus("❌ فشل الاتصال بالسيرفر. تأكد من تشغيل node server.js.");
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('matrixBody');
+        tbody.innerHTML = '';
+        matrixData.forEach((row, index) => {
+            const net = (row.inclusivePrice / VAT_RATE).toFixed(2);
+            tbody.innerHTML += `
+                <tr>
+                    <td>
+                        <select onchange="updateRow(${index}, 'carSize', this.value)">
+                            <option value="Sedan" ${row.carSize === 'Sedan' ? 'selected' : ''}>Sedan</option>
+                            <option value="SUV/Large Sedan" ${row.carSize === 'SUV/Large Sedan' ? 'selected' : ''}>SUV/Large Sedan</option>
+                            <option value="Large SUV" ${row.carSize === 'Large SUV' ? 'selected' : ''}>Large SUV</option>
+                        </select>
+                    </td>
+                    <td><input type="text" value="${row.partName}" onchange="updateRow(${index}, 'partName', this.value)"></td>
+                    <td><input type="number" value="${row.inclusivePrice}" oninput="updatePrice(${index}, this.value)"></td>
+                    <td><span class="net-badge" id="net-${index}">${net}</span> ج.م</td>
+                    <td><button class="btn-delete" onclick="deleteRow(${index})">🗑️</button></td>
+                </tr>`;
+        });
+    }
+
+    function updateRow(index, field, val) { matrixData[index][field] = val; }
+    function updatePrice(index, val) {
+        const price = parseFloat(val) || 0;
+        matrixData[index].inclusivePrice = price;
+        document.getElementById(`net-${index}`).innerText = (price / VAT_RATE).toFixed(2);
+    }
+    function addNewRow() {
+        matrixData.push({ carSize: "Sedan", partName: "باقة جديدة", inclusivePrice: 0 });
+        renderTable();
+    }
+    function deleteRow(index) {
+        if(confirm("هل أنت متأكد من حذف هذا البند؟")) { matrixData.splice(index, 1); renderTable(); }
+    }
+
+    async function saveMatrix() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/pricing/matrix', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(matrixData)
+            });
+            if(response.ok) alert("✅ تم الحفظ بنجاح!");
+            else alert("❌ فشل الحفظ");
+        } catch (e) { alert("خطأ في الشبكة"); }
+    }
+
+    window.onload = loadMatrix;
+</script>
+</body>
+</html>

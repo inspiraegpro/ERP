@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تحليل الرواتب (ميزان مراجعة)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 20px; max-width: 1200px; margin: 0 auto; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        
+        .filters { 
+            background: #e0f2fe; padding: 20px; border-radius: 8px; margin-bottom: 20px; 
+            border: 1px solid #bae6fd; display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; align-items: end;
+        }
+        .filter-group label { display: block; font-weight: bold; color: #0369a1; font-size: 13px; margin-bottom: 5px; }
+        .filter-group input, .filter-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        /* أزرار التحكم */
+        .btn-search { background: #0369a1; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn-print { background: #f59e0b; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .btn-export { background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+
+        .actions-bar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        th { background: #1e293b; color: white; white-space: nowrap; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        
+        .level-badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+        .lvl-1 { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .lvl-2 { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .lvl-3 { background: #fae8ff; color: #86198f; border: 1px solid #f0abfc; }
+
+        .total-row { font-weight: bold; background-color: #e2e8f0 !important; color: #0f172a; border-top: 2px solid #94a3b8; }
+        .money { font-family: 'Courier New', monospace; font-weight: bold; }
+        
+        @media print { 
+            .no-print, .filters, .actions-bar { display: none !important; } 
+            .card { box-shadow: none; border: none; padding: 0; max-width: 100%; } 
+            table { font-size: 11px; }
+            th { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="color:#333; margin:0;">📊 تحليل الرواتب (ميزان مراجعة)</h2>
+        
+        <div class="actions-bar no-print">
+            <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+            <button class="btn-export" onclick="exportToExcel()">📥 تصدير Excel</button>
+        </div>
+    </div>
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+
+    <div class="filters no-print">
+        <div class="filter-group">
+            <label>1. شهر الصرف</label>
+            <input type="month" id="month">
+        </div>
+        <div class="filter-group">
+            <label>2. الإدارة (المستوى 1)</label>
+            <select id="filterDept" onchange="resetLowerLevels(1)"><option value="">-- الكل (تجميعي) --</option></select>
+        </div>
+        <div class="filter-group">
+            <label>3. الوظيفة (المستوى 2)</label>
+            <select id="filterJob" onchange="resetLowerLevels(2)"><option value="">-- الكل (تجميعي) --</option></select>
+        </div>
+        <div class="filter-group">
+            <label>4. كود الموظف (مباشر)</label>
+            <input type="text" id="filterCode" placeholder="بحث بالكود...">
+        </div>
+        <div class="filter-group">
+            <button class="btn-search" onclick="analyze()">🔍 تحليل وعرض</button>
+        </div>
+    </div>
+
+    <div id="levelIndicator"></div>
+    
+    <table id="analysisTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    const API = '/api/hr';
+    
+    window.onload = async () => {
+        const now = new Date();
+        document.getElementById('month').value = now.toISOString().slice(0, 7);
+        await loadFilters();
+    };
+
+    async function loadFilters() {
+        try {
+            const res = await fetch(`${API}/employees`);
+            const emps = await res.json();
+            const depts = [...new Set(emps.map(e => e.department).filter(d => d))];
+            const jobs = [...new Set(emps.map(e => e.jobTitle).filter(j => j))];
+            
+            const deptSel = document.getElementById('filterDept');
+            const jobSel = document.getElementById('filterJob');
+            
+            depts.forEach(d => deptSel.innerHTML += `<option value="${d}">${d}</option>`);
+            jobs.forEach(j => jobSel.innerHTML += `<option value="${j}">${j}</option>`);
+        } catch(e) { console.error(e); }
+    }
+
+    function resetLowerLevels(level) {
+        if (level === 1) document.getElementById('filterJob').value = "";
+    }
+
+    async function analyze() {
+        const month = document.getElementById('month').value;
+        const dept = document.getElementById('filterDept').value;
+        const job = document.getElementById('filterJob').value;
+        const code = document.getElementById('filterCode').value.trim();
+
+        if (!month) { alert('اختر الشهر أولاً'); return; }
+
+        try {
+            const res = await fetch(`${API}/payroll?month=${month}`);
+            const data = await res.json();
+
+            if (data.length === 0) { renderEmpty("لا توجد بيانات رواتب لهذا الشهر"); return; }
+
+            const payroll = data[0];
+            let list = payroll.details;
+
+            let currentLevel = 0; 
+            if (code) {
+                list = list.filter(d => d.employeeCode === code);
+                currentLevel = 3;
+            } else if (job) {
+                list = list.filter(d => (!dept || d.department === dept) && d.jobTitle === job);
+                currentLevel = 3;
+            } else if (dept) {
+                list = list.filter(d => d.department === dept);
+                currentLevel = 2;
+            } else {
+                currentLevel = 1;
+            }
+
+            renderTable(list, currentLevel);
+
+        } catch (e) { console.error(e); alert('خطأ في التحليل'); }
+    }
+
+    function renderTable(list, level) {
+        const thead = document.getElementById('tableHead');
+        const tbody = document.getElementById('tableBody');
+        const indicator = document.getElementById('levelIndicator');
+        
+        tbody.innerHTML = '';
+        thead.innerHTML = '';
+
+        if (list.length === 0) { renderEmpty("لا توجد نتائج تطابق الفلتر"); return; }
+
+        let groupedData = {};
+        // المتغيرات للتجميع الكلي
+        let T = { sal:0, loanM:0, loanP:0, ded:0, net:0, count:0 };
+
+        if (level === 1) {
+            // مستوى 1: إدارات
+            indicator.innerHTML = '<span class="level-badge lvl-1">مستوى 1: ملخص الإدارات</span>';
+            thead.innerHTML = `<tr>
+                <th>الإدارة / القسم</th> <th>العدد</th> <th>الراتب الشامل</th>
+                <th>سلف شهرية</th> <th>سلف مستديمة</th> <th>إجمالي الخصم</th> <th>صافي الصرف</th>
+            </tr>`;
+            
+            list.forEach(d => {
+                const key = d.department || 'غير محدد';
+                if (!groupedData[key]) groupedData[key] = { count:0, sal:0, loanM:0, loanP:0, ded:0, net:0 };
+                
+                // تجميع
+                groupedData[key].count++;
+                groupedData[key].sal += (d.totalSalary || 0);
+                groupedData[key].loanM += (d.monthlyLoan || 0);
+                groupedData[key].loanP += (d.permanentLoan || 0);
+                groupedData[key].ded += (d.totalDeductions || 0);
+                groupedData[key].net += (d.netSalary || 0);
+            });
+
+        } else if (level === 2) {
+            // مستوى 2: وظائف
+            const selectedDept = document.getElementById('filterDept').value;
+            indicator.innerHTML = `<span class="level-badge lvl-2">مستوى 2: تحليل وظائف إدارة (${selectedDept})</span>`;
+            thead.innerHTML = `<tr>
+                <th>المسمى الوظيفي</th> <th>العدد</th> <th>الراتب الشامل</th>
+                <th>سلف شهرية</th> <th>سلف مستديمة</th> <th>إجمالي الخصم</th> <th>صافي الصرف</th>
+            </tr>`;
+            
+            list.forEach(d => {
+                const key = d.jobTitle || 'غير محدد';
+                if (!groupedData[key]) groupedData[key] = { count:0, sal:0, loanM:0, loanP:0, ded:0, net:0 };
+                
+                groupedData[key].count++;
+                groupedData[key].sal += (d.totalSalary || 0);
+                groupedData[key].loanM += (d.monthlyLoan || 0);
+                groupedData[key].loanP += (d.permanentLoan || 0);
+                groupedData[key].ded += (d.totalDeductions || 0);
+                groupedData[key].net += (d.netSalary || 0);
+            });
+
+        } else {
+            // مستوى 3: تفاصيل
+            indicator.innerHTML = '<span class="level-badge lvl-3">مستوى 3: تفاصيل الموظفين</span>';
+            thead.innerHTML = `<tr>
+                <th>الكود</th> <th>الاسم</th> <th>الوظيفة</th> <th>الراتب الشامل</th>
+                <th>سلف شهرية</th> <th>سلف مستديمة</th> <th>الخصومات</th> <th>الصافي</th>
+            </tr>`;
+            
+            list.forEach(d => {
+                tbody.innerHTML += `<tr>
+                    <td>${d.employeeCode || '-'}</td>
+                    <td style="text-align:right; font-weight:bold">${d.employeeName}</td>
+                    <td>${d.jobTitle}</td>
+                    <td class="money">${(d.totalSalary||0).toLocaleString()}</td>
+                    <td class="money">${(d.monthlyLoan||0).toLocaleString()}</td>
+                    <td class="money">${(d.permanentLoan||0).toLocaleString()}</td>
+                    <td class="money" style="color:red">${(d.totalDeductions||0).toLocaleString()}</td>
+                    <td class="money" style="color:green">${(d.netSalary||0).toLocaleString()}</td>
+                </tr>`;
+                
+                // تجميع الإجمالي
+                T.sal += (d.totalSalary || 0);
+                T.loanM += (d.monthlyLoan || 0);
+                T.loanP += (d.permanentLoan || 0);
+                T.ded += (d.totalDeductions || 0);
+                T.net += (d.netSalary || 0);
+            });
+            
+            // سطر الإجمالي للمستوى 3
+            tbody.innerHTML += `<tr class="total-row">
+                <td colspan="3">الإجمالي الكلي</td>
+                <td class="money">${T.sal.toLocaleString()}</td>
+                <td class="money">${T.loanM.toLocaleString()}</td>
+                <td class="money">${T.loanP.toLocaleString()}</td>
+                <td class="money">${T.ded.toLocaleString()}</td>
+                <td class="money">${T.net.toLocaleString()}</td>
+            </tr>`;
+            return; 
+        }
+
+        // رسم الجدول للمستوى 1 و 2
+        for (const [key, val] of Object.entries(groupedData)) {
+            tbody.innerHTML += `<tr>
+                <td style="text-align:right; font-weight:bold">${key}</td>
+                <td>${val.count}</td>
+                <td class="money">${val.sal.toLocaleString()}</td>
+                <td class="money">${val.loanM.toLocaleString()}</td>
+                <td class="money">${val.loanP.toLocaleString()}</td>
+                <td class="money" style="color:red">${val.ded.toLocaleString()}</td>
+                <td class="money" style="color:green">${val.net.toLocaleString()}</td>
+            </tr>`;
+            
+            T.sal += val.sal; T.loanM += val.loanM; T.loanP += val.loanP; T.ded += val.ded; T.net += val.net;
+        }
+        
+        // سطر الإجمالي العام
+        tbody.innerHTML += `<tr class="total-row">
+            <td colspan="2">الإجمالي العام</td>
+            <td class="money">${T.sal.toLocaleString()}</td>
+            <td class="money">${T.loanM.toLocaleString()}</td>
+            <td class="money">${T.loanP.toLocaleString()}</td>
+            <td class="money">${T.ded.toLocaleString()}</td>
+            <td class="money">${T.net.toLocaleString()}</td>
+        </tr>`;
+    }
+
+    function renderEmpty(msg) {
+        document.getElementById('tableHead').innerHTML = '';
+        document.getElementById('tableBody').innerHTML = `<tr><td style="padding:30px; color:#666;">${msg}</td></tr>`;
+        document.getElementById('levelIndicator').innerHTML = '';
+    }
+
+    // دالة التصدير للإكسل (بسيطة وفعالة)
+    function exportToExcel() {
+        let table = document.getElementById("analysisTable");
+        let html = table.outerHTML;
+        let url = 'data:application/vnd.ms-excel;base64,' + btoa(unescape(encodeURIComponent(html)));
+        let link = document.createElement("a");
+        link.href = url;
+        link.download = "payroll_analysis.xls"; // هيحفظ ملف إكسل
+        link.click();
+    }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فاتورة مبيعات (أمر شغل)</title>
+    <!-- مكتبة SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Arial', 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1200px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        
+        .invoice-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .company-info {
+            text-align: right;
+        }
+
+        .company-info h3 {
+            margin: 0 0 10px 0;
+            color: #1e293b;
+            font-size: 18px;
+        }
+
+        .company-info p {
+            margin: 5px 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .invoice-details {
+            text-align: left;
+        }
+
+        .invoice-details .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .invoice-details .detail-label {
+            font-weight: 600;
+            color: #475569;
+            min-width: 120px;
+        }
+
+        .invoice-details .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+        
+        .row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: #475569; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #1e293b; color: white; padding: 12px 10px; font-size: 13px; text-align: center; border: 1px solid #0f172a; }
+        td { padding: 8px; border: 1px solid #e2e8f0; text-align: center; }
+        td input, td select { width: 100%; border: 1px solid #ddd; padding: 8px; border-radius: 4px; text-align: center; font-size: 13px; }
+        .readonly-input { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-weight: bold; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; font-size: 14px; }
+        .btn-add { background: #3b82f6; margin-top: 10px; font-size: 12px; }
+        .btn-save { background: #10b981; width: 100%; margin-top: 20px; font-size: 16px; padding: 15px; justify-content: center; }
+        .btn-del { background: #ef4444; padding: 5px 10px; font-size: 12px; }
+        .btn-list { background: #64748b; }
+        .btn-print { background: #333; }
+        .btn-excel { background: #16a34a; }
+        .btn-import { background: #f59e0b; }
+
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .tax-box { background: #ecfdf5; padding: 15px; border-radius: 8px; border: 2px solid #10b981; margin-top: 20px; width: 100%; max-width: 500px; }
+        .tax-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; padding: 5px 0; border-bottom: 1px solid #d1fae5; }
+        .tax-row:last-child { border-bottom: none; }
+        .tax-row input { width: 120px; padding: 5px; text-align: center; margin-left: 10px; }
+        .final-row { border-top: 2px solid #10b981; padding-top: 10px; margin-top: 10px; font-size: 18px; color: #059669; background: #f0fdf4; padding: 10px; border-radius: 5px; }
+        
+        #msg { display: none; padding: 15px; margin-bottom: 15px; border-radius: 5px; text-align: center; font-weight: bold; }
+        
+        @media print {
+            .no-print, .btn, .toolbar { display: none !important; }
+            .card { border: none; box-shadow: none; width: 100%; max-width: 100%; padding: 20px; }
+            input, select { border: 1px solid #000; background: white; padding: 5px; }
+            h2 { border-bottom: 3px solid #000; }
+            th { background: #ccc !important; color: #000 !important; border: 1px solid #000; }
+            td { border: 1px solid #000; }
+            .tax-box { border: 2px solid #000; background: white; }
+            .invoice-header { border-bottom: 2px solid #000; }
+            body { padding: 0; margin: 0; }
+
+            /* Print Footer */
+            .invoice-footer {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 2px solid #000;
+                text-align: center;
+                font-size: 12px;
+            }
+
+            .signature-row {
+                display: flex;
+                justify-content: space-around;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #000;
+            }
+
+            .signature-box {
+                width: 150px;
+                text-align: center;
+            }
+
+            .signature-line {
+                border-top: 1px solid #000;
+                margin-top: 40px;
+                padding-top: 5px;
+                font-size: 12px;
+            }
+            
+            /* Hide package detail rows in print - show only summary */
+            tr[data-package-detail="true"] { display: none !important; }
+            
+            /* Show package summary row with condensed info for print */
+            tr[data-package-row="true"] td { 
+                font-weight: bold;
+                background: #f0f0f0;
+            }
+        }
+    </style>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script></head>
+<body>
+
+<div class="card">
+    <h2>
+        🧾 فاتورة مبيعات
+        <div class="toolbar no-print">
+            <button class="btn btn-excel" onclick="exportToExcel()">📤 تصدير Excel</button>
+            <button class="btn btn-import" onclick="document.getElementById('excelFile').click()">📥 استيراد Excel</button>
+            <input type="file" id="excelFile" accept=".xlsx, .xls" style="display:none" onchange="importFromExcel(this)">
+            <button class="btn btn-print" onclick="goToPrint()">🖨️ طباعة</button>
+            <a href="/sales/sales_list.html" class="btn btn-list">📋 السجل</a>
+        </div>
+    </h2>
+    <div id="msg"></div>
+    <input type="hidden" id="editId">
+
+    <!-- Invoice Header with Company Info -->
+    <div class="invoice-header">
+        <div class="company-info">
+            <h3>🏢 WrapStyle Cairo – Empyrean Enterprises</h3>
+            <p><strong>العنوان:</strong> Cloud Nine Mall, Mohamed Naguib Axis, New Cairo, Cairo, Egypt</p>
+            <p><strong>الهاتف:</strong> +2012 00 999 333</p>
+            <p><strong>البريد الإلكتروني:</strong> cairo@wrapstyle.com</p>
+            <p><strong>الموقع:</strong> wrapstyle.com</p>
+        </div>
+        <div class="invoice-details">
+            <div class="detail-row">
+                <span class="detail-label">رقم الفاتورة:</span>
+                <input type="text" id="invNum" style="width: 200px; background-color:#f1f5f9; border: 1px solid #cbd5e1;" placeholder="مقترح تلقائي، يمكن تعديله" class="readonly-input">
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">التاريخ:</span>
+                <input type="date" id="date" style="width: 200px;">
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">الحالة:</span>
+                <span class="detail-value" id="invoiceStatus">مسودة</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Header Row -->
+    <div class="row">
+        <div class="col" style="flex:1;">
+            <label>نوع السيارة</label>
+            <select id="vehicleType">
+                <option value="">-- اختر النوع --</option>
+                <option value="Sedan">Sedan</option>
+                <option value="SUV/Large Sedan">SUV/Large Sedan</option>
+                <option value="Large SUV">Large SUV</option>
+            </select>
+        </div>
+        <div class="col" style="flex:1.2;">
+            <label>موديل السيارة</label>
+            <input id="vehicleModel" placeholder="مثال: BMW X5">
+        </div>
+        <div class="col" style="flex:1;">
+            <label>رقم اللوحة</label>
+            <input id="vehiclePlate" placeholder="اكتب رقم اللوحة">
+        </div>
+        <div class="col" style="flex:1;">
+            <label>لون السيارة</label>
+            <input id="vehicleColor" placeholder="لون السيارة">
+        </div>
+    </div>
+
+    <!-- Customer & Sales Row -->
+    <div class="row">
+        <div class="col" style="flex:1.2;">
+            <label style="display:flex; justify-content:space-between">
+                العميل
+                <a href="#" onclick="openQuickCustomerModal(); return false;" style="font-size:11px; color:#3b82f6; text-decoration:none;">+ عميل جديد سريع</a>
+            </label>
+            <select id="customer"><option value="">-- اختر العميل --</option></select>
+            <button class="btn btn-list no-print" style="padding:4px 8px; font-size:10px; margin-top:5px; width:100%" onclick="refreshCustomers()">🔄 تحديث العملاء</button>
+        </div>
+        <div class="col" style="flex:1.2;">
+            <label>السيارة (المخزن)</label>
+            <select id="car" onchange="populateCarParts()"><option value="">-- اختر لتنزيل القطع --</option></select>
+        </div>
+        <div class="col" style="flex:1.2;">
+            <label style="display:flex; justify-content:space-between">
+                نوع الخدمة
+                <a href="#" onclick="addServiceType(); return false;" style="font-size:11px; color:#3b82f6; text-decoration:none;">+ تصنيف جديد</a>
+            </label>
+            <select id="serviceType">
+                <option value="تغليف كامل">تغليف كامل</option>
+                <option value="حماية">حماية (PPF)</option>
+                <option value="تلميع">تلميع</option>
+                <option value="عازل">عازل حراري</option>
+            </select>
+        </div>
+        <div class="col" style="flex:1.2;">
+            <label style="display:flex; justify-content:space-between">وكيل البيع / العمولات <a href="#" onclick="openQuickEmpModal(); return false;" style="font-size:11px; color:#3b82f6; text-decoration:none;">+ جديد</a></label>
+            <select id="salesPerson"><option value="">-- اختر الموظف --</option></select>
+            <div style="margin-top:5px;">
+                <label style="font-size:12px;">نسبة العمولة (%):</label>
+                <input type="number" id="commissionRate" value="0" min="0" max="100" step="0.1" style="width:80px; margin-left:5px;">
+            </div>
+        </div>
+    </div>
+
+    <table id="itemsTable">
+        <thead>
+            <tr>
+                <th width="15%">القطعة / الباقة</th>
+                <th width="20%">الخامة</th>
+                <th width="8%">طول</th>
+                <th width="8%">عرض</th>
+                <th width="10%">المساحة</th>
+                <th width="12%">سعر الوحدة</th>
+                <th width="12%">الإجمالي</th>
+                <th width="5%" class="no-print">x</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button class="btn btn-add no-print" onclick="addEmptyRow()">+ إضافة قطعة يدوية</button>
+
+    <div style="clear:both"></div>
+
+    <div class="tax-box">
+        <div class="tax-row">
+            <span>إجمالي الأصناف (قبل الضريبة):</span> <span id="subtotal">0.00</span>
+        </div>
+        <div class="tax-row">
+            <span>+ خدمات إضافية:</span> <input type="number" id="extraCost" value="0" oninput="calcTotal()">
+        </div>
+        <div class="tax-row">
+            <span>- خصم مسموح به:</span> <input type="number" id="discount" value="0" oninput="calcTotal()">
+        </div>
+        <div class="tax-row">
+            <span>إجمالي الفاتورة (شامل الضريبة):</span> <span id="totalWithVat" style="font-weight:bold"></span>
+        </div>
+        <div class="tax-row">
+            <span>ضريبة القيمة المضافة (14%):</span> <span id="vatVal" style="font-weight:bold"></span>
+        </div>
+        <div class="tax-row">
+            <label><input type="checkbox" id="hasWht" onchange="calcTotal()"> - ض.خصم من المنبع (1%):</label> <span id="whtVal"></span>
+        </div>
+        <div class="tax-row">
+            <span>رقم استرشادي (قيمة الفاتورة قبل الخصم من المنبع):</span> <span id="referenceTotal" style="font-weight:bold"></span>
+        </div>
+        <div class="tax-row final-row">
+            <span>الصافي بعد الخصم:</span> <span id="finalTotal">0.00</span>
+        </div>
+    </div>
+
+    <div style="clear:both"></div>
+    <button class="btn btn-save no-print" onclick="saveInvoice()">💾 حفظ الفاتورة</button>
+
+    <!-- Print Footer -->
+    <div class="invoice-footer" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #333;">
+        <p style="font-size: 12px; color: #666; margin-bottom: 20px;">
+            <strong>شروط وأحكام:</strong> يرجى الدفع خلال 30 يوم من تاريخ الفاتورة. 
+            لا يتم قبول الاعتراضات بعد 7 أيام من استلام الفاتورة.
+        </p>
+        
+        <div class="signature-row" style="display: flex; justify-content: space-around; margin-top: 40px; padding-top: 20px;">
+            <div class="signature-box" style="width: 150px; text-align: center;">
+                <div style="border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 12px;">
+                    توقيع الموظف
+                </div>
+            </div>
+            <div class="signature-box" style="width: 150px; text-align: center;">
+                <div style="border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 12px;">
+                    توقيع العميل
+                </div>
+            </div>
+            <div class="signature-box" style="width: 150px; text-align: center;">
+                <div style="border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 12px;">
+                    التاريخ
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    const token = localStorage.getItem('token') || '';
+    const VAT_RATE = 0.14; // 14% VAT - prices are without VAT, add VAT to total
+    let products = [], carsData = [];
+
+    function authHeaders(includeJson = false) {
+        const headers = {};
+        if (includeJson) headers['Content-Type'] = 'application/json';
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    async function fetchJsonOrThrow(url, options = {}) {
+        const response = await fetch(url, options);
+        const contentType = response.headers.get('content-type') || '';
+        const bodyText = await response.text();
+
+        if (!response.ok) {
+            throw new Error(`Request failed (${response.status}) for ${url}`);
+        }
+
+        if (!contentType.includes('application/json')) {
+            throw new Error(`Expected JSON from ${url}, got ${contentType || 'unknown type'}`);
+        }
+
+        try {
+            return JSON.parse(bodyText);
+        } catch (_err) {
+            throw new Error(`Invalid JSON payload from ${url}`);
+        }
+    }
+
+    async function createDefaultPricingMatrices() {
+        try {
+            const res = await fetch(`${API}/pricing/defaults`, {
+                method: 'POST',
+                headers: authHeaders(true)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                console.log('Default pricing matrices created:', data);
+            }
+        } catch (error) {
+            console.error('Error creating default pricing matrices:', error);
+        }
+    }
+
+    window.onload = async () => {
+        document.getElementById('date').valueAsDate = new Date();
+        await loadData();
+        await loadAgents();
+        await loadNextInvoiceNumber();
+        // Keep pricing master stable: do not auto-seed matrices on every invoice load.
+        await refreshPackagePricesFromPriceList();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id');
+        if(id) loadForEdit(id);
+    };
+
+    async function loadNextInvoiceNumber() {
+        try {
+            const res = await fetch(`${API}/sales/number/next`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const invNumEl = document.getElementById('invNum');
+            if (invNumEl && !invNumEl.value) {
+                invNumEl.value = data.nextNumber; // يظهر كمقترح، يمكن تعديله يدوياً
+            }
+        } catch (e) {
+            console.warn('Unable to load next invoice number:', e.message);
+        }
+    }
+
+    async function loadAgents() {
+        try {
+            const res = await fetch(`${API}/agents`);
+            if (!res.ok) return;
+            const agents = await res.json();
+            
+            const agentSelect = document.getElementById('salesPerson');
+            if (agentSelect) {
+                agentSelect.innerHTML = '<option value="">-- اختر الوكيل --</option>';
+                agents.forEach(agent => {
+                    const typeLabel = agent.type === 'internal' ? '(موظف)' : '(خارجي)';
+                    agentSelect.innerHTML += `<option value="${agent._id}" data-type="${agent.type}" data-commission-type="${agent.commissionType}" data-commission-value="${agent.commissionValue}">${agent.name} ${typeLabel}</option>`;
+                });
+                
+                // Reinitialize TomSelect after loading agents
+                setTimeout(() => {
+                    if(window.salesSelect) window.salesSelect.destroy();
+                    window.salesSelect = new TomSelect('#salesPerson', { create: false });
+                    
+                    // Add event listener for agent selection
+                    document.getElementById('salesPerson').addEventListener('change', function() {
+                        const selectedOption = this.options[this.selectedIndex];
+                        if (selectedOption && selectedOption.value) {
+                            const commissionType = selectedOption.getAttribute('data-commission-type');
+                            const commissionValue = selectedOption.getAttribute('data-commission-value');
+                            // Store in hidden fields or use directly in save
+                            this.setAttribute('data-selected-commission-type', commissionType);
+                            this.setAttribute('data-selected-commission-value', commissionValue);
+                        }
+                    });
+                }, 100);
+            }
+        } catch (e) {
+            console.warn('Unable to load agents:', e.message);
+        }
+    }
+
+    async function loadData() {
+        try {
+            const [customers, productList, carsList] = await Promise.all([
+                fetchJsonOrThrow(`${API}/customers`, { headers: authHeaders() }),
+                fetchJsonOrThrow(`${API}/products`, { headers: authHeaders() }),
+                fetchJsonOrThrow(`${API}/cars`, { headers: authHeaders() })
+            ]);
+            products = productList;
+            carsData = carsList;
+
+            const custSel = document.getElementById('customer');
+            customers.forEach(c => custSel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
+
+            const carSel = document.getElementById('car');
+            carsData.forEach(c => carSel.innerHTML += `<option value="${c._id}">${c.brand} ${c.model}</option>`);
+
+            // Populate Datalist for Parts
+            const datalist = document.getElementById('parts-datalist') || document.createElement('datalist');
+            datalist.id = 'parts-datalist';
+            const uniqueParts = new Set();
+            carsData.forEach(c => {
+               if(c.parts) c.parts.forEach(p => uniqueParts.add(p.name));
+            });
+            datalist.innerHTML = '';
+            uniqueParts.forEach(p => {
+               const opt = document.createElement('option');
+               opt.value = p;
+               datalist.appendChild(opt);
+            });
+            document.body.appendChild(datalist);
+
+            // Init Searchable Dropdowns
+            setTimeout(() => {
+                if(window.carSelect) window.carSelect.destroy();
+                if(window.custSelect) window.custSelect.destroy();
+                
+                window.carSelect = new TomSelect('#car', { create: false, sortField: { field: 'text' } });
+                window.custSelect = new TomSelect('#customer', { create: false });
+            }, 300);
+
+        } catch(e) { alert('خطأ في التحميل: ' + e.message); console.error(e); }
+    }
+
+    async function refreshCustomers() {
+        try {
+            const res = await fetch(`${API}/customers`);
+            const customers = await res.json();
+            const custSel = document.getElementById('customer');
+            const prevVal = custSel.value;
+            custSel.innerHTML = '<option value="">-- اختر العميل --</option>';
+            customers.forEach(c => custSel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
+            custSel.value = prevVal;
+            alert('تم استرجاع التحديثات بنجاح!');
+        } catch(e) { console.error(e); }
+    }
+
+    function addServiceType() {
+        const newVal = prompt("أدخل نوع الخدمة أو التصنيف الجديد:");
+        if(newVal && newVal.trim()) {
+            const sel = document.getElementById('serviceType');
+            sel.innerHTML += `<option value="${newVal.trim()}" selected>${newVal.trim()}</option>`;
+        }
+    }
+
+    // Store selected car parts in background (not displayed in table)
+    let selectedCarParts = [];
+
+    function populateCarParts() {
+        const carId = document.getElementById('car').value;
+        if(!carId) return; 
+        
+        const car = carsData.find(c => c._id === carId);
+        
+        // Store parts in background for pricing calculations
+        selectedCarParts = (car?.parts || []).map(p => ({
+            name: p.name,
+            length: p.lengthCM,
+            width: p.widthCM,
+            area: p.areaCM2,
+            areaM2: Number(p.areaCM2 || 0) / 10000,
+            isRoof: /roof|sunroof|سقف/i.test(p.name || '')
+        }));
+        
+        // Auto-fill vehicle header fields from selected car
+        const modelField = document.getElementById('vehicleModel');
+        const typeField = document.getElementById('vehicleType');
+        if (modelField && !modelField.value && car) {
+            modelField.value = `${car.brand || ''} ${car.model || ''}`.trim();
+        }
+        if (typeField && !typeField.value && car && car.category) {
+            typeField.value = car.category;
+        }
+    }
+
+    // Window Film parts list only. Prices are loaded from Product Master.
+    const windowFilmParts = [
+        { part: '2 Doors' },
+        { part: '4 Doors' },
+        { part: 'Front Windshield' },
+        { part: 'Rear Windshield' },
+        { part: 'Sunroof' },
+        { part: 'Full Glass Roof' },
+        { part: 'Half Package' },
+        { part: 'Full Package' },
+        { part: 'Full Package + Sunroof' },
+        { part: 'Full Package + Full Roof' }
+    ];
+    const windowFilmGrades = [1, 2, 3, 4, 5, 6];
+
+    function getWindowFilmMasterPriceForPart(part, grade, vehicleCategory = '') {
+        const safePart = String(part || '').toLowerCase();
+        const safeCategory = String(vehicleCategory || '').toLowerCase();
+
+        const match = products.find((p) => {
+            const t = String(p.type || p.category || '').toLowerCase();
+            const n = String(p.name || '').toLowerCase();
+            const g = String(p.grade ?? p.specGrade ?? '').toLowerCase();
+            const hasWindowFilm = t.includes('window film') || n.includes('window film');
+            const hasPart = n.includes(safePart);
+            const hasGrade = g === String(grade) || n.includes(`grade ${grade}`) || n.includes(`درجة ${grade}`);
+            const byCategory = !safeCategory || n.includes(safeCategory) || t.includes(safeCategory);
+            return hasWindowFilm && hasPart && hasGrade && byCategory;
+        }) || products.find((p) => {
+            const t = String(p.type || p.category || '').toLowerCase();
+            const n = String(p.name || '').toLowerCase();
+            const g = String(p.grade ?? p.specGrade ?? '').toLowerCase();
+            const hasWindowFilm = t.includes('window film') || n.includes('window film');
+            const hasPart = n.includes(safePart);
+            const hasGrade = g === String(grade) || n.includes(`grade ${grade}`) || n.includes(`درجة ${grade}`);
+            return hasWindowFilm && hasPart && hasGrade;
+        });
+
+        if (!match) return 0;
+        const withoutVat = Number(match.pricing?.priceWithoutVat || 0);
+        const withVat = Number(match.pricing?.salePrice || match.pricing?.unitSalePrice || 0);
+        return withoutVat > 0 ? withoutVat : (withVat > 0 ? withVat / (1 + VAT_RATE) : 0);
+    }
+    
+    function sanitizeSalesLabel(value) {
+        return String(value || '')
+            .replace(/\bsku\b/gi, '')
+            .replace(/رول/g, '')
+            .replace(/أمتار\s*طولي/g, '')
+            .replace(/متر(?:\s*طولي)?/g, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+    function buildSalesDisplayLabel(product, selectedType) {
+        if (!product) return selectedType || '';
+        const unit = String(product.unit || '').toLowerCase();
+        const isPiece = unit.includes('piece') || unit.includes('قطعة') || product.isPiece;
+        if (isPiece) {
+            return sanitizeSalesLabel(product.name || selectedType || 'صنف');
+        }
+
+        const parts = [
+            sanitizeSalesLabel(product.type || selectedType || ''),
+            sanitizeSalesLabel(product.grade || product.specGrade || ''),
+            sanitizeSalesLabel(product.color || product.shade || '')
+        ].filter(Boolean);
+
+        return parts.join(' - ') || sanitizeSalesLabel(product.name || selectedType || 'صنف');
+    }
+
+    // Get unique product types/categories for tabs
+    function getProductTypes() {
+        const types = new Set();
+        products.forEach(p => {
+            if (p.type) {
+                // If product name is Matt but type is PPF, treat as MATT
+                if (p.name && p.name.toLowerCase() === 'matt' && p.type === 'PPF') {
+                    types.add(sanitizeSalesLabel('MATT'));
+                } else {
+                    types.add(sanitizeSalesLabel(p.type));
+                }
+            }
+        });
+        return Array.from(types).sort();
+    }
+    
+    // Store current row ID and selection for modal operations
+    let currentWFRowId = null;
+    let selectedWFPart = null;
+    let selectedWFGrade = null;
+    let selectedWFPrice = 0;
+    
+    // Get price from pricing matrix for Window Film
+    async function getMatrixPriceForPart(part, vehicleCategory) {
+        try {
+            const res = await fetch(`${API}/pricing/calculate?materialType=Window+Film&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(part)}&area=1`, { headers: authHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                return data.totalPrice || 0;
+            }
+        } catch (e) {
+            console.error('Error fetching matrix price:', e);
+        }
+        return 0;
+    }
+
+    // Open Window Film Grid Modal - Compact with Price Column
+    async function openWindowFilmModal(rowId) {
+        currentWFRowId = rowId;
+        selectedWFPart = null;
+        selectedWFGrade = null;
+        selectedWFPrice = 0;
+        
+        const vehicleCategory = document.getElementById('vehicleType')?.value || 'Sedan';
+        
+        // Fetch all prices from pricing matrix
+        const pricePromises = windowFilmParts.map(async (part) => {
+            const price = await getMatrixPriceForPart(part.part, vehicleCategory);
+            return { part: part.part, price };
+        });
+        
+        const priceResults = await Promise.all(pricePromises);
+        
+        // Generate Grid Table HTML - Compact with Price Column
+        let gridRows = '';
+        priceResults.forEach(({ part, price }) => {
+            let gradeCells = '';
+            for (let grade = 1; grade <= 6; grade++) {
+                gradeCells += `
+                    <td class="wf-cell" data-part="${part}" data-grade="${grade}" data-price="${price}" 
+                        onclick="applyWFSelectionImmediate('${part}', ${grade}, ${price})"
+                        style="padding:8px 5px; text-align:center; cursor:pointer; border:1px solid #ddd; 
+                               transition:all 0.2s; font-size:14px; font-weight:600; color:#555; 
+                               background:#fff; border-radius:3px; width:40px;">
+                        ${grade}
+                    </td>
+                `;
+            }
+            
+            // Add price column after grade 6
+            gridRows += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:8px 10px; font-weight:600; background:#f5f5f5; color:#333; 
+                               border:1px solid #ddd; text-align:left; border-radius:3px; font-size:13px; white-space:nowrap;">
+                        ${part}
+                    </td>
+                    ${gradeCells}
+                    <td style="padding:8px 10px; font-weight:700; background:#2c3e50; color:#fff; 
+                               border:1px solid #2c3e50; text-align:center; border-radius:3px; font-size:13px; white-space:nowrap;">
+                        ${price > 0 ? price.toLocaleString() : '0'} ج.م
+                    </td>
+                </tr>
+            `;
+        });
+        
+        // Create compact modal HTML
+        const modalHtml = `
+            <div id="wfModal" style="display:block; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6);">
+                <div style="background:#fff; margin:2% auto; padding:0; border-radius:6px; width:95%; max-width:700px; max-height:90vh; overflow-y:auto; box-shadow:0 5px 20px rgba(0,0,0,0.3);">
+                    
+                    <!-- Compact Header -->
+                    <div style="background:#2c3e50; padding:12px 20px; text-align:center; border-bottom:2px solid #3498db;">
+                        <h2 style="margin:0; color:white; font-size:18px; font-weight:600;">Window Film - ${vehicleCategory}</h2>
+                        <p style="margin:5px 0 0 0; color:#bdc3c7; font-size:11px;">
+                            اضغط على الرقم لتحديد الدرجة | السعر الموحد لجميع الدرجات
+                        </p>
+                    </div>
+                    
+                    <!-- Compact Grid Table -->
+                    <div style="padding:15px; background:#fafafa;">
+                        <table style="width:100%; border-collapse:separate; border-spacing:4px; font-family:'Segoe UI', Arial, sans-serif; font-size:12px;">
+                            <thead>
+                                <tr>
+                                    <th style="padding:8px 10px; background:#34495e; color:white; text-align:center; border-radius:3px; font-size:11px; font-weight:600;">الجزء</th>
+                                    <th style="padding:8px 5px; background:#e74c3c; color:white; text-align:center; border-radius:3px; font-size:11px; width:40px;">1</th>
+                                    <th style="padding:8px 5px; background:#e67e22; color:white; text-align:center; border-radius:3px; font-size:11px; width:40px;">2</th>
+                                    <th style="padding:8px 5px; background:#f39c12; color:white; text-align:center; border-radius:3px; font-size:11px; width:40px;">3</th>
+                                    <th style="padding:8px 5px; background:#27ae60; color:white; text-align:center; border-radius:3px; font-size:11px; width:40px;">4</th>
+                                    <th style="padding:8px 5px; background:#16a085; color:white; text-align:center; border-radius:3px; font-size:11px; width:40px;">5</th>
+                                    <th style="padding:8px 5px; background:#2980b9; color:white; text-align:center; border-radius:3px; font-size:11px; width:40px;">6</th>
+                                    <th style="padding:8px 10px; background:#2c3e50; color:#f1c40f; text-align:center; border-radius:3px; font-size:11px; font-weight:700;">السعر</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${gridRows}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Compact Footer -->
+                    <div style="padding:10px 20px; text-align:center; background:#ecf0f1; border-top:1px solid #ddd;">
+                        <button onclick="closeWFModal()" style="background:#95a5a6; color:white; padding:8px 30px; border:none; border-radius:3px; cursor:pointer; font-size:14px; font-weight:600;">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Compact hover effect -->
+            <style>
+                .wf-cell:hover {
+                    background: #3498db !important;
+                    color: white !important;
+                    transform: scale(1.1);
+                    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+                    border-color: #3498db !important;
+                }
+            </style>
+        `;
+        
+        // Add modal to body
+        const modalDiv = document.createElement('div');
+        modalDiv.innerHTML = modalHtml;
+        document.body.appendChild(modalDiv);
+    }
+    
+    // Apply selection immediately on click (no confirm button needed)
+    function applyWFSelectionImmediate(part, grade, price) {
+        selectedWFPart = part;
+        selectedWFGrade = grade;
+        selectedWFPrice = Number(price || 0);
+        
+        const row = document.querySelector(`tr[data-row-id="${currentWFRowId}"]`);
+        if (row) {
+            // Set the part name in the part-name input
+            const partInput = row.querySelector('.part-name');
+            if (partInput) partInput.value = part;
+            
+            // Store the grade and part info on the product select
+            const prodSelect = row.querySelector('.prod');
+            prodSelect.setAttribute('data-wf-part', part);
+            prodSelect.setAttribute('data-wf-grade', grade);
+            
+            // Keep WF metadata only (price source from Product Master / Pricing Matrix)
+            prodSelect.removeAttribute('data-wf-prices');
+            
+            // Update the displayed text: Tab Name + Grade
+            prodSelect.innerHTML = `<option value="window_film" selected>Window Film - درجة ${grade}</option>`;
+            
+            // Update the info display
+            row.querySelector('.wf-info').innerHTML = `
+                <span style="color:#e74c3c; font-weight:bold;">درجة ${grade}</span>
+            `;
+            
+            // Fetch price from pricing matrix and fallback to Product Master price
+            const vehicleCategory = document.getElementById('vehicleType')?.value || 'Sedan';
+            getPricingMatrixPrice('Window Film', vehicleCategory, part, 1, grade).then((matrixPrice) => {
+                const apiPrice = Number(matrixPrice?.totalPrice || 0);
+                const masterPrice = Number(getWindowFilmMasterPriceForPart(part, grade, vehicleCategory) || 0);
+                const finalPrice = apiPrice > 0 ? apiPrice : (masterPrice > 0 ? masterPrice : Number(price || 0));
+                row.querySelector('.unit-price').value = Number(finalPrice || 0).toFixed(2);
+                row.querySelector('.row-total').value = Number(finalPrice || 0).toFixed(2);
+                calcTotal();
+            });
+        }
+        
+        // Close modal immediately
+        closeWFModal();
+    }
+    
+    function closeWFModal() {
+        const modal = document.getElementById('wfModal');
+        if (modal) modal.remove();
+        selectedWFPart = null;
+        selectedWFGrade = null;
+        selectedWFPrice = 0;
+    }
+
+    // Global tab selection for quick service access
+    let selectedSalesTab = '';
+
+    function createRow(d = {}) {
+        // Apply selected tab if no explicit product type
+        if (!d.productType && selectedSalesTab) {
+            d.productType = selectedSalesTab;
+        }
+
+        const tbody = document.querySelector('tbody');
+        const rowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-row-id', rowId);
+        
+        // Get product types for category dropdown
+        const productTypes = getProductTypes();
+        let typeOpts = '<option value="">اختر التبويب</option>';
+        
+        productTypes.forEach(t => {
+            const selected = d.productType === t ? 'selected' : '';
+            typeOpts += `<option value="${t}" ${selected}>${t}</option>`;
+        });
+        
+        // Products will be populated based on selected type
+        let prodOpts = '<option value="">اختر الصنف</option>';
+
+        // Store product type in row attribute, not visible column
+        const productType = d.productType || selectedSalesTab || '';
+        
+        tr.innerHTML = `
+            <td><input class="part-name" value="${d.partName||''}" placeholder="اسم القطعة / الباقة" list="parts-datalist"></td>
+            <td>
+                <select class="prod" onchange="onProductChange(this, '${rowId}')" style="width:100%;">${prodOpts}</select>
+                <span class="wf-info" style="color:#666; font-size:11px; display:block; margin-top:2px;">${d.wfGrade ? `درجة ${d.wfGrade}` : ''}</span>
+            </td>
+            <td><input type="number" class="len" value="${d.length||0}" oninput="calcArea(this)" style="width:100%;"></td>
+            <td><input type="number" class="wid" value="${d.width||0}" oninput="calcArea(this)" style="width:100%;"></td>
+            <td><input type="number" class="area readonly-input" value="${d.area||0}" readonly style="width:100%;"></td>
+            <td><input type="number" class="unit-price" value="${d.priceUnit||0}" readonly style="color:#666; width:100%;"></td>
+            <td><input type="number" class="row-total" value="${d.lineTotal||0}" oninput="calcTotal()" style="color:green;font-weight:bold; width:100%;"></td>
+            <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+        `;
+        
+        // Store product type in row attribute
+        tr.setAttribute('data-product-type', productType);
+        
+        // Populate product dropdown based on type
+        if (productType) {
+            populateProductDropdown(tr.querySelector('.prod'), productType, rowId);
+        }
+        tbody.appendChild(tr);
+        
+        // If Window Film was previously selected
+        if (d.productType === 'Window Film' && d.wfPart && d.wfGrade) {
+            const prodSelect = tr.querySelector('.prod');
+            prodSelect.setAttribute('data-wf-part', d.wfPart);
+            prodSelect.setAttribute('data-wf-grade', d.wfGrade);
+            prodSelect.innerHTML = `<option value="window_film" selected>Window Film - درجة ${d.wfGrade}</option>`;
+            tr.querySelector('.part-name').value = d.wfPart;
+            tr.querySelector('.wf-info').textContent = `درجة ${d.wfGrade}`;
+            updPrice(prodSelect, false);
+        }
+        // If other product type selected
+        else if (productType && productType !== 'Window Film') {
+            populateProductDropdown(tr.querySelector('.prod'), productType, rowId);
+            if (d.product) {
+                const prodSelect = tr.querySelector('.prod');
+                prodSelect.value = typeof d.product === 'object' ? d.product._id : d.product;
+                updPrice(prodSelect, false);
+            }
+        }
+    }
+
+    // Populate product dropdown based on type
+    function populateProductDropdown(prodSelect, productType, rowId) {
+        const row = prodSelect.closest('tr');
+        const wfInfo = row.querySelector('.wf-info');
+        
+        // Reset
+        prodSelect.innerHTML = '<option value="">اختر الصنف</option>';
+        prodSelect.removeAttribute('data-wf-part');
+        prodSelect.removeAttribute('data-wf-grade');
+        if (wfInfo) wfInfo.textContent = '';
+        
+        // Handle different product types
+        if (productType === 'Window Film') {
+            prodSelect.innerHTML = `<option value="window_film" selected>${productType}</option>`;
+            row.querySelector('.len').readOnly = true;
+            row.querySelector('.wid').readOnly = true;
+            row.querySelector('.len').classList.add('readonly-input');
+            row.querySelector('.wid').classList.add('readonly-input');
+            if (wfInfo) wfInfo.textContent = 'اختر الدرجة من النافذة';
+            // Open Window Film modal automatically
+            openWindowFilmModal(rowId);
+        } else if (productType === 'PPF' || productType === 'MATT' || productType === 'Vinyl') {
+            prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
+            row.querySelector('.len').readOnly = true;
+            row.querySelector('.wid').readOnly = true;
+            row.querySelector('.len').classList.add('readonly-input');
+            row.querySelector('.wid').classList.add('readonly-input');
+            if (wfInfo) wfInfo.textContent = 'اختر الباقة من النافذة';
+            // Open package selector modal
+            openPackageModeModal(rowId, productType);
+        } else if (productType === 'Additional Services') {
+            // Show piece-based products (unit: عدد or قطعة)
+            const pieceProducts = products.filter(p => {
+                const unit = p.unit || '';
+                return unit.includes('عدد') || unit.includes('قطعة') || unit.toLowerCase().includes('piece');
+            });
+            
+            if (pieceProducts.length === 0) {
+                prodSelect.innerHTML = `<option value="${productType}" selected>${productType}</option>`;
+            } else {
+                let opts = '<option value="">اختر الخدمة</option>';
+                pieceProducts.forEach(p => {
+                    // Use priceWithoutVat if available, otherwise calculate from salePrice
+                    let priceWithVat = p.pricing?.salePrice || p.pricing?.unitSalePrice || 0;
+                    let priceWithoutVat = p.pricing?.priceWithoutVat || 0;
+                    if (!priceWithoutVat && priceWithVat) {
+                        priceWithoutVat = priceWithVat / (1 + VAT_RATE);
+                    }
+                    opts += `<option value="${p._id}" data-price="${priceWithoutVat}" data-unit="عدد">${p.name} - ${priceWithoutVat.toFixed(2)} ج.م</option>`;
+                });
+                prodSelect.innerHTML = opts;
+            }
+            
+            // Piece-based: Disable length/width, use area field for quantity
+            row.querySelector('.len').readOnly = true;
+            row.querySelector('.wid').readOnly = true;
+            row.querySelector('.len').classList.add('readonly-input');
+            row.querySelector('.wid').classList.add('readonly-input');
+            row.querySelector('.area').readOnly = false;
+            row.querySelector('.area').placeholder = 'العدد';
+            row.querySelector('.area').value = '1';
+            if (wfInfo) wfInfo.textContent = 'اختر الخدمة وأدخل العدد';
+            
+        } else if (productType) {
+            // Piece-based products
+            const filteredProducts = products.filter(p => p.type === productType);
+            if (filteredProducts.length === 0) {
+                prodSelect.innerHTML = `<option value="${productType}" selected>${productType}</option>`;
+            } else {
+                let opts = '<option value="">اختر الصنف</option>';
+                filteredProducts.forEach(p => {
+                    const unit = p.unit || 'قطعة';
+                    const displayLabel = buildSalesDisplayLabel(p, productType);
+                    // Use priceWithoutVat if available, otherwise calculate from salePrice
+                    let priceWithoutVat = p.pricing?.priceWithoutVat || 0;
+                    if (!priceWithoutVat && p.pricing?.salePrice) {
+                        priceWithoutVat = p.pricing.salePrice / (1 + VAT_RATE);
+                    }
+                    opts += `<option value="${p._id}" data-price="${priceWithoutVat}" data-unit="${unit}" data-material-type="${p.type}">${displayLabel}</option>`;
+                });
+                prodSelect.innerHTML = opts;
+            }
+            
+            const isPieceBased = filteredProducts.length > 0 && filteredProducts[0].unit && 
+                (filteredProducts[0].unit.includes('قطعة') || filteredProducts[0].unit.includes('عدد') || 
+                 filteredProducts[0].unit.toLowerCase().includes('piece'));
+            
+            if (isPieceBased) {
+                row.querySelector('.len').readOnly = true;
+                row.querySelector('.wid').readOnly = true;
+                row.querySelector('.len').classList.add('readonly-input');
+                row.querySelector('.wid').classList.add('readonly-input');
+                row.querySelector('.area').readOnly = false;
+                row.querySelector('.area').placeholder = 'الكمية';
+                if (wfInfo) wfInfo.textContent = 'اختر الصنف ثم أدخل الكمية';
+            } else {
+                row.querySelector('.len').readOnly = false;
+                row.querySelector('.wid').readOnly = false;
+                row.querySelector('.len').classList.remove('readonly-input');
+                row.querySelector('.wid').classList.remove('readonly-input');
+                if (wfInfo) wfInfo.textContent = 'أدخل الطول والعرض';
+            }
+        }
+    }
+
+    // Handle category/type selection - delegates to populateProductDropdown
+    function onCategoryChange(select, rowId, triggerPriceUpdate = true) {
+        const selectedType = select.value;
+        const row = document.querySelector(`tr[data-row-id="${rowId}"]`);
+        if (!row) return;
+        const prodSelect = row.querySelector('.prod');
+        
+        populateProductDropdown(prodSelect, selectedType, rowId);
+        
+        if (triggerPriceUpdate) {
+            updPrice(prodSelect);
+        }
+    }
+    
+    // Handle product selection - uses data attribute instead of prod-type column
+    function onProductChange(select, rowId) {
+        const row = document.querySelector(`tr[data-row-id="${rowId}"]`);
+        if (!row) return;
+        
+        // Get product type from row attribute instead of dropdown
+        const prodType = row.getAttribute('data-product-type') || '';
+        
+        if (prodType === 'Window Film' && select.value === 'window_film') {
+            // Reopen Window Film modal
+            openWindowFilmModal(rowId);
+        } else {
+            // Normal product - just update price
+            updPrice(select);
+        }
+    }
+
+    function calcArea(el) {
+        const row = el.closest('tr');
+        const prodOpt = row.querySelector('.prod').options[row.querySelector('.prod').selectedIndex];
+        const unit = prodOpt ? (prodOpt.getAttribute('data-unit') || 'ROLL') : 'ROLL';
+        
+        if (unit.includes('قطعة') || unit.includes('زجاجة') || unit.toLowerCase() === 'piece' || unit.toLowerCase() === 'bottle') {
+            return; // Don't calculate area for pieces
+        }
+        
+        const len = parseFloat(row.querySelector('.len').value) || 0;
+        const wid = parseFloat(row.querySelector('.wid').value) || 0;
+        const area = (len * wid) / 10000;
+        row.querySelector('.area').value = area.toFixed(4);
+        updPrice(row.querySelector('.prod'));
+    }
+
+    function addEmptyRow() { createRow({ isManual: true }); }
+
+    // Removed loadRolls function as it is no longer needed
+
+
+    async function getPricingMatrixPrice(materialType, vehicleCategory, carPart, area, grade = null) {
+        try {
+            console.log('PricingMatrix request:', { materialType, vehicleCategory, carPart, area, grade });
+            let url = `${API}/pricing/calculate?materialType=${encodeURIComponent(materialType)}&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(carPart)}&area=${area || 1}`;
+            if (grade !== null) {
+                url += `&grade=${grade}`;
+            }
+            const res = await fetch(url, { headers: authHeaders() });
+            console.log('PricingMatrix response status:', res.status);
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('PricingMatrix error:', errorText);
+                return null;
+            }
+            const data = await res.json();
+            console.log('PricingMatrix response data:', data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching pricing matrix:', error);
+            return null;
+        }
+    }
+
+    // Get price from product database (price_list) - uses pricingLogic.js on backend
+    async function getProductPrice(serviceName, partName = null, quantity = 1, area = null) {
+        try {
+            console.log('Product price request:', { serviceName, partName, quantity, area });
+            let url = `${API}/pricing/product-price?serviceName=${encodeURIComponent(serviceName)}`;
+            if (partName) url += `&partName=${encodeURIComponent(partName)}`;
+            if (quantity) url += `&quantity=${quantity}`;
+            if (area) url += `&area=${area}`;
+
+            const res = await fetch(url, { headers: authHeaders() });
+            console.log('Product price response status:', res.status);
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('Product price error:', errorText);
+                return null;
+            }
+
+            const data = await res.json();
+            console.log('Product price response data:', data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching product price:', error);
+            return null;
+        }
+    }
+
+    async function updPrice(el, calculateTotal = true) {
+        if(!el) return;
+        const row = el.closest('tr');
+        const selectedOption = el.options[el.selectedIndex];
+        if(!selectedOption) return;
+        
+        const priceUnit = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+        const unit = selectedOption.getAttribute('data-unit') || 'قطعة';
+        const productName = selectedOption.text || '';
+        
+        // Check if this is Window Film with modal selection
+        const wfPart = el.getAttribute('data-wf-part');
+        const wfGrade = el.getAttribute('data-wf-grade');
+        
+        // Get vehicle category
+        const vehicleCategory = document.getElementById('vehicleType')?.value || 'Sedan';
+        const partName = row.querySelector('.part-name')?.value || '';
+        const area = parseFloat(row.querySelector('.area')?.value) || 0;
+        const prodType = row.getAttribute('data-product-type') || '';
+        
+        console.log('updPrice:', { prodType, wfPart, wfGrade, vehicleCategory, partName, area });
+        
+        // Handle Window Film with modal selection
+        if (prodType === 'Window Film' && wfPart && wfGrade) {
+            const price = Number(getWindowFilmMasterPriceForPart(wfPart, wfGrade, vehicleCategory) || 0);
+            
+            row.querySelector('.unit-price').value = price.toFixed(2);
+            row.querySelector('.row-total').value = price.toFixed(2);
+            
+            // Update the display info
+            row.querySelector('.wf-info').textContent = `درجة ${wfGrade} - ${wfPart}`;
+            
+            if (calculateTotal) calcTotal();
+            return;
+        }
+        
+        // For Window Film without selection yet
+        if (prodType === 'Window Film') {
+            row.querySelector('.unit-price').value = '0.00';
+            row.querySelector('.row-total').value = '0.00';
+            if (calculateTotal) calcTotal();
+            return;
+        }
+        
+        // Handle Roll-based products (PPF, MATT) - category-level pricing
+        if ((prodType === 'PPF' || prodType === 'MATT') && area > 0) {
+            // Get price from the select element (set in onCategoryChange)
+            const rollPrice = parseFloat(el.getAttribute('data-price')) || priceUnit;
+            const total = area * rollPrice;
+            
+            row.querySelector('.unit-price').value = rollPrice.toFixed(2);
+            row.querySelector('.row-total').value = total.toFixed(2);
+            if (calculateTotal) calcTotal();
+            return;
+        }
+        
+        // Auto-fill vehicle area for roll-based products if available
+        if ((prodType === 'PPF' || prodType === 'MATT')) {
+            const vehicleArea = parseFloat(document.getElementById('vehicleArea')?.value || 0);
+            if (vehicleArea > 0 && priceUnit > 0) {
+                row.querySelector('.area').value = vehicleArea.toFixed(2);
+                row.querySelector('.row-total').value = (vehicleArea * priceUnit).toFixed(2);
+                if (calculateTotal) calcTotal();
+                return;
+            }
+        }
+        
+        // For other products - use their own price
+        // Check if it's piece-based
+        const isPieceBased = unit.includes('قطعة') || unit.includes('زجاجة') || unit.toLowerCase() === 'piece';
+        
+        if (isPieceBased) {
+            // Fixed price from product
+            row.querySelector('.unit-price').value = priceUnit.toFixed(2);
+            row.querySelector('.row-total').value = priceUnit.toFixed(2);
+            
+            // Disable length/width for piece-based
+            row.querySelector('.len').readOnly = true;
+            row.querySelector('.wid').readOnly = true;
+            row.querySelector('.len').classList.add('readonly-input');
+            row.querySelector('.wid').classList.add('readonly-input');
+            row.querySelector('.area').value = '1';
+            row.querySelector('.area').readOnly = false;
+            row.querySelector('.area').placeholder = 'الكمية';
+            
+            if (calculateTotal) calcTotal();
+            return;
+        }
+        
+        // For area-based products (like PPF)
+        if (area > 0 && priceUnit > 0) {
+            const total = area * priceUnit;
+            row.querySelector('.unit-price').value = priceUnit.toFixed(2);
+            row.querySelector('.row-total').value = total.toFixed(2);
+            if (calculateTotal) calcTotal();
+            return;
+        }
+        
+        row.querySelector('.unit-price').value = priceUnit.toFixed(2);
+        
+        let lineTotal = 0;
+        const lenInput = row.querySelector('.len');
+        const widInput = row.querySelector('.wid');
+        const areaInput = row.querySelector('.area');
+        
+        // Check if this is a fixed-price service - use API to get price from products
+        const fixedPriceServices = [
+            'Small Screen',
+            'Large Screen',
+            'Plexi',
+            'Plexi Plus',
+            'Interior Leather Protection',
+            'Soft Top Leather Protection'
+        ];
+        
+        const isFixedPriceService = fixedPriceServices.some(service => productName.includes(service));
+        
+        // Try to get price from API for Additional Services and fixed-price services
+        if (isPieceBased || isFixedPriceService || prodType === 'Additional Services') {
+            // Use API to get price from price_list (products database)
+            getProductPrice(prodType, productName, 1, null).then(priceData => {
+                if (priceData && priceData.pricing) {
+                    const apiPrice = priceData.pricing.priceWithoutVat;
+                    row.querySelector('.unit-price').value = apiPrice.toFixed(2);
+                    
+                    const qty = parseFloat(areaInput.value) || 1;
+                    const total = apiPrice * qty;
+                    row.querySelector('.row-total').value = total.toFixed(2);
+                    
+                    if (calculateTotal) calcTotal();
+                }
+            });
+        }
+        
+        if (isPieceBased || isFixedPriceService) {
+            // Piece-based or fixed-price service: use quantity field instead of area calculation
+            lenInput.value = 0; 
+            widInput.value = 0;
+            lenInput.readOnly = true; 
+            widInput.readOnly = true;
+            lenInput.classList.add('readonly-input'); 
+            widInput.classList.add('readonly-input');
+            
+            areaInput.readOnly = false;
+            areaInput.classList.remove('readonly-input');
+            areaInput.placeholder = 'الكمية/العدد';
+            
+            // Always set to 1 for piece-based items
+            areaInput.value = 1;
+            
+            // For piece-based: multiply price by quantity
+            lineTotal = (parseFloat(areaInput.value) * priceUnit).toFixed(2);
+        } else {
+            // Roll-based service: calculate area (length × width)
+            lenInput.readOnly = false; 
+            widInput.readOnly = false;
+            lenInput.classList.remove('readonly-input'); 
+            widInput.classList.remove('readonly-input');
+            
+            areaInput.readOnly = true;
+            areaInput.classList.add('readonly-input');
+            areaInput.placeholder = 'المساحة (م²)';
+            
+            const area = parseFloat(areaInput.value) || 0;
+            lineTotal = (area * priceUnit).toFixed(2);
+        }
+        
+        row.querySelector('.row-total').value = lineTotal;
+        
+        if (calculateTotal) {
+            calcTotal();
+        }
+    }
+
+    function calcTotal() {
+        let sub = 0;
+        document.querySelectorAll('.row-total').forEach(i => sub += parseFloat(i.value)||0);
+        document.getElementById('subtotal').innerText = sub.toFixed(2);
+
+        const extra = parseFloat(document.getElementById('extraCost').value)||0;
+        const disc = parseFloat(document.getElementById('discount').value)||0;
+
+        // الأسعار بدون ضريبة - نحسب الصافي ثم نضيف الضريبة
+        let netAmount = (sub + extra) - disc; // المبلغ بدون ضريبة
+        let vat = netAmount * VAT_RATE; // الضريبة 14%
+        let totalWithVat = netAmount + vat; // الإجمالي شامل الضريبة
+        
+        document.getElementById('totalWithVat').innerText = totalWithVat.toFixed(2);
+        document.getElementById('vatVal').innerText = vat.toFixed(2);
+
+        // رقم استرشادي (قيمة الفاتورة قبل الخصم من المنبع)
+        document.getElementById('referenceTotal').innerText = totalWithVat.toFixed(2);
+
+        // ضريبة الخصم من المنبع (1% من إجمالي الفاتورة قبل الخصم)
+        let wht = 0;
+        if (document.getElementById('hasWht').checked) {
+            wht = totalWithVat * 0.01;
+        }
+        document.getElementById('whtVal').innerText = wht.toFixed(2);
+
+        // الصافي بعد الخصم
+        let finalTotal = totalWithVat - wht;
+        document.getElementById('finalTotal').innerText = finalTotal.toFixed(2);
+        
+    }
+
+    async function saveInvoice() {
+        const items = [];
+        document.querySelectorAll('tbody tr').forEach(tr => {
+            if(tr.querySelector('.prod').value) {
+                items.push({
+                    product: tr.querySelector('.prod').value,
+                    partName: tr.querySelector('.part-name').value,
+                    lengthCM: tr.querySelector('.len').value,
+                    widthCM: tr.querySelector('.wid').value,
+                    area: tr.querySelector('.area').value,
+                    price: tr.querySelector('.row-total').value
+                });
+            }
+        });
+
+        if(items.length === 0) { alert('أضف صنف واحد على الأقل'); return; }
+
+        const id = document.getElementById('editId').value;
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `${API}/sales/${id}` : `${API}/sales`;
+
+        const manualInvNum = document.getElementById('invNum').value.trim();
+        
+        const salesPersonSelect = document.getElementById('salesPerson');
+        const salesPersonName = salesPersonSelect?.options[salesPersonSelect.selectedIndex]?.text || '';
+        
+        // Get commission data from selected agent
+        const selectedOption = salesPersonSelect?.options[salesPersonSelect.selectedIndex];
+        const commissionType = selectedOption?.getAttribute('data-commission-type') || 'percentage';
+        const commissionValue = parseFloat(selectedOption?.getAttribute('data-commission-value')) || 0;
+
+        // Calculate final amounts for backend
+        const gross = parseFloat(document.getElementById('referenceTotal')?.innerText || 0) || 0;
+        const vat = parseFloat(document.getElementById('vatVal')?.innerText || 0) || 0;
+        const net = Math.max(0, gross - vat);
+        
+        // Calculate agent commission
+        let agentCommissionValue = 0;
+        if (String(commissionType).toLowerCase() === 'fixed') {
+            agentCommissionValue = commissionValue;
+        } else {
+            agentCommissionValue = net * (commissionValue / 100);
+        }
+
+        const data = {
+            salesPerson: salesPersonSelect?.value || undefined,
+            salesPersonName: salesPersonName,
+            commissionRate: parseFloat(document.getElementById('commissionRate')?.value) || 0,
+            commissionType: commissionType,
+            commissionValue: commissionValue,
+            invoiceNumber: manualInvNum || undefined,
+            date: document.getElementById('date').value,
+            customer: document.getElementById('customer').value,
+            carModel: document.getElementById('car').value,
+            serviceType: document.getElementById('serviceType').value,
+            items: items,
+            subtotal: parseFloat(document.getElementById('subtotal').innerText),
+            totalExtraCosts: parseFloat(document.getElementById('extraCost').value)||0,
+            totalDiscount: parseFloat(document.getElementById('discount').value)||0,
+            totalTax: parseFloat(document.getElementById('vatVal').innerText)||0,
+            whtAmount: parseFloat(document.getElementById('whtVal').innerText)||0,
+            // Send finalTotal as referenceTotal (before WHT) to match backend GL logic
+            finalTotal: parseFloat(document.getElementById('referenceTotal').innerText),
+            // Extra vehicle and financial fields
+            vehicleType: document.getElementById('vehicleType')?.value || '',
+            vehicleModel: document.getElementById('vehicleModel')?.value || '',
+            vehiclePlate: document.getElementById('vehiclePlate')?.value || '',
+            vehicleColor: document.getElementById('vehicleColor')?.value || '',
+            netAmount: Number(net.toFixed(2)),
+            vatAmount: Number(vat.toFixed(2)),
+            agent_commission_value: Number(agentCommissionValue.toFixed(2))
+        };
+
+        try {
+            const res = await fetch(url, { method: method, headers: authHeaders(true), body: JSON.stringify(data) });
+            if(res.ok) {
+                const savedInv = await res.json();
+                alert('تم حفظ الفاتورة بنجاح!');
+                window.location.href = '/sales/invoice_print.html?id=' + (savedInv.invoice?._id || savedInv._id);
+            } else {
+                const err = await res.json();
+                alert('خطأ أثناء الحفظ: ' + (err.message || err.error || JSON.stringify(err) || 'خطأ غير معروف')); console.error('Save Error:', err);
+            }
+        } catch(e) {
+            alert('خطأ في الاتصال بالخادم: ' + e.message);
+        }
+    }
+
+    function goToPrint() {
+        const id = document.getElementById('editId').value;
+        if(id) {
+            window.open('/sales/invoice_print.html?id=' + id, '_blank');
+        } else {
+            alert('الرجاء حفظ الفاتورة أولاً قبل الطباعة');
+        }
+    }
+
+    function exportToExcel() {
+        const invNum = document.getElementById('invNum').value;
+        const customer = document.getElementById('customer').options[document.getElementById('customer').selectedIndex]?.text || '';
+        const car = document.getElementById('car').options[document.getElementById('car').selectedIndex]?.text || '';
+        const date = document.getElementById('date').value;
+
+        let data = [];
+        data.push(["فاتورة مبيعات"]);
+        data.push(["رقم الفاتورة", invNum]); // هنا
+        data.push(["العميل", customer]);
+        data.push(["السيارة", car]);
+        data.push(["التاريخ", date]);
+        data.push([]); 
+
+        data.push(["القطعة", "الخامة", "طول", "عرض", "مساحة", "السعر", "الإجمالي"]);
+
+        document.querySelectorAll('tbody tr').forEach(tr => {
+            const prodSelect = tr.querySelector('.prod');
+            const prodName = prodSelect.options[prodSelect.selectedIndex]?.text || '';
+            data.push([
+                tr.querySelector('.part-name').value,
+                prodName,
+                tr.querySelector('.len').value,
+                tr.querySelector('.wid').value,
+                tr.querySelector('.area').value,
+                tr.querySelector('.unit-price').value,
+                tr.querySelector('.row-total').value
+            ]);
+        });
+
+        data.push([]);
+        data.push(["الإجمالي", document.getElementById('subtotal').innerText]);
+        data.push(["خدمات إضافية", document.getElementById('extraCost').value]);
+        data.push(["الصافي", document.getElementById('finalTotal').innerText]);
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Invoice");
+        XLSX.writeFile(wb, `Invoice_${customer}_${date}.xlsx`);
+    }
+
+    function importFromExcel(input) {
+        const file = input.files[0];
+        if(!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+
+            // 1. قراءة الترويسة
+            // نتوقع أن رقم الفاتورة في الصف 2 العمود 2 (Index 1, 1) بعد التعديل
+            if(jsonData[1] && jsonData[1][1]) document.getElementById('invNum').value = jsonData[1][1];
+            if(jsonData[2] && jsonData[2][1]) selectOptionByText('customer', jsonData[2][1]);
+            if(jsonData[3] && jsonData[3][1]) selectOptionByText('car', jsonData[3][1]);
+            if(jsonData[4] && jsonData[4][1]) document.getElementById('date').value = jsonData[4][1];
+
+            // 2. قراءة الجدول
+            document.querySelector('tbody').innerHTML = '';
+            
+            let startRow = -1;
+            for(let i=0; i<jsonData.length; i++) {
+                if(jsonData[i] && jsonData[i][0] == 'القطعة') {
+                    startRow = i + 1;
+                    break;
+                }
+            }
+
+            if(startRow !== -1) {
+                for(let i=startRow; i<jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if(!row || row.length === 0 || row[0] === 'الإجمالي') break; 
+
+                    const partName = row[0];
+                    const matName = row[1];
+                    const len = row[2] || 0;
+                    const wid = row[3] || 0;
+                    const area = row[4] || (len*wid);
+                    const total = row[6] || 0;
+
+                    const productObj = products.find(p => p.name === matName);
+                    const prodId = productObj ? productObj._id : '';
+                    const priceUnit = productObj ? (productObj.pricing?.unitSalePrice || 0) : 0;
+
+                    createRow({ 
+                        partName: partName, 
+                        product: prodId,
+                        length: len, 
+                        width: wid, 
+                        area: area,
+                        priceUnit: priceUnit, 
+                        lineTotal: total      
+                    });
+                }
+            }
+            
+            // 3. قراءة الإجماليات
+            for(let i=jsonData.length-1; i>0; i--) {
+                const row = jsonData[i];
+                if(row && row[0] == 'خدمات إضافية') {
+                    document.getElementById('extraCost').value = row[1] || 0;
+                    break;
+                }
+            }
+
+            calcTotal();
+            alert('تم استيراد البيانات بنجاح ✅');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function selectOptionByText(id, text) {
+        const select = document.getElementById(id);
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].text === text) {
+                select.selectedIndex = i;
+                if(id === 'car') populateCarParts();
+                break;
+            }
+        }
+    }
+
+    async function loadForEdit(id) {
+        const res = await fetch(`${API}/sales/${id}`);
+        const inv = await res.json();
+        
+        document.getElementById('editId').value = inv._id;
+        document.getElementById('invNum').value = inv.invoiceNumber; 
+        document.getElementById('customer').value = inv.customer?._id || inv.customer; 
+        document.getElementById('car').value = inv.carModel?._id || inv.carModel;
+        document.getElementById('serviceType').value = inv.serviceType;
+        document.getElementById('date').value = inv.date.split('T')[0];
+        
+        document.getElementById('extraCost').value = inv.totalExtraCosts || 0;
+        document.getElementById('discount').value = inv.totalDiscount || 0;
+        
+        // Set sales agent/commission
+        if (inv.salesPerson) {
+            document.getElementById('salesPerson').value = inv.salesPerson?._id || inv.salesPerson;
+        }
+        document.getElementById('commissionType').value = inv.commissionType || 'percentage';
+        document.getElementById('commissionValue').value = inv.commissionValue || 0;
+        
+        if(inv.totalTax > 0) document.getElementById('hasVat').checked = true;
+        if(inv.whtAmount > 0) document.getElementById('hasWht').checked = true;
+
+        const tbody = document.querySelector('tbody');
+        tbody.innerHTML = '';
+        inv.items.forEach(item => {
+            createRow({
+                partName: item.partName,
+                product: item.product?._id || item.product,
+                rollCode: item.rollCode,
+                length: item.lengthCM,
+                width: item.widthCM,
+                area: item.area,
+                priceUnit: 0, 
+                lineTotal: item.price
+            });
+        });
+        calcTotal();
+    }
+
+    function ensureServiceTabsUi() {
+        if (document.getElementById('serviceTabsBar')) return;
+        const table = document.getElementById('itemsTable');
+        if (!table || !table.parentElement) return;
+
+        const tabs = ['PPF', 'Window Film', 'Vinyl', 'MATT', 'Additional Services'];
+        const wrap = document.createElement('div');
+        wrap.id = 'serviceTabsBar';
+        wrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px;';
+        wrap.innerHTML = tabs.map((tab) => `<button type="button" class="btn btn-list no-print sales-tab-btn" data-tab="${tab}" style="padding:6px 12px;">${tab}</button>`).join('');
+        table.parentElement.insertBefore(wrap, table);
+
+        wrap.querySelectorAll('.sales-tab-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const selectedTab = btn.getAttribute('data-tab') || '';
+                selectedSalesTab = selectedTab; // Set for future rows
+                wrap.querySelectorAll('.sales-tab-btn').forEach((el) => el.style.border = '');
+                btn.style.border = '2px solid #163a5f';
+                
+                // Add new row with selected tab - allows multiple services
+                createRow({ productType: selectedTab });
+            });
+        });
+    }
+
+    // Package prices per material type (per square meter)
+    // Prices are WITHOUT VAT, loaded from Price List (pricing/product-price).
+    const packagePrices = {
+        'PPF': 0,
+        'MATT': 0,
+        'Vinyl': 0
+    };
+
+    function mapSalesTabToPricingService(tab) {
+        const t = String(tab || '').trim().toUpperCase();
+        if (t === 'PPF') return 'PPF';
+        if (t === 'MATT') return 'Matt'; // DB product name
+        if (t === 'VINYL') return 'Vinyl';
+        return tab;
+    }
+
+    async function refreshPackagePricesFromPriceList() {
+        try {
+            const entries = [
+                { tab: 'PPF', serviceName: mapSalesTabToPricingService('PPF') },
+                { tab: 'MATT', serviceName: mapSalesTabToPricingService('MATT') },
+                { tab: 'Vinyl', serviceName: mapSalesTabToPricingService('Vinyl') }
+            ];
+
+            for (const entry of entries) {
+                // First try API endpoint
+                const priceData = await getProductPrice(entry.serviceName, null, 1, 1);
+                let unitPrice = Number(priceData?.pricing?.priceWithoutVat || 0);
+                
+                // If API returns 0, try direct product search by Tab (category or type or serviceCategory)
+                if (unitPrice === 0) {
+                    const tabLower = String(entry.tab || '').toLowerCase();
+                    const product = products.find(p => {
+                        const categoryFieldLower = String(p.category || '').toLowerCase();
+                        const typeFieldLower = String(p.type || '').toLowerCase();
+                        const serviceCategoryFieldLower = String(p.serviceCategory || '').toLowerCase();
+                        
+                        // مطابقة تامة أو جزئية في category أو type أو serviceCategory
+                        return categoryFieldLower === tabLower || 
+                               typeFieldLower === tabLower ||
+                               serviceCategoryFieldLower === tabLower ||
+                               categoryFieldLower.includes(tabLower) ||
+                               typeFieldLower.includes(tabLower) ||
+                               serviceCategoryFieldLower.includes(tabLower);
+                    });
+                    
+                    if (product && product.pricing) {
+                        unitPrice = product.pricing.priceWithoutVat || 0;
+                        if (unitPrice === 0 && product.pricing.salePrice) {
+                            unitPrice = product.pricing.salePrice / (1 + VAT_RATE);
+                        }
+                    }
+                }
+                
+                if (unitPrice > 0) {
+                    packagePrices[entry.tab] = unitPrice;
+                }
+            }
+        } catch (error) {
+            console.warn('refreshPackagePricesFromPriceList failed:', error.message);
+        }
+    }
+
+    function openPackageModeModal(rowId, materialType) {
+        const existing = document.getElementById('ppfModeModal');
+        if (existing) existing.remove();
+        const modal = document.createElement('div');
+        modal.id = 'ppfModeModal';
+        modal.setAttribute('data-material-type', materialType);
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        
+        // Get price from products directly - search by Tab (category or type or serviceCategory)
+        const materialTypeLower = String(materialType || '').toLowerCase();
+        const materialProduct = products.find(p => {
+            const categoryFieldLower = String(p.category || '').toLowerCase();
+            const typeFieldLower = String(p.type || '').toLowerCase();
+            const serviceCategoryFieldLower = String(p.serviceCategory || '').toLowerCase();
+            
+            // مطابقة تامة أو جزئية في category أو type أو serviceCategory
+            return categoryFieldLower === materialTypeLower || 
+                   typeFieldLower === materialTypeLower ||
+                   serviceCategoryFieldLower === materialTypeLower ||
+                   categoryFieldLower.includes(materialTypeLower) ||
+                   typeFieldLower.includes(materialTypeLower) ||
+                   serviceCategoryFieldLower.includes(materialTypeLower);
+        });
+        
+        // Calculate price from product pricing
+        let pricePerM2 = 0;
+        if (materialProduct && materialProduct.pricing) {
+            pricePerM2 = materialProduct.pricing.priceWithoutVat || 0;
+            if (pricePerM2 === 0 && materialProduct.pricing.salePrice) {
+                pricePerM2 = materialProduct.pricing.salePrice / (1 + VAT_RATE);
+            }
+        }
+        // Fallback to cached package prices
+        if (pricePerM2 === 0) {
+            pricePerM2 = packagePrices[materialType] || 0;
+        }
+        
+        modal.innerHTML = `
+            <div style="width:min(720px,92vw);max-height:85vh;overflow:auto;background:#fff;border-radius:16px;padding:16px;">
+                <h3 style="margin:0 0 10px;">باقات ${materialType} <span style="font-size:14px;color:#64748b">(سعر المتر: ${pricePerM2 ? pricePerM2.toFixed(2) : 'غير محدد بعد'} ج.م)</span></h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                    <button type="button" class="btn btn-list ppf-choice" data-mode="full_incl">
+                        Full Wrap + Roof <br><small>كل الأجزاء + السقف</small>
+                    </button>
+                    <button type="button" class="btn btn-list ppf-choice" data-mode="full_excl">
+                        Full Wrap - Roof <br><small>كل الأجزاء بدون السقف</small>
+                    </button>
+                    <button type="button" class="btn btn-list ppf-choice" data-mode="custom">
+                        أجزاء محددة <br><small>اختر بنفسك</small>
+                    </button>
+                </div>
+                <input id="ppfPartSearch" placeholder="ابحث داخل الأجزاء..." style="width:100%;border:1px solid #d0d7e2;border-radius:10px;padding:8px 10px;margin-bottom:10px;">
+                <div id="ppfCustomParts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:10px;max-height:300px;overflow-y:auto;"></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid #e5e7eb;padding-top:12px;">
+                    <div id="packageSummary" style="color:#64748b;font-size:14px;">
+                        المساحة: 0 م² | السعر: 0 ج.م
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" class="btn btn-list" onclick="document.getElementById('ppfModeModal').remove()">إلغاء</button>
+                        <button type="button" class="btn btn-save" onclick="applyPackageSelection('${rowId}')">تأكيد</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Load car parts from background storage
+        const parts = selectedCarParts.length > 0 ? selectedCarParts : [];
+        
+        const host = modal.querySelector('#ppfCustomParts');
+        if (parts.length === 0) {
+            host.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;">اختر سيارة أولاً لتحميل أجزائها</div>';
+        } else {
+            host.innerHTML = parts.map((p) => {
+                const dimsText = p.length && p.width ? `${p.length}×${p.width} سم` : '';
+                return `<label style="display:flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;cursor:pointer;" data-is-roof="${p.isRoof}" data-area="${p.areaM2.toFixed(4)}">
+                    <input type="checkbox" class="ppf-custom-check" data-part="${String(p.name).replace(/"/g, '&quot;')}" data-area="${p.areaM2.toFixed(4)}" ${p.isRoof ? 'data-roof="true"' : ''}>
+                    <span style="flex:1;">${p.name}</span>
+                    ${dimsText ? `<span style="color:#94a3b8;font-size:11px;">${dimsText}</span>` : ''}
+                    <span style="color:#64748b;font-size:12px;font-weight:500;">${p.areaM2.toFixed(2)} م²</span>
+                 </label>`;
+            }).join('');
+        }
+
+        // Update summary function
+        const updateSummary = () => {
+            const selected = Array.from(modal.querySelectorAll('.ppf-custom-check:checked'));
+            const totalArea = selected.reduce((sum, x) => sum + (parseFloat(x.getAttribute('data-area') || 0) || 0), 0);
+            const totalPrice = totalArea * pricePerM2;
+            modal.querySelector('#packageSummary').innerHTML = 
+                `المساحة: ${totalArea.toFixed(2)} م² | السعر: ${totalPrice.toFixed(0)} ج.م`;
+        };
+
+        modal.querySelectorAll('.ppf-choice').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                modal.querySelectorAll('.ppf-choice').forEach((b) => b.style.border = '');
+                btn.style.border = '2px solid #163a5f';
+                const mode = btn.getAttribute('data-mode') || '';
+                modal.setAttribute('data-mode', mode);
+                
+                // Auto-select parts based on mode
+                const checkboxes = modal.querySelectorAll('.ppf-custom-check');
+                checkboxes.forEach((cb) => {
+                    const isRoof = cb.hasAttribute('data-roof');
+                    if (mode === 'full_incl') {
+                        cb.checked = true; // All parts including roof
+                    } else if (mode === 'full_excl') {
+                        cb.checked = !isRoof; // All except roof
+                    } else if (mode === 'custom') {
+                        cb.checked = false; // Let user select
+                    }
+                });
+                updateSummary();
+            });
+        });
+        modal.setAttribute('data-mode', 'custom'); // Default to custom
+
+        // Listen to checkbox changes
+        host.addEventListener('change', updateSummary);
+
+        modal.querySelector('#ppfPartSearch').addEventListener('input', (e) => {
+            const q = String(e.target.value || '').trim().toLowerCase();
+            host.querySelectorAll('label').forEach((node) => {
+                const text = node.textContent.toLowerCase();
+                node.style.display = !q || text.includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    function applyPackageSelection(rowId) {
+        const modal = document.getElementById('ppfModeModal');
+        if (!modal) return;
+        const mode = modal.getAttribute('data-mode') || 'custom';
+        const materialType = modal.getAttribute('data-material-type') || 'PPF';
+        const row = document.querySelector(`tr[data-row-id="${rowId}"]`);
+        if (!row) { modal.remove(); return; }
+
+        // Get selected parts with details
+        const selected = Array.from(modal.querySelectorAll('.ppf-custom-check:checked'));
+        if (selected.length === 0) {
+            modal.remove();
+            return;
+        }
+        
+        // Get price for this material type
+        const pricePerM2 = packagePrices[materialType] || 0;
+        
+        // Build package display name
+        let packageName = '';
+        if (mode === 'full_incl') {
+            packageName = `${materialType} - Full Wrap (+Roof)`;
+        } else if (mode === 'full_excl') {
+            packageName = `${materialType} - Full Wrap (-Roof)`;
+        } else {
+            packageName = `${materialType} - Custom Parts`;
+        }
+        
+        // Get first selected part details
+        const firstPart = selected[0];
+        const firstPartName = firstPart.getAttribute('data-part') || '';
+        const firstPartArea = parseFloat(firstPart.getAttribute('data-area') || 0) || 0;
+        const firstPartPrice = firstPartArea * pricePerM2;
+        
+        // Update the first row with first part details
+        const partInput = row.querySelector('.part-name');
+        const areaInput = row.querySelector('.area');
+        const unitPriceInput = row.querySelector('.unit-price');
+        const rowTotalInput = row.querySelector('.row-total');
+        const prodSelect = row.querySelector('.prod');
+        
+        partInput.value = `${packageName} - ${firstPartName}`;
+        areaInput.value = firstPartArea.toFixed(2);
+        unitPriceInput.value = pricePerM2.toFixed(2);
+        rowTotalInput.value = firstPartPrice.toFixed(2);
+        row.setAttribute('data-material-type', materialType);
+        row.setAttribute('data-package-row', 'true');
+        
+        // سحب الطول والعرض الفعليين من بيانات السيارة للسطر الأول (تعديل تجميلي)
+        const actualFirstPart = selectedCarParts.find(p => p.name === firstPartName);
+        const lenInput = row.querySelector('.len');
+        const widInput = row.querySelector('.wid');
+        if (lenInput) lenInput.value = actualFirstPart ? actualFirstPart.length : 0;
+        if (widInput) widInput.value = actualFirstPart ? actualFirstPart.width : 0;
+        
+        // Create additional rows for remaining parts
+        for (let i = 1; i < selected.length; i++) {
+            const part = selected[i];
+            const partName = part.getAttribute('data-part') || '';
+            const partArea = parseFloat(part.getAttribute('data-area') || 0) || 0;
+            const partPrice = partArea * pricePerM2;
+            
+            // سحب الطول والعرض الفعليين لبقية الأسطر (تعديل تجميلي)
+            const actualCarPart = selectedCarParts.find(p => p.name === partName);
+            const displayLength = actualCarPart ? actualCarPart.length : 0;
+            const displayWidth = actualCarPart ? actualCarPart.width : 0;
+            
+            const newRowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-row-id', newRowId);
+            newRow.setAttribute('data-material-type', materialType);
+            newRow.setAttribute('data-package-detail', 'true'); // For print CSS
+            newRow.setAttribute('data-parent-row', rowId);
+            
+            newRow.innerHTML = `
+                <td><input class="part-name" value="${materialType} - ${partName}" readonly style="background:#f8fafc;"></td>
+                <td>
+                    <select class="prod" style="width:100%;" disabled>
+                        <option value="${materialType.toLowerCase()}" selected>${materialType}</option>
+                    </select>
+                </td>
+                <td><input type="number" class="len" value="${displayLength}" readonly style="background:#f8fafc;"></td>
+                <td><input type="number" class="wid" value="${displayWidth}" readonly style="background:#f8fafc;"></td>
+                <td><input type="number" class="area readonly-input" value="${partArea.toFixed(2)}" readonly></td>
+                <td><input type="number" class="unit-price" value="${pricePerM2.toFixed(2)}" readonly style="color:#666;"></td>
+                <td><input type="number" class="row-total" value="${partPrice.toFixed(2)}" readonly style="color:green;font-weight:bold;"></td>
+                <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+            `;
+            
+            // Insert after the current row
+            row.parentNode.insertBefore(newRow, row.nextSibling);
+        }
+        
+        calcTotal();
+        modal.remove();
+    }
+
+    // Initialize enhanced UI on load
+    document.addEventListener('DOMContentLoaded', () => {
+        ensureServiceTabsUi();
+    });
+</script>
+    <script src="/global-navigation.js"></script>
+
+<!-- Quick Modals -->
+<div id="quickCustModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:20px; border-radius:10px; width:400px; max-width:90%;">
+        <h3 style="margin-top:0">إضافة عميل سريع</h3>
+        <label>اسم العميل</label>
+        <input type="text" id="qcName" style="margin-bottom:15px">
+        <label>رقم الجوال</label>
+        <input type="text" id="qcPhone" style="margin-bottom:15px">
+        <div style="display:flex; gap:10px; justify-content:flex-end">
+            <button class="btn btn-list" onclick="document.getElementById('quickCustModal').style.display='none'">إلغاء</button>
+            <button class="btn btn-success" onclick="saveQuickCust()">حفظ</button>
+        </div>
+    </div>
+</div>
+
+<div id="quickEmpModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:20px; border-radius:10px; width:450px; max-width:90%;">
+        <h3 style="margin-top:0">إضافة وكيل بيع جديد</h3>
+        <label>الاسم *</label>
+        <input type="text" id="agentName" style="margin-bottom:15px" placeholder="اسم الوكيل">
+        <label>النوع *</label>
+        <select id="agentType" style="margin-bottom:15px">
+            <option value="">-- اختر --</option>
+            <option value="internal">موظف داخلي</option>
+            <option value="external">وكيل خارجي</option>
+        </select>
+        <label>الهاتف</label>
+        <input type="text" id="agentPhone" style="margin-bottom:15px" placeholder="رقم الجوال">
+        <label>البريد الإلكتروني</label>
+        <input type="text" id="agentEmail" style="margin-bottom:15px" placeholder="البريد الإلكتروني">
+        <label>نوع العمولة *</label>
+        <select id="agentCommissionType" style="margin-bottom:15px">
+            <option value="">-- اختر --</option>
+            <option value="percentage">نسبة مئوية (%)</option>
+            <option value="fixed">مبلغ ثابت (EGP)</option>
+        </select>
+        <label>قيمة العمولة *</label>
+        <input type="number" id="agentCommissionValue" style="margin-bottom:15px" placeholder="0.00" step="0.01" min="0">
+        <div style="display:flex; gap:10px; justify-content:flex-end">
+            <button class="btn btn-list" onclick="document.getElementById('quickEmpModal').style.display='none'">إلغاء</button>
+            <button class="btn btn-success" onclick="saveQuickAgent()">حفظ</button>
+        </div>
+    </div>
+</div>
+<script>
+    function openQuickCustomerModal() { document.getElementById('quickCustModal').style.display = 'flex'; }
+    async function saveQuickCust() {
+        const name = document.getElementById('qcName').value.trim();
+        const phone = document.getElementById('qcPhone').value.trim();
+        if(!name) return alert('أدخل الاسم');
+        try {
+            const res = await fetch(API+'/customers', {
+                method: 'POST', headers: authHeaders(true),
+                body: JSON.stringify({ name, phone })
+            });
+            const c = await res.json();
+            const s = document.getElementById('customer');
+            s.innerHTML += `<option value="${c._id}">${c.name}</option>`;
+            s.value = c._id;
+            if(window.custSelect) {
+                window.custSelect.addOption({value: c._id, text: c.name});
+                window.custSelect.addItem(c._id);
+            }
+            document.getElementById('quickCustModal').style.display = 'none';
+        } catch(e) { alert('خطأ'); }
+    }
+
+    function openQuickEmpModal() { document.getElementById('quickEmpModal').style.display = 'flex'; }
+    
+    async function saveQuickAgent() {
+        const name = document.getElementById('agentName').value.trim();
+        const type = document.getElementById('agentType').value;
+        const phone = document.getElementById('agentPhone').value.trim();
+        const email = document.getElementById('agentEmail').value.trim();
+        const commissionType = document.getElementById('agentCommissionType').value;
+        const commissionValue = parseFloat(document.getElementById('agentCommissionValue').value);
+        
+        if(!name || !type || !commissionType || isNaN(commissionValue)) {
+            return alert('الرجاء ملء جميع الحقول المطلوبة');
+        }
+        
+        try {
+            const res = await fetch(API+'/agents', {
+                method: 'POST', headers: authHeaders(true),
+                body: JSON.stringify({ name, type, phone, email, commissionType, commissionValue })
+            });
+            
+            if (!res.ok) throw new Error('فشل حفظ الوكيل');
+            
+            const agent = await res.json();
+            const s = document.getElementById('salesPerson');
+            const typeLabel = agent.type === 'internal' ? '(موظف)' : '(خارجي)';
+            s.innerHTML += `<option value="${agent._id}" data-type="${agent.type}" data-commission-type="${agent.commissionType}" data-commission-value="${agent.commissionValue}">${agent.name} ${typeLabel}</option>`;
+            s.value = agent._id;
+            
+            if(window.salesSelect) {
+                window.salesSelect.addOption({value: agent._id, text: agent.name + ' ' + typeLabel});
+                window.salesSelect.addItem(agent._id);
+            }
+            
+            // Clear form
+            document.getElementById('agentName').value = '';
+            document.getElementById('agentType').value = '';
+            document.getElementById('agentPhone').value = '';
+            document.getElementById('agentEmail').value = '';
+            document.getElementById('agentCommissionType').value = '';
+            document.getElementById('agentCommissionValue').value = '';
+            
+            document.getElementById('quickEmpModal').style.display = 'none';
+            alert('✅ تم إضافة الوكيل بنجاح');
+        } catch(e) { alert('❌ خطأ: ' + e.message); }
+    }
+
+    function rebuildAllRowsOpts() {
+        // Function kept for compatibility but no longer updates prod-type dropdowns
+        // since the column has been removed. Rows now use data-product-type attribute.
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة مدير النظام - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <script src="/common-functions.js"></script>
+    <style>
+        :root {
+            --admin-primary: #163a5f;
+            --admin-secondary: #526277;
+            --admin-accent: #b98918;
+            --admin-surface: #f5f7fa;
+            --admin-border: rgba(22, 58, 95, 0.14);
+            --admin-success: #1f6f5f;
+            --admin-danger: #9f3a38;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top right, rgba(185, 137, 24, 0.12), transparent 22rem),
+                linear-gradient(180deg, #eef2f6 0%, #f8fafc 100%);
+        }
+
+        .page-shell {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, var(--admin-primary), #20496f);
+            color: #fff;
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 24px 60px rgba(22, 58, 95, 0.22);
+            margin-bottom: 1.75rem;
+        }
+
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .hero-card h1 {
+            margin: 0 0 0.75rem;
+            font-size: clamp(1.8rem, 2vw, 2.4rem);
+        }
+
+        .hero-card p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.82);
+            max-width: 52rem;
+            line-height: 1.8;
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1.25rem;
+        }
+
+        .hero-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.65rem 0.9rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            font-size: 0.95rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.9rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0 2rem;
+        }
+
+        .action-btn {
+            border: none;
+            border-radius: 14px;
+            padding: 0.95rem 1.2rem;
+            font-size: 0.98rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+            box-shadow: 0 10px 22px rgba(22, 58, 95, 0.12);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .action-btn.primary {
+            background: var(--admin-primary);
+            color: #fff;
+        }
+
+        .action-btn.secondary {
+            background: #fff;
+            color: var(--admin-primary);
+            border: 1px solid var(--admin-border);
+        }
+
+        .action-btn.accent {
+            background: var(--admin-accent);
+            color: #fff;
+        }
+
+        .action-btn.danger {
+            background: #fff4f3;
+            color: var(--admin-danger);
+            border: 1px solid rgba(159, 58, 56, 0.18);
+        }
+
+        .status-box {
+            display: none;
+            margin-bottom: 1.25rem;
+            padding: 1rem 1.1rem;
+            border-radius: 14px;
+            font-weight: 600;
+        }
+
+        .status-box.success {
+            display: block;
+            background: rgba(31, 111, 95, 0.1);
+            color: var(--admin-success);
+            border: 1px solid rgba(31, 111, 95, 0.16);
+        }
+
+        .status-box.error {
+            display: block;
+            background: rgba(159, 58, 56, 0.1);
+            color: var(--admin-danger);
+            border: 1px solid rgba(159, 58, 56, 0.16);
+        }
+
+        .stats-grid,
+        .panel-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-grid {
+            grid-template-columns: 1.35fr 1fr;
+        }
+
+        .panel-card,
+        .stat-card {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid var(--admin-border);
+            border-radius: 20px;
+            padding: 1.25rem;
+            box-shadow: 0 18px 38px rgba(22, 58, 95, 0.08);
+        }
+
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: "";
+            position: absolute;
+            inset-inline-start: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--admin-primary), var(--admin-accent));
+        }
+
+        .stat-label {
+            color: var(--admin-secondary);
+            font-size: 0.93rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--admin-primary);
+            margin-bottom: 0.45rem;
+        }
+
+        .stat-subtext {
+            color: #6d7d8f;
+            font-size: 0.9rem;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .panel-head h2 {
+            margin: 0;
+            color: var(--admin-primary);
+            font-size: 1.15rem;
+        }
+
+        .panel-head p {
+            margin: 0.25rem 0 0;
+            color: var(--admin-secondary);
+            font-size: 0.94rem;
+        }
+
+        .backup-list,
+        .audit-list {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .backup-item,
+        .audit-item {
+            border: 1px solid var(--admin-border);
+            border-radius: 16px;
+            padding: 1rem;
+            background: #fff;
+        }
+
+        .backup-top,
+        .audit-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .backup-name,
+        .audit-title {
+            margin: 0;
+            color: var(--admin-primary);
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .backup-meta,
+        .audit-meta {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            color: #6d7d8f;
+            font-size: 0.88rem;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #eef2f7;
+            color: var(--admin-primary);
+        }
+
+        .tag.snapshot {
+            background: rgba(31, 111, 95, 0.12);
+            color: var(--admin-success);
+        }
+
+        .tag.zip {
+            background: rgba(185, 137, 24, 0.14);
+            color: #8a650a;
+        }
+
+        .method-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 72px;
+            border-radius: 999px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .method-GET { background: rgba(82, 98, 119, 0.15); color: #344255; }
+        .method-POST { background: rgba(31, 111, 95, 0.15); color: var(--admin-success); }
+        .method-PUT { background: rgba(185, 137, 24, 0.16); color: #8a650a; }
+        .method-DELETE { background: rgba(159, 58, 56, 0.12); color: var(--admin-danger); }
+
+        .muted {
+            color: #738396;
+            font-size: 0.92rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 1.5rem;
+            color: #738396;
+            border: 1px dashed var(--admin-border);
+            border-radius: 16px;
+        }
+
+        @media (max-width: 960px) {
+            .panel-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero-card">
+            <div class="hero-top">
+                <div>
+                    <h1>لوحة مدير النظام</h1>
+                    <p>إدارة العمليات الرقابية والنسخ الاحتياطي ومتابعة النشاط التشغيلي من نقطة واحدة بتصميم رسمي يناسب بيئة العمل المحاسبية والإدارية.</p>
+                </div>
+                <button class="action-btn secondary" onclick="logout()">تسجيل الخروج</button>
+            </div>
+            <div class="hero-meta">
+                <span class="hero-chip">المستخدم الحالي: <strong id="userDisplay">-</strong></span>
+                <span class="hero-chip">آخر تحديث: <strong id="lastUpdated">-</strong></span>
+                <span class="hero-chip">حالة النظام: <strong id="systemHealth">نشط</strong></span>
+            </div>
+        </section>
+
+        <div id="statusBox" class="status-box"></div>
+
+        <div class="toolbar">
+            <button class="action-btn primary" onclick="createSnapshotBackup()">نسخة احتياطية فورية</button>
+            <button class="action-btn accent" onclick="createZipBackup()">نسخة مضغوطة</button>
+            <button class="action-btn secondary" onclick="loadDashboard()">تحديث البيانات</button>
+            <button class="action-btn secondary" onclick="window.location.href='/admin/data_management.html'">مركز البيانات</button>
+            <button class="action-btn secondary" onclick="window.location.href='/financial/financial_reports.html'">التقارير الاحترافية</button>
+            <button class="action-btn danger" onclick="cleanupSystem()">تنظيف النسخ القديمة</button>
+        </div>
+
+        <section class="stats-grid" id="statsGrid"></section>
+
+        <section class="panel-grid">
+            <div class="panel-card">
+                <div class="panel-head">
+                    <div>
+                        <h2>سجل النسخ الاحتياطية</h2>
+                        <p>متابعة النسخ الفورية والمضغوطة مع إمكانية الحذف أو الاستعادة.</p>
+                    </div>
+                    <span class="tag" id="backupCountTag">0 نسخة</span>
+                </div>
+                <div id="backupList" class="backup-list"></div>
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-head">
+                    <div>
+                        <h2>أحدث أنشطة التدقيق</h2>
+                        <p>مراجعة سريعة للطلبات والعمليات الحرجة داخل النظام.</p>
+                    </div>
+                    <button class="action-btn secondary" onclick="window.location.href='/admin/audit_logs.html'">فتح سجل التدقيق</button>
+                </div>
+                <div id="auditList" class="audit-list"></div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API = '/api/admin';
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        if ((user.role || '').toLowerCase() !== 'admin') {
+            window.location.href = '/index.html';
+        }
+
+        document.getElementById('userDisplay').textContent = user.name || user.username || 'مدير النظام';
+
+        function authHeaders(extra = {}) {
+            return {
+                Authorization: `Bearer ${token}`,
+                ...extra
+            };
+        }
+
+        function setStatus(message, type = 'success') {
+            const box = document.getElementById('statusBox');
+            box.className = `status-box ${type}`;
+            box.textContent = message;
+        }
+
+        function clearStatus() {
+            const box = document.getElementById('statusBox');
+            box.className = 'status-box';
+            box.textContent = '';
+        }
+
+        function formatNumber(value) {
+            return Number(value || 0).toLocaleString('ar-EG');
+        }
+
+        function formatFileSize(bytes) {
+            const size = Number(bytes || 0);
+            if (!size) return '0 بايت';
+            const units = ['بايت', 'كيلوبايت', 'ميجابايت', 'جيجابايت'];
+            const index = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+            const scaled = size / Math.pow(1024, index);
+            return `${scaled.toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+        }
+
+        function formatDate(value) {
+            if (!value) return '-';
+            return new Date(value).toLocaleString('ar-EG');
+        }
+
+        function formatUptime(seconds) {
+            const total = Number(seconds || 0);
+            const days = Math.floor(total / 86400);
+            const hours = Math.floor((total % 86400) / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+
+            if (days > 0) return `${days} يوم ${hours} ساعة`;
+            if (hours > 0) return `${hours} ساعة ${minutes} دقيقة`;
+            return `${minutes} دقيقة`;
+        }
+
+        function renderStats(data) {
+            const stats = [
+                {
+                    label: 'إجمالي الطلبات',
+                    value: formatNumber(data.audit.totalRequests),
+                    subtext: `الطلبات الناجحة: ${formatNumber(data.audit.successfulRequests)}`
+                },
+                {
+                    label: 'المستخدمون النشطون',
+                    value: formatNumber(data.audit.uniqueUsers),
+                    subtext: 'من واقع سجل التدقيق الحالي'
+                },
+                {
+                    label: 'إجمالي النسخ الاحتياطية',
+                    value: formatNumber(data.backups.total),
+                    subtext: data.backups.latest ? `أحدث نسخة: ${formatDate(data.backups.latest.created)}` : 'لا توجد نسخ محفوظة'
+                },
+                {
+                    label: 'زمن التشغيل',
+                    value: formatUptime(data.system.uptime),
+                    subtext: `Node ${data.system.nodeVersion}`
+                }
+            ];
+
+            document.getElementById('statsGrid').innerHTML = stats.map((stat) => `
+                <article class="stat-card">
+                    <div class="stat-label">${stat.label}</div>
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-subtext">${stat.subtext}</div>
+                </article>
+            `).join('');
+        }
+
+        function renderBackups(backups) {
+            const list = document.getElementById('backupList');
+            const countTag = document.getElementById('backupCountTag');
+            countTag.textContent = `${formatNumber(backups.length)} نسخة`;
+
+            if (!backups.length) {
+                list.innerHTML = '<div class="empty-state">لا توجد نسخ احتياطية حتى الآن.</div>';
+                return;
+            }
+
+            list.innerHTML = backups.map((backup) => `
+                <article class="backup-item">
+                    <div class="backup-top">
+                        <div>
+                            <h3 class="backup-name">${backup.name}</h3>
+                            <div class="backup-meta">
+                                <span>${formatDate(backup.created)}</span>
+                                <span>${formatFileSize(backup.size)}</span>
+                                <span class="tag ${backup.type || 'snapshot'}">${backup.type === 'zip' ? 'نسخة مضغوطة' : 'نسخة فورية'}</span>
+                            </div>
+                        </div>
+                        <div class="toolbar" style="margin:0;">
+                            <button class="action-btn secondary" onclick="restoreBackup('${backup.name}')">استعادة</button>
+                            <button class="action-btn danger" onclick="deleteBackup('${backup.name}')">حذف</button>
+                        </div>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function renderAudit(logs) {
+            const list = document.getElementById('auditList');
+            if (!logs || !logs.length) {
+                list.innerHTML = '<div class="empty-state">لا توجد أنشطة تدقيق معروضة حالياً.</div>';
+                return;
+            }
+
+            list.innerHTML = logs.map((log) => `
+                <article class="audit-item">
+                    <div class="audit-top">
+                        <div>
+                            <h3 class="audit-title">${log.url || 'عملية داخلية'}</h3>
+                            <div class="audit-meta">
+                                <span>${log.user?.username || 'مستخدم غير معروف'}</span>
+                                <span>${formatDate(log.timestamp)}</span>
+                            </div>
+                        </div>
+                        <span class="method-chip method-${log.method || 'GET'}">${log.method || 'GET'}</span>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        async function loadDashboard() {
+            try {
+                clearStatus();
+                const response = await apiCall(`${API}/dashboard`, {
+                    headers: authHeaders()
+                });
+
+                if (!response.success) {
+                    throw new Error(response.message || 'تعذر تحميل لوحة المدير');
+                }
+
+                renderStats(response.data);
+                renderBackups(response.data.backups.list || []);
+                renderAudit(response.data.audit.recentActivity || []);
+                document.getElementById('lastUpdated').textContent = formatDate(new Date().toISOString());
+            } catch (error) {
+                setStatus(error.message || 'فشل تحميل لوحة المدير', 'error');
+            }
+        }
+
+        async function createSnapshotBackup() {
+            try {
+                clearStatus();
+                const response = await apiCall(`${API}/backup/snapshot`, {
+                    method: 'POST',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({
+                        name: `backup_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '_')}`
+                    })
+                });
+
+                if (!response.success) {
+                    throw new Error(response.message || 'فشل إنشاء النسخة الفورية');
+                }
+
+                setStatus(`تم إنشاء النسخة الفورية بنجاح: ${response.data.name}`);
+                await loadDashboard();
+            } catch (error) {
+                setStatus(error.message || 'فشل إنشاء النسخة الفورية', 'error');
+            }
+        }
+
+        async function createZipBackup() {
+            try {
+                clearStatus();
+                const response = await apiCall(`${API}/backup/create`, {
+                    method: 'POST',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({
+                        name: `zip_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '_')}`
+                    })
+                });
+
+                if (!response.success) {
+                    throw new Error(response.message || 'فشل إنشاء النسخة المضغوطة');
+                }
+
+                setStatus(`تم إنشاء النسخة المضغوطة بنجاح: ${response.data.name}`);
+                await loadDashboard();
+            } catch (error) {
+                setStatus(error.message || 'فشل إنشاء النسخة المضغوطة', 'error');
+            }
+        }
+
+        async function restoreBackup(backupName) {
+            if (!confirm(`سيتم استبدال البيانات الحالية بالنسخة "${backupName}". هل تريد المتابعة؟`)) {
+                return;
+            }
+
+            try {
+                clearStatus();
+                const response = await apiCall(`${API}/backup/restore`, {
+                    method: 'POST',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ backupName })
+                });
+
+                if (!response.success) {
+                    throw new Error(response.message || 'فشل استعادة النسخة');
+                }
+
+                setStatus(`تمت استعادة النسخة بنجاح: ${backupName}`);
+                await loadDashboard();
+            } catch (error) {
+                setStatus(error.message || 'فشل استعادة النسخة', 'error');
+            }
+        }
+
+        async function deleteBackup(backupName) {
+            if (!confirm(`هل تريد حذف النسخة "${backupName}" نهائياً؟`)) {
+                return;
+            }
+
+            try {
+                clearStatus();
+                const response = await apiCall(`${API}/backup/${encodeURIComponent(backupName)}`, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+
+                if (!response.success) {
+                    throw new Error(response.message || 'فشل حذف النسخة');
+                }
+
+                setStatus(`تم حذف النسخة بنجاح: ${backupName}`);
+                await loadDashboard();
+            } catch (error) {
+                setStatus(error.message || 'فشل حذف النسخة', 'error');
+            }
+        }
+
+        async function cleanupSystem() {
+            if (!confirm('سيتم حذف النسخ القديمة وسجلات التدقيق الأقدم من السياسة الحالية. هل تريد المتابعة؟')) {
+                return;
+            }
+
+            try {
+                clearStatus();
+                const response = await apiCall(`${API}/system/cleanup`, {
+                    method: 'POST',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({
+                        options: {
+                            cleanOldLogs: true,
+                            cleanOldBackups: true
+                        }
+                    })
+                });
+
+                if (!response.success) {
+                    throw new Error(response.message || 'فشل تنظيف النظام');
+                }
+
+                setStatus('تم تنفيذ تنظيف النظام بنجاح.');
+                await loadDashboard();
+            } catch (error) {
+                setStatus(error.message || 'فشل تنظيف النظام', 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

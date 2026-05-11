@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>??? ???????</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f8fafc; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1300px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #1e293b; color: white; padding: 12px; }
+        td { border-bottom: 1px solid #e2e8f0; padding: 10px; text-align: center; }
+        .badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+        .draft { background: #fef3c7; color: #b45309; }
+        .posted { background: #dcfce7; color: #166534; }
+        .btn { padding: 5px 10px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="display:flex; justify-content:space-between">
+            ? ??? ???????
+            <a href="/inventory/import_shipment.html" class="btn" style="background:#10b981; font-size:14px">+ ????</a>
+        </h2>
+        <table>
+            <thead><tr><th>????? (Ref)</th><th>????????</th><th>??????</th><th>??????</th><th>?????</th></tr></thead>
+            <tbody id="tbody"><tr><td colspan="5">???? ???????...</td></tr></tbody>
+        </table>
+    </div>
+    <script>
+        <!-- TODO: Endpoint /api/import-shipments needs to be implemented -->
+            fetch('/api/import-shipments')
+        .then(r => r.json())
+        .then(data => {
+            const tb = document.getElementById('tbody');
+            tb.innerHTML = '';
+            if(data.length === 0) tb.innerHTML = '<tr><td colspan="5">?? ???? ??????</td></tr>';
+            
+            data.forEach(d => {
+                // ? ????? ???? ??? ????????
+                const ref = d.shipmentRef || d.ref || d.referenceNo || '-';
+                const hwb = d.hwbNumber || d.hwb || '-';
+                const status = (d.status === 'FinancialPosted' || d.status === 'Received') 
+                    ? '<span class="badge posted">???? ??????</span>' 
+                    : '<span class="badge draft">?????</span>';
+                
+                tb.innerHTML += `<tr>
+                    <td style="font-weight:bold">${ref}</td>
+                    <td>${hwb}</td>
+                    <td>${d.supplierName || '-'}</td>
+                    <td>${status}</td>
+                    <td><a href="/inventory/import_shipment.html?id=${d._id}" class="btn">???</a></td>
+                </tr>`;
+            });
+        })
+        .catch(e => document.getElementById('tbody').innerHTML = '<tr><td colspan="5" style="color:red">??? ?????</td></tr>');
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

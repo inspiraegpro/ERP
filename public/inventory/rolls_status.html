@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حالة الرولات - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        .group-header {
+            background: #f1f5f9;
+            padding: 10px 20px;
+            font-weight: bold;
+            color: #475569;
+            border-right: 4px solid #3b82f6;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+
+        .product-header {
+            background: #f8fafc;
+            padding: 8px 30px;
+            font-weight: 600;
+            color: #64748b;
+            border-right: 4px solid #94a3b8;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .roll-row-container {
+            margin-right: 40px;
+            padding: 10px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .compact-roll-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.85rem;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .compact-roll-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-color: #3b82f6;
+        }
+
+        .roll-code {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .roll-meta {
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .badge-roll { background: #dcfce7; color: #166534; }
+        .badge-remnant { background: #fef9c3; color: #854d0e; }
+        .badge-status { position: absolute; top: 12px; left: 12px; }
+    </style>
+</head>
+<body>
+    <div class="rolls-status">
+        <div class="page-header">
+            <h1>🎯 حالة الرولات</h1>
+            <p>مراجعة الرولات المتاحة والمستهلكة وحالتها داخل المخزن</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>الحالة</label>
+                    <select id="statusFilter">
+                        <option value="">الكل</option>
+                        <option value="active">نشط</option>
+                        <option value="low">منخفض</option>
+                        <option value="empty">فارغ</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>المنتج</label>
+                    <select id="productFilter">
+                        <option value="">الكل</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>المخزن</label>
+                    <select id="warehouseFilter">
+                        <option value="">الكل</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>الحد الأدنى للمساحة</label>
+                    <input type="number" id="minAreaFilter" placeholder="0" step="0.1">
+                </div>
+                <div class="filter-group">
+                    <button class="btn btn-primary" onclick="applyFilters()">تطبيق الفلتر</button>
+                </div>
+                <div class="filter-group">
+                    <button class="btn btn-secondary" onclick="resetFilters()">إعادة تعيين</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-value" id="totalRolls">0</div>
+                <div class="summary-label">إجمالي الرولات</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="activeRolls">0</div>
+                <div class="summary-label">رولات نشطة</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="lowRolls">0</div>
+                <div class="summary-label">رولات منخفضة</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value" id="totalArea">0</div>
+                <div class="summary-label">المساحة الإجمالية</div>
+            </div>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="table-view">
+            <div class="table-header">
+                <div class="table-title">عرض الرولات</div>
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="setView('grid')">شبكة</button>
+                    <button class="view-btn" onclick="setView('table')">جدول</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rolls Grid -->
+        <div id="rollsGrid" class="rolls-grid">
+            <div class="loading">جاري التحميل...</div>
+        </div>
+
+        <!-- Rolls Table -->
+        <div id="rollsTable" class="table-view" style="display: none;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>رقم الرول</th>
+                        <th>المنتج</th>
+                        <th>المخزن</th>
+                        <th>المساحة الكلية</th>
+                        <th>المساحة المتبقية</th>
+                        <th>نسبة الاستهلاك</th>
+                        <th>التكلفة الوحدة</th>
+                        <th>التكلفة الإجمالية</th>
+                        <th>الحالة</th>
+                        <th>تاريخ الإنشاء</th>
+                    </tr>
+                </thead>
+                <tbody id="rollsTableBody">
+                    <!-- Table rows will be generated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/common-functions.js"></script>
+    <script>
+        let allRolls = [];
+        let filteredRolls = [];
+        let currentView = 'grid';
+        let allProducts = [];
+        let allWarehouses = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadData();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+            document.getElementById('productFilter').addEventListener('change', applyFilters);
+            document.getElementById('warehouseFilter').addEventListener('change', applyFilters);
+            document.getElementById('minAreaFilter').addEventListener('change', applyFilters);
+        }
+
+        // Load data
+        async function loadData() {
+            try {
+                showLoading();
+                
+                // Load roll balances
+                const rollsResponse = await apiCall('/api/inventory/rolls');
+                allRolls = Array.isArray(rollsResponse) ? rollsResponse : (rollsResponse.data || []);
+                
+                // Load products
+                const productsResponse = await apiCall('/api/products');
+                allProducts = Array.isArray(productsResponse) ? productsResponse : (productsResponse.data || []);
+                
+                // Load warehouses
+                const warehousesResponse = await apiCall('/api/warehouses');
+                allWarehouses = Array.isArray(warehousesResponse) ? warehousesResponse : (warehousesResponse.data || []);
+                
+                populateFilters();
+                applyFilters();
+                
+            } catch (error) {
+                handleError(error, 'فشل تحميل بيانات الرولات');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Populate filter dropdowns
+        function populateFilters() {
+            // Populate products
+            const productSelect = document.getElementById('productFilter');
+            productSelect.innerHTML = '<option value="">الكل</option>';
+            allProducts.forEach(product => {
+                productSelect.innerHTML += `<option value="${product._id}">${product.name}</option>`;
+            });
+
+            // Populate warehouses
+            const warehouseSelect = document.getElementById('warehouseFilter');
+            warehouseSelect.innerHTML = '<option value="">الكل</option>';
+            const uniqueWarehouses = [...new Set(allRolls.map(r => r.warehouse).filter(Boolean))];
+            uniqueWarehouses.forEach(warehouse => {
+                warehouseSelect.innerHTML += `<option value="${warehouse}">${warehouse}</option>`;
+            });
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const status = document.getElementById('statusFilter').value;
+            const product = document.getElementById('productFilter').value;
+            const warehouse = document.getElementById('warehouseFilter').value;
+            const minArea = parseFloat(document.getElementById('minAreaFilter').value) || 0;
+
+            filteredRolls = allRolls;
+
+            if (status) {
+                filteredRolls = filteredRolls.filter(roll => {
+                    const remainingArea = parseFloat(roll.currentArea || roll.remainingArea || 0) || 0;
+                    const totalArea = parseFloat(roll.originalArea || roll.totalArea || 0) || 0;
+                    const percentage = totalArea > 0 ? (remainingArea / totalArea) * 100 : 0;
+                    
+                    switch (status) {
+                        case 'active': return percentage > 20;
+                        case 'low': return percentage > 0 && percentage <= 20;
+                        case 'empty': return percentage === 0;
+                        default: return true;
+                    }
+                });
+            }
+
+            if (product) {
+                filteredRolls = filteredRolls.filter(roll => roll.product === product);
+            }
+
+            if (warehouse) {
+                filteredRolls = filteredRolls.filter(roll => roll.warehouse === warehouse);
+            }
+
+            if (minArea > 0) {
+                filteredRolls = filteredRolls.filter(roll => 
+                    (parseFloat(roll.remainingArea) || 0) >= minArea
+                );
+            }
+
+            updateSummary();
+            displayRolls();
+        }
+
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('productFilter').value = '';
+            document.getElementById('warehouseFilter').value = '';
+            document.getElementById('minAreaFilter').value = '';
+            applyFilters();
+        }
+
+        // Update summary
+        function updateSummary() {
+            const summary = {
+                total: filteredRolls.length,
+                active: 0,
+                low: 0,
+                totalArea: 0
+            };
+
+            filteredRolls.forEach(roll => {
+                const remainingArea = parseFloat(roll.currentArea || roll.remainingArea || 0) || 0;
+                const totalArea = parseFloat(roll.originalArea || roll.totalArea || 0) || 0;
+                const percentage = totalArea > 0 ? (remainingArea / totalArea) * 100 : 0;
+                
+                summary.totalArea += remainingArea;
+                
+                if (percentage > 20) summary.active++;
+                else if (percentage > 0 && percentage <= 20) summary.low++;
+            });
+
+            document.getElementById('totalRolls').textContent = summary.total;
+            document.getElementById('activeRolls').textContent = summary.active;
+            document.getElementById('lowRolls').textContent = summary.low;
+            document.getElementById('totalArea').textContent = summary.totalArea.toFixed(2);
+        }
+
+        function displayRolls() {
+            if (currentView === 'grid') {
+                displayRollsGrouped();
+            } else {
+                displayRollsTable();
+            }
+        }
+
+        function displayRollsGrouped() {
+            const container = document.getElementById('rollsGrid');
+            if (filteredRolls.length === 0) {
+                container.innerHTML = '<div class="loading">لا توجد رولات مطابقة للبحث</div>';
+                return;
+            }
+
+            // Group by Category -> Product
+            const grouped = {};
+            filteredRolls.forEach(roll => {
+                const cat = roll.serviceCategory || 'Other';
+                const prod = roll.productName || 'Unknown Product';
+                if (!grouped[cat]) grouped[cat] = {};
+                if (!grouped[cat][prod]) grouped[cat][prod] = [];
+                grouped[cat][prod].push(roll);
+            });
+
+            let html = '';
+            for (const cat in grouped) {
+                html += `<div class="group-header">${cat}</div>`;
+                for (const prod in grouped[cat]) {
+                    const rolls = grouped[cat][prod];
+                    const totalArea = rolls.reduce((sum, r) => sum + (parseFloat(r.currentArea || r.remainingArea || 0) || 0), 0);
+                    html += `
+                        <div class="product-header">
+                            <span>📦 ${prod}</span>
+                            <span style="font-size: 0.8rem; background: #e2e8f0; padding: 2px 8px; border-radius: 10px;">
+                                الإجمالي: ${totalArea.toFixed(2)} م² (${rolls.length} قطعة)
+                            </span>
+                        </div>
+                        <div class="roll-row-container">
+                            ${rolls.map(r => createRollCompactCard(r)).join('')}
+                        </div>
+                    `;
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function createRollCompactCard(roll) {
+            const isPiece = roll.isRemnant || roll.pieceCode || roll.remainingLengthCm < 1500;
+            const typeClass = !isPiece ? 'badge-roll' : 'badge-remnant';
+            const typeText = !isPiece ? 'رول كامل' : 'بواقى';
+            const area = (parseFloat(roll.currentArea || roll.remainingArea || 0) || 0).toFixed(2);
+            const dims = roll.originalLengthCm ? `${roll.originalLengthCm}x${roll.width || roll.widthCm}` : '-';
+
+            return `
+                <div class="compact-roll-card">
+                    <span class="roll-code">🆔 ${roll.rollCode || roll._id.substr(-6)}</span>
+                    <div class="roll-meta">
+                        <span>📏 المقاس: ${dims}</span>
+                        <span>📐 ${area} م²</span>
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 5px; align-items: center;">
+                        <span class="badge ${typeClass}">${typeText}</span>
+                        <span style="font-size: 0.75rem; color: #94a3b8;">📍 ${roll.warehouse || '-'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayRollsTable() {
+            const tbody = document.getElementById('rollsTableBody');
+            if (filteredRolls.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="loading">لا توجد رولات</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filteredRolls.map(roll => `
+                <tr>
+                    <td>${roll.rollCode || roll._id}</td>
+                    <td>${roll.productName}</td>
+                    <td>${roll.warehouse || '-'}</td>
+                    <td>${(parseFloat(roll.originalArea) || 0).toFixed(2)} م²</td>
+                    <td>${(parseFloat(roll.remainingArea) || 0).toFixed(2)} م²</td>
+                    <td>${roll.rollType === 'Roll' ? 'رول' : 'بواقى'}</td>
+                    <td>${roll.originalDimensions ? roll.originalDimensions.length : '-'}</td>
+                    <td>${roll.originalDimensions ? roll.originalDimensions.width : '-'}</td>
+                    <td>${roll.serviceCategory}</td>
+                    <td>${new Date(roll.createdAt).toLocaleDateString('ar-EG')}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Get roll status
+        function getRollStatus(roll) {
+            const percentage = getRollPercentage(roll);
+            if (percentage > 20) return 'active';
+            if (percentage > 0) return 'low';
+            return 'empty';
+        }
+
+        // Get roll percentage
+        function getRollPercentage(roll) {
+            const remainingArea = parseFloat(roll.remainingArea) || 0;
+            const totalArea = parseFloat(roll.totalArea) || 0;
+            return totalArea > 0 ? (remainingArea / totalArea) * 100 : 0;
+        }
+
+        // Get roll total cost
+        function getRollTotalCost(roll) {
+            const remainingArea = parseFloat(roll.remainingArea) || 0;
+            const unitCost = parseFloat(roll.unitCost) || 0;
+            return remainingArea * unitCost;
+        }
+
+        // Get status class
+        function getStatusClass(status) {
+            switch (status) {
+                case 'active': return 'active';
+                case 'low': return 'low';
+                case 'empty': return 'empty';
+                default: return '';
+            }
+        }
+
+        // Get status text
+        function getStatusText(status) {
+            switch (status) {
+                case 'active': return 'نشط';
+                case 'low': return 'منخفض';
+                case 'empty': return 'فارغ';
+                default: return 'غير محدد';
+            }
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-EG');
+        }
+
+        // Set view
+        function setView(view) {
+            currentView = view;
+            
+            // Update button states
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show/hide views
+            if (view === 'grid') {
+                document.getElementById('rollsGrid').style.display = 'grid';
+                document.getElementById('rollsTable').style.display = 'none';
+            } else {
+                document.getElementById('rollsGrid').style.display = 'none';
+                document.getElementById('rollsTable').style.display = 'block';
+            }
+            
+            displayRolls();
+        }
+
+        // Loading functions
+        function showLoading() {
+            // Implement loading indicator
+        }
+
+        function hideLoading() {
+            // Hide loading indicator
+        }
+    </script>
+</body>
+</html>

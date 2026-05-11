@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل المبيعات</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1200px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size:14px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #e0f2fe; color: #0369a1; }
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; margin: 0 2px; font-size:12px; }
+        .btn-edit { background: #f59e0b; }
+        .btn-del { background: #ef4444; }
+        .btn-pay { background: #10b981; font-weight: bold; } /* زرار السداد */
+        .btn-cut { background: #8b5cf6; font-weight: bold; } /* زرار التقطيع لونه موف */
+        .btn-new { background: #10b981; padding: 10px 20px; text-decoration: none; display: inline-block; font-weight: bold; }
+        .paid-badge { background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 10px; font-size: 11px; }
+        .unpaid-badge { background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 10px; font-size: 11px; }
+        .btn-print { background: #333; } /* زرار الطباعة */
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            📋 سجل فواتير المبيعات
+            <input type="text" id="searchInput" placeholder="بحث باسم العميل أو رقم الفاتورة..." onkeyup="filterTable()" style="padding:5px; font-size:14px; margin-right:10px; width:250px;">
+        </div>
+        <div>
+            <button class="btn btn-del" onclick="deleteSelected()" style="padding:10px 15px; margin-left:10px; font-weight:bold;">🗑️ حذف المحدد</button>
+            <a href="/sales/sales_invoice.html" class="btn-new">+ فاتورة جديدة</a>
+        </div>
+    </h2>
+    <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+        <label>من:</label> <input type="date" id="dateFrom" onchange="filterTable()">
+        <label>إلى:</label> <input type="date" id="dateTo" onchange="filterTable()">
+    </div>
+    
+    <table id="salesTable">
+        <thead>
+            <tr>
+                <th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                <th>رقم الفاتورة</th>
+                <th>التاريخ</th>
+                <th>العميل</th>
+                <th>السيارة</th>
+                <th>الوكيل</th>
+                <th>الإجمالي</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+<script>
+    const API = '/api';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+
+    function authHeaders() {
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    
+    let allInvoices = [];
+
+    async function load() {
+        try {
+            const res = await fetch(`${API}/sales`, { headers: authHeaders() });
+            if (!res.ok) throw new Error('فشل تحميل البيانات');
+            const data = await res.json();
+            allInvoices = data;
+            renderTable(data);
+        } catch(e) { alert('خطأ: ' + e.message); }
+    }
+
+    function renderTable(data) {
+        if (!data || data.length === 0) {
+            document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="padding:20px;color:#666;">لا توجد فواتير مسجلة</td></tr>';
+            return;
+        }
+
+        document.getElementById('tbody').innerHTML = data.map(i => {
+            const isPaid = i.paymentStatus === 'Paid' || (i.paidAmount >= i.finalTotal);
+            const carInfo = encodeURIComponent(i.carModel ? `${i.carModel.brand} ${i.carModel.model}` : '-');
+            const custName = encodeURIComponent(i.customer?.name || '-');
+            const custId = i.customer?.accountId || '';
+            const payLink = `/financial/treasury.html?invoiceId=${i._id}&invNum=${i.invoiceNumber}&amount=${i.finalTotal}&type=Inbound&custId=${custId}&custName=${custName}&carInfo=${carInfo}`;
+            const cutLink = `/inventory/cutting_planner.html?invoiceId=${i._id}`;
+
+            return `
+            <tr data-id="${i._id}">
+                <td><input type="checkbox" class="row-select" value="${i._id}"></td>
+                <td>${i.invoiceNumber}</td>
+                <td>${new Date(i.date).toLocaleDateString('ar-EG')}</td>
+                <td>${i.customer?.name || '-'}</td>
+                <td>${i.carModel ? `${i.carModel.brand} ${i.carModel.model}` : '-'}</td>
+                <td>${i.salesPersonName || '-'}</td>
+                <td style="font-weight:bold; color:green">${parseFloat(i.finalTotal).toLocaleString()}</td>
+                <td><span class="${isPaid?'paid-badge':'unpaid-badge'}">${isPaid?'مدفوع':'غير مدفوع'}</span></td>
+                <td>
+                    <button class="btn btn-cut" onclick="location.href='${cutLink}'">✂️ تقطيع</button>
+                    ${!isPaid ? `<button class="btn btn-pay" onclick="location.href='${payLink}'">💰 سداد</button>` : ''}
+                    ${isAdmin ? `<button class="btn btn-edit" onclick="location.href='/sales/sales_invoice.html?id=${i._id}'">✏️</button>` : ''}
+                    <button class="btn" style="background:#8b5cf6; color:white;" onclick="location.href='/sales/sales_invoice_details.html?id=${i._id}'">👁️</button>
+                    <button class="btn btn-print" onclick="printInvoice('${i._id}')">🖨️</button>
+                    ${isAdmin ? `<button class="btn btn-del" onclick="del('${i._id}')">🗑️</button>` : ''}
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function filterTable() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const from = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
+        const to = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value) : null;
+        if(to) to.setHours(23,59,59);
+
+        const filtered = allInvoices.filter(i => {
+            const invNum = String(i.invoiceNumber).toLowerCase();
+            const custName = i.customer?.name ? i.customer.name.toLowerCase() : '';
+            const invDate = new Date(i.date);
+
+            // Text Match
+            const matchText = invNum.includes(query) || custName.includes(query);
+            
+            // Date Match
+            let matchDate = true;
+            if(from && invDate < from) matchDate = false;
+            if(to && invDate > to) matchDate = false;
+
+            return matchText && matchDate;
+        });
+        renderTable(filtered);
+    }
+
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.row-select').forEach(cb => cb.checked = checked);
+    }
+
+    async function deleteSelected() {
+        if ( !isAdmin ) { alert('الحذف متاح للأدمن فقط'); return; }
+        const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+        if (selected.length === 0) { alert('لم يتم تحديد أي فاتورة للحذف'); return; }
+        
+        if (!confirm(`تحذير خطير! ⚠️\n\nأنت على وشك حذف (${selected.length}) فاتورة نهائياً.\nسيتم عكس جميع تأثيرات المخزن والقيود المحاسبية.\n\nهل أنت متأكد تماماً؟`)) return;
+
+        let successCount = 0;
+        for (const id of selected) {
+            try {
+                const res = await fetch(`${API}/sales/${id}`, { method: 'DELETE', headers: authHeaders() });
+                if(res.ok) successCount++;
+            } catch(e) { console.error(e); }
+        }
+        
+        alert(`تم حذف ${successCount} من أصل ${selected.length} فاتورة بنجاح.`);
+        load();
+    }
+
+    async function del(id) {
+        if ( !isAdmin ) { alert('الحذف متاح للأدمن فقط'); return; }
+        if(!confirm('هل أنت متأكد من الحذف؟ سيتم إلغاء القيد وعكس المخزن.')) return;
+        try {
+            const res = await fetch(`${API}/sales/${id}`, { method: 'DELETE', headers: authHeaders() });
+            if(res.ok) { alert('تم الحذف وتصحيح الأوضاع ✅'); load(); }
+            else { 
+                const err = await res.json();
+                alert('فشل الحذف: ' + err.message); 
+            }
+        } catch(e) { alert('خطأ اتصال'); }
+    }
+
+    function printInvoice(id) {
+        alert('خاصية طباعة الفاتورة قيد التطوير، يمكنك استخدام زرار التعديل لرؤية التفاصيل وطباعتها من هناك.');
+    }
+
+    load();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

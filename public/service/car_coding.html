@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>السيارات والمقاسات - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --danger:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem), linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1440px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card,.modal-card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1 { margin:0 0 .7rem; font-size:clamp(1.9rem,2.2vw,2.5rem); }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.85; max-width:60rem; }
+        .tags { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+        .tag { padding:.7rem .95rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); font-weight:700; }
+        .grid-2 { display:grid; grid-template-columns:1.1fr 1.4fr; gap:1.25rem; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .head { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+        .head h2 { margin:0; }
+        .hint { color:#738396; }
+        .field { display:flex; flex-direction:column; gap:.45rem; }
+        .field label { color:var(--s); font-size:.92rem; font-weight:700; }
+        .field input,.field select,.field textarea { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; background:#fff; padding:.85rem .95rem; font-size:.97rem; color:var(--p); }
+        .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+        .span-2 { grid-column:span 2; }
+        .actions { display:flex; gap:.75rem; flex-wrap:wrap; margin-top:1rem; }
+        .btn { border:none; border-radius:14px; padding:.9rem 1.1rem; font-size:.95rem; font-weight:800; cursor:pointer; text-decoration:none; transition:transform .18s ease, box-shadow .18s ease; box-shadow:0 10px 22px rgba(22,58,95,.12); }
+        .btn:hover { transform:translateY(-1px); }
+        .btn.primary { background:var(--p); color:#fff; }
+        .btn.accent { background:var(--a); color:#fff; }
+        .btn.success { background:var(--ok); color:#fff; }
+        .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); }
+        .btn.danger { background:var(--danger); color:#fff; }
+        .status-box { display:none; margin-bottom:1rem; padding:1rem 1.1rem; border-radius:16px; font-weight:700; }
+        .status-box.success { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .status-box.error { display:block; background:rgba(159,58,56,.1); color:var(--danger); border:1px solid rgba(159,58,56,.18); }
+        .status-box.info { display:block; background:rgba(22,58,95,.08); color:var(--p); border:1px solid rgba(22,58,95,.12); }
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.25rem; }
+        .stat-card { background:#fff; border:1px solid var(--bd); border-radius:20px; padding:1rem; }
+        .stat-card span { display:block; color:#738396; font-size:.88rem; margin-bottom:.25rem; }
+        .stat-card strong { color:var(--p); font-size:1.4rem; }
+        .list-shell { display:grid; gap:1rem; }
+        .search-row { display:grid; grid-template-columns:1fr 220px; gap:1rem; margin-bottom:1rem; }
+        .model-card { background:#fff; border:1px solid var(--bd); border-radius:20px; padding:1rem; }
+        .model-head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:.85rem; }
+        .model-head h3 { margin:0 0 .25rem; color:var(--p); }
+        .model-head p { margin:0; color:#6f8094; }
+        .parts-wrap { overflow:auto; border-radius:16px; border:1px solid var(--bd); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); font-size:.88rem; padding:.85rem .75rem; text-align:center; border-bottom:1px solid var(--bd); }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        tbody tr:hover { background:#fbfcfe; }
+        .part-entry-row { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:.75rem; margin-bottom:.75rem; }
+        .empty-state { background:#fff; border:1px dashed rgba(22,58,95,.2); border-radius:20px; padding:2rem; text-align:center; color:#738396; }
+        @media (max-width:1100px) { .grid-2 { grid-template-columns:1fr; } }
+        @media (max-width:820px) { .form-grid,.search-row,.part-entry-row { grid-template-columns:1fr; } .span-2 { grid-column:auto; } }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>شاشة السيارات والأجزاء والمقاسات</h1>
+            <p>هنا يتم رفع أنواع السيارات والأجزاء والمقاسات القياسية. هذه الشاشة هي المصدر الذي تعتمد عليه فاتورة المبيعات عند اختيار السيارة، فتُنزل الأجزاء المسجلة تلقائيًا ليتم اختيار الخامة المناسبة لكل جزء.</p>
+            <div class="tags">
+                <span class="tag">رفع جدول المقاسات</span>
+                <span class="tag">الأجزاء القياسية</span>
+                <span class="tag">ربط مباشر بالمبيعات</span>
+                <span class="tag">طول × عرض لكل جزء</span>
+            </div>
+        </section>
+
+        <div id="messageBox" class="status-box"></div>
+
+        <section class="stats-grid">
+            <article class="stat-card"><span>عدد الموديلات</span><strong id="modelsCount">0</strong></article>
+            <article class="stat-card"><span>إجمالي الأجزاء</span><strong id="partsCount">0</strong></article>
+            <article class="stat-card"><span>متوسط الأجزاء لكل سيارة</span><strong id="avgParts">0</strong></article>
+        </section>
+
+        <div class="grid-2">
+            <section class="card">
+                <div class="head">
+                    <div>
+                        <h2>رفع أو إدخال المقاسات</h2>
+                        <p class="hint">يمكنك رفع ملف مثل <code>جدول المقاسات.xlsx</code> أو إضافة سيارة يدويًا مع أجزائها ومقاساتها.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="field span-2">
+                        <label for="excelFile">استيراد ملف المقاسات</label>
+                        <input id="excelFile" type="file" accept=".xlsx,.xls,.csv">
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="btn accent" type="button" onclick="importSizingFile()">استيراد ملف المقاسات</button>
+                    <button class="btn light" type="button" onclick="window.location.href='/api/data/export/cars'">تصدير السيارات الحالية</button>
+                </div>
+
+                <hr style="border:none;border-top:1px solid rgba(22,58,95,.1);margin:1.5rem 0;">
+
+                <div class="form-grid">
+                    <input type="hidden" id="carId">
+                    <div class="field">
+                        <label for="fullModelName">اسم السيارة / الموديل</label>
+                        <input id="fullModelName" placeholder="Mercedes-Benz CLE53">
+                    </div>
+                    <div class="field">
+                        <label for="carYear">سنة الصنع</label>
+                        <input id="carYear" type="number" placeholder="2026">
+                    </div>
+                    <div class="field">
+                        <label for="carBrand">الماركة</label>
+                        <input id="carBrand" placeholder="Mercedes-Benz">
+                    </div>
+                    <div class="field">
+                        <label for="carModel">الموديل</label>
+                        <input id="carModel" placeholder="CLE53">
+                    </div>
+                </div>
+
+                <div class="head" style="margin-top:1rem;">
+                    <div>
+                        <h2>أجزاء السيارة</h2>
+                        <p class="hint">أضف كل جزء مع الطول والعرض بالسنتيمتر.</p>
+                    </div>
+                    <button class="btn light" type="button" onclick="addPartRow()">إضافة جزء</button>
+                </div>
+
+                <div id="partsEditor"></div>
+
+                <div class="actions">
+                    <button class="btn primary" type="button" onclick="saveCar()">حفظ السيارة والمقاسات</button>
+                    <button class="btn light" type="button" onclick="resetCarForm()">جديد</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="head">
+                    <div>
+                        <h2>السيارات المسجلة</h2>
+                        <p class="hint">اختر سيارة للمراجعة أو التعديل. هذه هي القائمة التي تظهر في فاتورة المبيعات.</p>
+                    </div>
+                </div>
+
+                <div class="search-row">
+                    <div class="field">
+                        <label for="searchInput">بحث</label>
+                        <input id="searchInput" placeholder="ابحث باسم السيارة أو الماركة أو الموديل" oninput="renderCars()">
+                    </div>
+                    <div class="field">
+                        <label for="partsFilter">حد أدنى للأجزاء</label>
+                        <select id="partsFilter" onchange="renderCars()">
+                            <option value="0">الكل</option>
+                            <option value="5">5 أجزاء أو أكثر</option>
+                            <option value="10">10 أجزاء أو أكثر</option>
+                            <option value="15">15 جزءًا أو أكثر</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="carsList" class="list-shell"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        let allCars = [];
+
+        function setMessage(message, type = 'info') {
+            const box = document.getElementById('messageBox');
+            box.className = `status-box ${type}`;
+            box.textContent = message;
+        }
+
+        function clearMessage() {
+            const box = document.getElementById('messageBox');
+            box.className = 'status-box';
+            box.textContent = '';
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function addPartRow(data = {}) {
+            const container = document.getElementById('partsEditor');
+            const row = document.createElement('div');
+            row.className = 'part-entry-row';
+            row.innerHTML = `
+                <input class="part-name" placeholder="اسم الجزء" value="${escapeHtml(data.name || '')}">
+                <input class="part-length" type="number" min="0" step="0.01" placeholder="الطول (سم)" value="${Number(data.lengthCM || 0) || ''}">
+                <input class="part-width" type="number" min="0" step="0.01" placeholder="العرض (سم)" value="${Number(data.widthCM || 0) || ''}">
+                <button class="btn danger" type="button">حذف</button>
+            `;
+            row.querySelector('.btn.danger').addEventListener('click', () => row.remove());
+            container.appendChild(row);
+        }
+
+        function collectParts() {
+            return Array.from(document.querySelectorAll('#partsEditor .part-entry-row')).map((row) => ({
+                name: row.querySelector('.part-name').value.trim(),
+                lengthCM: Number(row.querySelector('.part-length').value || 0),
+                widthCM: Number(row.querySelector('.part-width').value || 0)
+            })).filter((part) => part.name);
+        }
+
+        function resetCarForm() {
+            document.getElementById('carId').value = '';
+            document.getElementById('fullModelName').value = '';
+            document.getElementById('carYear').value = '';
+            document.getElementById('carBrand').value = '';
+            document.getElementById('carModel').value = '';
+            document.getElementById('partsEditor').innerHTML = '';
+            addPartRow();
+        }
+
+        async function loadCars() {
+            clearMessage();
+            try {
+                const response = await fetch(`${API}/cars`);
+                if (!response.ok) {
+                    throw new Error('تعذر تحميل السيارات.');
+                }
+                allCars = await response.json();
+                renderStats();
+                renderCars();
+            } catch (error) {
+                console.error(error);
+                setMessage(error.message || 'فشل تحميل السيارات.', 'error');
+            }
+        }
+
+        function renderStats() {
+            const models = allCars.length;
+            const parts = allCars.reduce((sum, car) => sum + Number((car.parts || []).length), 0);
+            document.getElementById('modelsCount').textContent = models.toLocaleString('ar-EG');
+            document.getElementById('partsCount').textContent = parts.toLocaleString('ar-EG');
+            document.getElementById('avgParts').textContent = models ? (parts / models).toFixed(1) : '0';
+        }
+
+        function renderCars() {
+            const search = String(document.getElementById('searchInput').value || '').trim().toLowerCase();
+            const minParts = Number(document.getElementById('partsFilter').value || 0);
+            const filtered = allCars.filter((car) => {
+                const haystack = [
+                    car.fullModelName,
+                    car.brand,
+                    car.model,
+                    car.code
+                ].join(' ').toLowerCase();
+                return (!search || haystack.includes(search)) && Number((car.parts || []).length) >= minParts;
+            });
+
+            const list = document.getElementById('carsList');
+            if (!filtered.length) {
+                list.innerHTML = '<div class="empty-state">لا توجد سيارات مطابقة للبحث الحالي.</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map((car) => `
+                <article class="model-card">
+                    <div class="model-head">
+                        <div>
+                            <h3>${escapeHtml(car.fullModelName || `${car.brand || ''} ${car.model || ''}`.trim())}</h3>
+                            <p>${escapeHtml(car.code || '-')} | ${escapeHtml(car.year || 'بدون سنة')} | ${Number((car.parts || []).length).toLocaleString('ar-EG')} جزء</p>
+                        </div>
+                        <div class="actions">
+                            <button class="btn light" type="button" onclick="editCar('${car._id}')">تعديل</button>
+                            <button class="btn danger" type="button" onclick="deleteCar('${car._id}')">حذف</button>
+                        </div>
+                    </div>
+                    <div class="parts-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الجزء</th>
+                                    <th>الطول (سم)</th>
+                                    <th>العرض (سم)</th>
+                                    <th>المساحة (سم²)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(car.parts || []).map((part) => `
+                                    <tr>
+                                        <td>${escapeHtml(part.name)}</td>
+                                        <td>${Number(part.lengthCM || 0).toFixed(2)}</td>
+                                        <td>${Number(part.widthCM || 0).toFixed(2)}</td>
+                                        <td>${Number(part.areaCM2 || 0).toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        async function importSizingFile() {
+            clearMessage();
+            const fileInput = document.getElementById('excelFile');
+            if (!fileInput.files[0]) {
+                setMessage('اختر ملف المقاسات أولًا.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch(`${API}/car/import-sizing`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || 'فشل استيراد الملف.');
+                }
+                setMessage(result.message || 'تم استيراد ملف المقاسات بنجاح.', 'success');
+                fileInput.value = '';
+                await loadCars();
+            } catch (error) {
+                console.error(error);
+                setMessage(error.message || 'فشل استيراد ملف المقاسات.', 'error');
+            }
+        }
+
+        async function saveCar() {
+            clearMessage();
+            const payload = {
+                fullModelName: document.getElementById('fullModelName').value.trim(),
+                year: document.getElementById('carYear').value,
+                brand: document.getElementById('carBrand').value.trim(),
+                model: document.getElementById('carModel').value.trim(),
+                parts: collectParts()
+            };
+
+            if (!payload.fullModelName && !(payload.brand && payload.model)) {
+                setMessage('أدخل اسم السيارة أو الماركة والموديل.', 'error');
+                return;
+            }
+            if (!payload.parts.length) {
+                setMessage('أضف جزءًا واحدًا على الأقل قبل الحفظ.', 'error');
+                return;
+            }
+
+            const carId = document.getElementById('carId').value;
+            const method = carId ? 'PUT' : 'POST';
+            const endpoint = carId ? `${API}/car/${carId}` : `${API}/car`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || 'فشل حفظ السيارة.');
+                }
+                setMessage(carId ? 'تم تحديث السيارة بنجاح.' : 'تم حفظ السيارة والمقاسات بنجاح.', 'success');
+                resetCarForm();
+                await loadCars();
+            } catch (error) {
+                console.error(error);
+                setMessage(error.message || 'فشل حفظ السيارة.', 'error');
+            }
+        }
+
+        function editCar(carId) {
+            const car = allCars.find((item) => item._id === carId);
+            if (!car) return;
+            document.getElementById('carId').value = car._id;
+            document.getElementById('fullModelName').value = car.fullModelName || `${car.brand || ''} ${car.model || ''}`.trim();
+            document.getElementById('carYear').value = car.year || '';
+            document.getElementById('carBrand').value = car.brand || '';
+            document.getElementById('carModel').value = car.model || '';
+            document.getElementById('partsEditor').innerHTML = '';
+            (car.parts || []).forEach((part) => addPartRow(part));
+            if (!(car.parts || []).length) addPartRow();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function deleteCar(carId) {
+            if (!confirm('هل أنت متأكد من حذف السيارة ومقاساتها؟')) return;
+            try {
+                const response = await fetch(`${API}/car/${carId}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || 'فشل حذف السيارة.');
+                }
+                setMessage('تم حذف السيارة بنجاح.', 'success');
+                await loadCars();
+            } catch (error) {
+                console.error(error);
+                setMessage(error.message || 'فشل حذف السيارة.', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            resetCarForm();
+            await loadCars();
+        });
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

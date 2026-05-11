@@ -1,0 +1,139 @@
+[
+  {
+    "_id": "mnyrj5owh6g72h2zqd",
+    "code": "1101",
+    "name": "الصندوق الرئيسي",
+    "type": "asset",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.296Z",
+    "updatedAt": "2026-04-14T15:14:57.297Z"
+  },
+  {
+    "_id": "mnyrj5oyw380d3hxdc",
+    "code": "110201",
+    "name": "عملاء تجاريون (عام)",
+    "type": "asset",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.298Z",
+    "updatedAt": "2026-04-14T15:14:57.298Z"
+  },
+  {
+    "_id": "mnyrj5oy11o2kx8agdvm",
+    "code": "1201",
+    "name": "المخزون",
+    "type": "asset",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.298Z",
+    "updatedAt": "2026-04-14T15:14:57.298Z"
+  },
+  {
+    "_id": "mnyrj5oz5kzwcuw9p3v",
+    "code": "1301",
+    "name": "معدات ومهمات",
+    "type": "asset",
+    "isTransactional": false,
+    "createdAt": "2026-04-14T15:14:57.299Z",
+    "updatedAt": "2026-04-14T15:14:57.299Z"
+  },
+  {
+    "_id": "mnyrj5ozlh1yqmz3uek",
+    "code": "2101",
+    "name": "موردون",
+    "type": "liability",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.299Z",
+    "updatedAt": "2026-04-14T15:14:57.299Z"
+  },
+  {
+    "_id": "mnz0u7trn19kvv8exj",
+    "code": "2102",
+    "name": "إيرادات الخدمات",
+    "type": "revenue",
+    "parentCode": "21",
+    "isActive": true,
+    "createdAt": "2026-04-14T19:35:29.823Z",
+    "updatedAt": "2026-04-14T19:35:29.823Z"
+  },
+  {
+    "_id": "mnz0u7rhy266en2xrxe",
+    "code": "210201",
+    "name": "مبيعات الخدمات",
+    "type": "revenue",
+    "parentCode": "2102",
+    "isActive": true,
+    "createdAt": "2026-04-14T19:35:29.741Z",
+    "updatedAt": "2026-04-14T19:35:29.741Z"
+  },
+  {
+    "_id": "mnyrj5p0l5m33reqedk",
+    "code": "2201",
+    "name": "دائنون آخرون",
+    "type": "liability",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.300Z",
+    "updatedAt": "2026-04-14T15:14:57.300Z"
+  },
+  {
+    "_id": "mnyrj5p1ky2lrp6oeln",
+    "code": "3101",
+    "name": "رأس المال",
+    "type": "equity",
+    "isTransactional": false,
+    "createdAt": "2026-04-14T15:14:57.301Z",
+    "updatedAt": "2026-04-14T15:14:57.301Z"
+  },
+  {
+    "_id": "mnyrj5p2ruzm926fbtd",
+    "code": "3201",
+    "name": "أرباح محتجزة",
+    "type": "equity",
+    "isTransactional": false,
+    "createdAt": "2026-04-14T15:14:57.302Z",
+    "updatedAt": "2026-04-14T15:14:57.302Z"
+  },
+  {
+    "_id": "mnyrj5p2k0x8ysxwo7",
+    "code": "4101",
+    "name": "إيرادات مبيعات",
+    "type": "revenue",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.302Z",
+    "updatedAt": "2026-04-14T15:14:57.302Z"
+  },
+  {
+    "_id": "mnyrj5p38idkj4jqwlu",
+    "code": "4201",
+    "name": "إيرادات خدمات",
+    "type": "revenue",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.303Z",
+    "updatedAt": "2026-04-14T15:14:57.303Z"
+  },
+  {
+    "_id": "mnyrj5p499pks80733s",
+    "code": "5101",
+    "name": "تكلفة بضاعة مباعة",
+    "type": "expense",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.304Z",
+    "updatedAt": "2026-04-14T15:14:57.304Z"
+  },
+  {
+    "_id": "mnyrj5p4qh2qotg3ohd",
+    "code": "5201",
+    "name": "مصروفات إدارية",
+    "type": "expense",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.304Z",
+    "updatedAt": "2026-04-14T15:14:57.304Z"
+  },
+  {
+    "_id": "mnyrj5p5cbp7whoo1a",
+    "code": "5301",
+    "name": "مصروفات بيع وتسويق",
+    "type": "expense",
+    "isTransactional": true,
+    "createdAt": "2026-04-14T15:14:57.305Z",
+    "updatedAt": "2026-04-14T15:14:57.305Z"
+  }
+]

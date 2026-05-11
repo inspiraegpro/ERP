@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تقرير الهدر وكفاءة التشغيل</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; color: #334155; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        
+        .filters { display: flex; gap: 15px; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; align-items: end; }
+        .input-group { flex: 1; }
+        label { display: block; font-weight: bold; font-size: 13px; margin-bottom: 5px; color: #64748b; }
+        input, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; }
+        button { background: #3b82f6; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #2563eb; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #1e293b; color: white; padding: 12px; font-size: 14px; text-align: right; }
+        td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-good { background: #dcfce7; color: #166534; }
+        .badge-bad { background: #fee2e2; color: #991b1b; }
+        
+        .summary-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #fff; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 20px; font-weight: bold; color: #0f172a; margin-top: 5px; }
+        .stat-label { font-size: 12px; color: #64748b; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        📊 تقرير الهدر وكفاءة التشغيل (Waste Analysis)
+        <button onclick="window.print()" style="width: auto; background: #333; font-size: 14px;">🖨️ طباعة</button>
+    </h2>
+
+    <div class="filters no-print">
+        <div class="input-group">
+            <label>رقم أمر الشغل (الفاتورة)</label>
+            <input id="invNum" placeholder="مثال: INV-12345">
+        </div>
+        <div class="input-group">
+            <label>كود الرول (Roll Code)</label>
+            <input id="rollCode" placeholder="ابحث برقم الرول">
+        </div>
+        <div class="input-group">
+            <button onclick="loadReport()">🔍 عرض التقرير</button>
+        </div>
+    </div>
+
+    <div class="summary-box">
+        <div class="stat-card">
+            <div class="stat-label">إجمالي المساحة المستخدمة</div>
+            <div class="stat-val" id="totalGross">0 m²</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">إجمالي المساحة المباعة (الصافي)</div>
+            <div class="stat-val" id="totalNet">0 m²</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">إجمالي الهدر</div>
+            <div class="stat-val" id="totalWaste" style="color: #ef4444;">0 m²</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">تكلفة الهدر التقديرية</div>
+            <div class="stat-val" id="totalCost">0.00</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>أمر الشغل</th>
+                <th>التاريخ</th>
+                <th>السيارة</th>
+                <th>الرولات المستخدمة</th>
+                <th>مستخدم (Gross)</th>
+                <th>مباع (Net)</th>
+                <th>الهدر (Waste)</th>
+                <th>الكفاءة %</th>
+                <th>تكلفة الهدر</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+
+    async function loadReport() {
+        const invNum = document.getElementById('invNum').value;
+        const rollCode = document.getElementById('rollCode').value;
+        
+        const params = new URLSearchParams();
+        if(invNum) params.append('invoiceNumber', invNum);
+        if(rollCode) params.append('rollCode', rollCode);
+
+        try {
+            const res = await fetch(`${API}/reports/waste-analysis?${params}`);
+            const data = await res.json();
+            renderTable(data);
+        } catch(e) {
+            alert('حدث خطأ أثناء جلب البيانات');
+            console.error(e);
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+
+        let tGross = 0, tNet = 0, tWaste = 0, tCost = 0;
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;">لا توجد بيانات مطابقة</td></tr>';
+            return;
+        }
+
+        data.forEach(row => {
+            const eff = parseFloat(row.efficiency);
+            const badgeClass = eff >= 85 ? 'badge-good' : (eff < 70 ? 'badge-bad' : '');
+            
+            tGross += parseFloat(row.grossArea);
+            tNet += parseFloat(row.netArea);
+            tWaste += parseFloat(row.wasteArea);
+            tCost += parseFloat(row.wasteCost);
+
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight:bold">${row.jobOrder}</td>
+                    <td>${new Date(row.date).toLocaleDateString('ar-EG')}</td>
+                    <td>${row.car}</td>
+                    <td style="font-size:12px; color:#666">${row.rolls}</td>
+                    <td>${row.grossArea} m²</td>
+                    <td>${row.netArea} m²</td>
+                    <td style="color:#ef4444; font-weight:bold">${row.wasteArea} m²</td>
+                    <td><span class="badge ${badgeClass}">${row.efficiency}</span></td>
+                    <td>${Number(row.wasteCost).toLocaleString()}</td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('totalGross').innerText = tGross.toFixed(2) + ' m²';
+        document.getElementById('totalNet').innerText = tNet.toFixed(2) + ' m²';
+        document.getElementById('totalWaste').innerText = tWaste.toFixed(2) + ' m²';
+        document.getElementById('totalCost').innerText = tCost.toLocaleString();
+    }
+
+    // Load default on start
+    loadReport();
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

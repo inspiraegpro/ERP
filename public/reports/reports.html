@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز التقارير - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --hub-primary: #163a5f;
+            --hub-secondary: #526277;
+            --hub-accent: #b98918;
+            --hub-soft: #f4f7fb;
+            --hub-border: rgba(22, 58, 95, 0.12);
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top right, rgba(185, 137, 24, 0.1), transparent 20rem),
+                linear-gradient(180deg, #eef3f8 0%, #fbfcfe 100%);
+            color: var(--hub-primary);
+        }
+
+        .page-shell {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+
+        .hero,
+        .panel,
+        .report-card {
+            background: rgba(255,255,255,0.97);
+            border: 1px solid var(--hub-border);
+            border-radius: 24px;
+            box-shadow: 0 18px 38px rgba(22, 58, 95, 0.08);
+        }
+
+        .hero {
+            padding: 2rem;
+            background: linear-gradient(145deg, #163a5f 0%, #21486e 60%, #526277 100%);
+            color: #fff;
+            margin-bottom: 1.4rem;
+        }
+
+        .hero h1 {
+            margin: 0 0 0.8rem;
+            font-size: clamp(2rem, 3vw, 2.7rem);
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 54rem;
+            line-height: 1.9;
+            color: rgba(255,255,255,0.84);
+        }
+
+        .hero-actions {
+            margin-top: 1.3rem;
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .hero-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            padding: 0.9rem 1.1rem;
+            border-radius: 14px;
+            font-weight: 800;
+            border: 1px solid rgba(255,255,255,0.16);
+        }
+
+        .hero-btn.primary {
+            background: #fff;
+            color: var(--hub-primary);
+        }
+
+        .hero-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .kpi-grid,
+        .reports-grid {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .kpi-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .reports-grid {
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .kpi-card {
+            background: rgba(255,255,255,0.97);
+            border: 1px solid var(--hub-border);
+            border-radius: 22px;
+            padding: 1.15rem;
+            box-shadow: 0 16px 34px rgba(22, 58, 95, 0.08);
+        }
+
+        .kpi-card span {
+            display: block;
+            color: var(--hub-secondary);
+            font-weight: 700;
+            margin-bottom: 0.45rem;
+        }
+
+        .kpi-card strong {
+            display: block;
+            font-size: 1.55rem;
+            color: var(--hub-primary);
+        }
+
+        .panel {
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .panel h2 {
+            margin: 0 0 0.4rem;
+            font-size: 1.15rem;
+        }
+
+        .panel p {
+            margin: 0;
+            color: #708197;
+        }
+
+        .report-card {
+            padding: 1.25rem;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.18s ease, border-color 0.18s ease;
+        }
+
+        .report-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(22, 58, 95, 0.24);
+        }
+
+        .report-card h3 {
+            margin: 0 0 0.5rem;
+            color: var(--hub-primary);
+            font-size: 1.05rem;
+        }
+
+        .report-card p {
+            margin: 0;
+            color: var(--hub-secondary);
+            line-height: 1.8;
+        }
+
+        .report-card .badge {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            background: rgba(185, 137, 24, 0.14);
+            color: #8a650a;
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            background: #eef2f7;
+            color: var(--hub-primary);
+            padding: 0.9rem 0.8rem;
+            border-bottom: 1px solid var(--hub-border);
+            font-size: 0.9rem;
+        }
+
+        tbody td {
+            padding: 0.8rem 0.7rem;
+            border-bottom: 1px solid rgba(82, 98, 119, 0.12);
+            text-align: center;
+        }
+
+        @media (max-width: 1000px) {
+            .split {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <h1>مركز التقارير</h1>
+            <p>بوابة موحدة للوصول إلى التقارير التشغيلية والمالية والتحليلية من واجهة واحدة، مع مؤشرات مباشرة مأخوذة من البيانات الفعلية داخل النظام.</p>
+            <div class="hero-actions">
+                <a class="hero-btn primary" href="/financial/financial_reports.html">فتح التقارير الاحترافية</a>
+                <a class="hero-btn secondary" href="/index.html">العودة للرئيسية</a>
+            </div>
+        </section>
+
+        <section class="kpi-grid">
+            <div class="kpi-card"><span>مبيعات الشهر</span><strong id="salesTotal">0</strong></div>
+            <div class="kpi-card"><span>رصيد الخزينة</span><strong id="cashTotal">0</strong></div>
+            <div class="kpi-card"><span>قيمة المخزون</span><strong id="stockTotal">0</strong></div>
+            <div class="kpi-card"><span>مديونيات العملاء</span><strong id="receivablesTotal">0</strong></div>
+            <div class="kpi-card"><span>التزامات الموردين</span><strong id="payablesTotal">0</strong></div>
+        </section>
+
+        <section class="panel">
+            <h2>خرائط الوصول السريع</h2>
+            <p>تم تجميع مسارات التقارير في نقطة واحدة، مع الحفاظ على التقارير المتخصصة المتاحة لمن يحتاج الغوص في التفاصيل.</p>
+        </section>
+
+        <section class="reports-grid">
+            <a class="report-card" href="/financial/financial_reports.html">
+                <h3>التقارير الاحترافية</h3>
+                <p>مركز CFO Dashboard والقوائم المالية ودفتر الأستاذ وميزان المراجعة والرسوم التحليلية.</p>
+                <span class="badge">الواجهة الرسمية</span>
+            </a>
+            <a class="report-card" href="/sales/sales_report.html">
+                <h3>تقرير المبيعات</h3>
+                <p>مراجعة فواتير البيع والحركة التجارية والأداء البيعي اليومي والتراكمي.</p>
+            </a>
+            <a class="report-card" href="/inventory/stock_report.html">
+                <h3>تقرير المخزون</h3>
+                <p>متابعة أوامر الصرف والاستلام والحركة الفعلية للرولات والأصناف بالمخازن.</p>
+            </a>
+            <a class="report-card" href="/financial/treasury_report.html">
+                <h3>تقرير الخزينة</h3>
+                <p>عرض المعاملات النقدية وسندات القبض والصرف وأثرها على الحسابات.</p>
+            </a>
+            <a class="report-card" href="/service/job_profitability.html">
+                <h3>ربحية أوامر التشغيل</h3>
+                <p>تحليل ربحية الأعمال وربط الإيراد بالتكلفة والاستهلاك المباشر للخامات.</p>
+            </a>
+            <a class="report-card" href="/reports/smart_reports.html">
+                <h3>التقارير التحليلية المتقدمة</h3>
+                <p>الوصول إلى الشاشات التحليلية المتخصصة التي ما زالت مفيدة في القراءة العميقة للأرقام.</p>
+            </a>
+        </section>
+
+        <section class="split">
+            <div class="panel">
+                <h2>أعلى مؤشرات سريعة</h2>
+                <p>ملخص تنفيذي لأبرز الأرقام الحالية.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المؤشر</th>
+                            <th>القيمة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryBody"></tbody>
+                </table>
+            </div>
+
+            <div class="panel">
+                <h2>أفضل إجراءات تالية</h2>
+                <p>اختصارات عملية تساعد الإدارة على الانتقال من القراءة إلى التنفيذ.</p>
+                <div class="reports-grid" style="grid-template-columns:1fr; margin-top:1rem;">
+                    <a class="report-card" href="/inventory/stock_in.html">
+                        <h3>إذن استلام جديد</h3>
+                        <p>استلام خامات جديدة وربطها بمشتريات أو شحنات.</p>
+                    </a>
+                    <a class="report-card" href="/inventory/stock_out.html">
+                        <h3>إذن صرف جديد</h3>
+                        <p>صرف خامات لأمر تشغيل مع تتبع الرول والمساحة المتبقية.</p>
+                    </a>
+                    <a class="report-card" href="/admin/data_management.html">
+                        <h3>مركز البيانات</h3>
+                        <p>استيراد ومراجعة البيانات التاريخية مع Preview وValidation.</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API = '/api';
+
+        function money(value) {
+            return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        async function loadHubData() {
+            const data = await fetch(`${API}/reports/dashboard-executive`).then(res => res.json());
+
+            document.getElementById('salesTotal').textContent = money(data.sales?.total);
+            document.getElementById('cashTotal').textContent = money(data.cash);
+            document.getElementById('stockTotal').textContent = money(data.stock);
+            document.getElementById('receivablesTotal').textContent = money(data.receivables);
+            document.getElementById('payablesTotal').textContent = money(data.payables);
+
+            const summaryRows = [
+                ['عدد فواتير الشهر', data.sales?.count || 0],
+                ['إجمالي الأرصدة', money(data.balances?.total)],
+                ['عدد حسابات الخزينة', data.balances?.treasuryAccounts || 0],
+                ['عدد الأصناف', data.inventory?.totalProducts || 0],
+                ['عدد الرولات النشطة', data.inventory?.activeRolls || 0],
+                ['أصناف منخفضة الرصيد', data.inventory?.lowStockProducts || 0]
+            ];
+
+            document.getElementById('summaryBody').innerHTML = summaryRows.map(row => `
+                <tr>
+                    <td>${row[0]}</td>
+                    <td>${row[1]}</td>
+                </tr>
+            `).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', loadHubData);
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

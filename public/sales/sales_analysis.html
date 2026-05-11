@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تحليل المبيعات والربحية</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1300px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab-btn { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: bold; color: #666; font-size: 16px; }
+        .tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; }
+        
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; background: #e0f2fe; padding: 15px; border-radius: 8px; align-items: flex-end; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-size: 12px; font-weight: bold; color: #0369a1; margin-bottom: 5px; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        
+        .btn { padding: 8px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-run { background: #0284c7; }
+        .btn-print { background: #333; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #1e293b; color: white; }
+        tr:hover { background: #f8fafc; cursor: pointer; }
+        
+        .profit { font-weight: bold; color: green; }
+        .loss { font-weight: bold; color: red; }
+
+        /* Modal Style */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 95%; border-radius: 10px; max-width: 1100px; }
+        .close { color: #aaa; float: left; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: black; }
+        
+        /* تنسيق جدول التفاصيل */
+        .detail-table th { background: #475569; }
+        .detail-total { background: #e2e8f0; font-weight: bold; color: #1e293b; font-size: 14px; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #printableArea, #printableArea * { visibility: visible; }
+            #printableArea { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none; }
+            .modal { position: absolute; z-index: 10000; }
+            .modal-content { border: none; width: 100%; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card no-print">
+    <h2>📊 تحليل المبيعات والربحية</h2>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('customer')">👥 تحليل العملاء</button>
+        <button class="tab-btn" onclick="switchTab('item')">📦 تحليل الأصناف (بالنوع)</button>
+    </div>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>من تاريخ</label>
+            <input type="date" id="fromDate">
+        </div>
+        <div class="input-group">
+            <label>إلى تاريخ</label>
+            <input type="date" id="toDate">
+        </div>
+        <div class="input-group">
+            <button class="btn btn-run" onclick="loadReport()">عرض التحليل</button>
+        </div>
+        <div class="input-group" style="margin-right:auto">
+            <button class="btn btn-print" onclick="window.print()">🖨️ طباعة</button>
+        </div>
+    </div>
+
+    <div id="reportArea"></div>
+</div>
+
+<!-- نافذة التفاصيل (Modal) -->
+<div id="detailModal" class="modal">
+    <div class="modal-content" id="printableArea">
+        <div class="no-print" style="margin-bottom: 20px;">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <button onclick="window.print()" class="btn btn-print" style="float:left;">🖨️ طباعة التفاصيل</button>
+            <div style="clear:both"></div>
+        </div>
+        
+        <h2 id="modalTitle" style="text-align:center; color:#3b82f6; border-bottom:2px solid #eee; padding-bottom:10px;">تفاصيل</h2>
+        <p style="text-align:center; color:#666">عن الفترة من <span id="dFrom"></span> إلى <span id="dTo"></span></p>
+        
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let currentType = 'customer';
+    let reportData = []; 
+    
+    const today = new Date();
+    document.getElementById('toDate').valueAsDate = today;
+    document.getElementById('fromDate').value = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+
+    function switchTab(type) {
+        currentType = type;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        loadReport();
+    }
+
+    async function loadReport() {
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        
+        try {
+            const res = await fetch(`${API}/reports/sales-analysis?type=${currentType}&from=${from}&to=${to}`);
+            reportData = await res.json();
+            
+            let html = '';
+            if(currentType === 'customer') {
+                html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>اسم العميل</th>
+                            <th>عدد الفواتير</th>
+                            <th>عدد القطع</th>
+                            <th>مساحة (م2)</th>
+                            <th>الإيراد</th>
+                            <th>التكلفة</th>
+                            <th>الربح</th>
+                            <th>الهامش %</th>
+                            <th class="no-print">عرض</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reportData.map((r, index) => `
+                            <tr onclick="showDetails(${index})">
+                                <td style="text-align:right; font-weight:bold">${r.name}</td>
+                                <td>${r.count}</td>
+                                <td style="font-weight:bold">${r.pieces}</td>
+                                <td>${(r.area / 10000).toFixed(2)}</td>
+                                <td style="color:#2563eb">${r.revenue.toLocaleString()}</td>
+                                <td style="color:#dc2626">${r.cost.toLocaleString()}</td>
+                                <td class="${r.profit>=0?'profit':'loss'}">${r.profit.toLocaleString()}</td>
+                                <td>${r.margin}%</td>
+                                <td class="no-print"><button style="font-size:14px; cursor:pointer">👁️</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+            } else {
+                html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>النوع (الخامة الأم)</th>
+                            <th>العدد المباع</th>
+                            <th>الإيراد</th>
+                            <th>الضريبة</th>
+                            <th>التكلفة</th>
+                            <th>الربح</th>
+                            <th>الهامش %</th>
+                            <th class="no-print">عرض</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reportData.map((r, index) => `
+                            <tr onclick="showDetails(${index})">
+                                <td style="text-align:right; font-weight:bold; color:#475569">${r.name}</td>
+                                <td>${r.qty}</td>
+                                <td style="color:#2563eb">${r.revenue.toLocaleString()}</td>
+                                <td>${r.tax.toLocaleString()}</td>
+                                <td style="color:#dc2626">${r.cost.toLocaleString()}</td>
+                                <td class="${r.profit>=0?'profit':'loss'}">${r.profit.toLocaleString()}</td>
+                                <td>${r.margin}%</td>
+                                <td class="no-print"><button style="font-size:14px; cursor:pointer">👁️</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+            }
+            
+            if(reportData.length === 0) html = '<p style="text-align:center; padding:20px">لا توجد بيانات في هذه الفترة</p>';
+            document.getElementById('reportArea').innerHTML = html;
+
+        } catch(e) { alert('خطأ في التحميل'); }
+    }
+
+    function showDetails(index) {
+        const item = reportData[index];
+        const title = item.name;
+        const details = item.details;
+        
+        document.getElementById('modalTitle').innerText = `${currentType === 'customer' ? 'كشف حساب عميل' : 'تحليل صنف'}: ${title}`;
+        document.getElementById('dFrom').innerText = document.getElementById('fromDate').value;
+        document.getElementById('dTo').innerText = document.getElementById('toDate').value;
+        
+        let content = '';
+        let totalVal = 0;
+        let totalArea = 0;
+
+        if (currentType === 'customer') {
+            // --- جدول تفاصيل العميل (المطور) ---
+            content = `
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>رقم الفاتورة</th>
+                        <th>الخدمة</th>
+                        <th>السيارة</th>
+                        <th>إجمالي المساحة (م2)</th>
+                        <th>القيمة</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            if (details && details.length > 0) {
+                details.forEach(d => {
+                    const val = d.revenue || 0;
+                    const area = (d.area || 0) / 10000; // تحويل لمتر مربع
+                    totalVal += val;
+                    totalArea += area;
+
+                    content += `
+                        <tr>
+                            <td>${new Date(d.date).toLocaleDateString('ar-EG')}</td>
+                            <td style="font-weight:bold">${d.invNum}</td>
+                            <td>${d.service || '-'}</td>
+                            <td>${d.car || '-'}</td>
+                            <td>${area.toFixed(2)}</td>
+                            <td style="font-weight:bold">${val.toLocaleString()}</td>
+                        </tr>`;
+                });
+                // سطر الإجمالي
+                content += `
+                    <tr class="detail-total">
+                        <td colspan="4">الإجمالي</td>
+                        <td>${totalArea.toFixed(2)} م2</td>
+                        <td>${totalVal.toLocaleString()} ج.م</td>
+                    </tr>`;
+            } else {
+                content += '<tr><td colspan="6">لا توجد تفاصيل</td></tr>';
+            }
+            content += '</tbody></table>';
+
+        } else {
+            // --- جدول تفاصيل الصنف (المطور) ---
+            content = `
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>رقم الفاتورة</th>
+                        <th>الصنف الفرعي</th>
+                        <th>العميل</th>
+                        <th>البيان</th>
+                        <th>القيمة</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            if (details && details.length > 0) {
+                details.forEach(d => {
+                    const val = d.revenue || d.price || 0;
+                    totalVal += val;
+
+                    content += `
+                        <tr>
+                            <td>${new Date(d.date).toLocaleDateString('ar-EG')}</td>
+                            <td style="font-weight:bold">${d.invNum}</td>
+                            <td>${d.productName || '-'}</td>
+                            <td>${d.customer || '-'}</td>
+                            <td>بيع فاتورة</td>
+                            <td style="font-weight:bold">${val.toLocaleString()}</td>
+                        </tr>`;
+                });
+                // سطر الإجمالي
+                content += `
+                    <tr class="detail-total">
+                        <td colspan="5">الإجمالي</td>
+                        <td>${totalVal.toLocaleString()} ج.م</td>
+                    </tr>`;
+            } else {
+                content += '<tr><td colspan="6">لا توجد تفاصيل</td></tr>';
+            }
+            content += '</tbody></table>';
+        }
+        
+        document.getElementById('modalBody').innerHTML = content;
+        document.getElementById('detailModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('detailModal').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('detailModal')) {
+            closeModal();
+        }
+    }
+    
+    loadReport();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

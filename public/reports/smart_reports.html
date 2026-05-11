@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>BI Dashboard | Wrapstyle ERP</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { color: #1e293b; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 10px; }
+        .btn-nav { 
+            padding: 15px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; 
+            text-align: center; cursor: pointer; font-weight: bold; color: #334155; text-decoration: none; 
+            display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s;
+        }
+        .btn-nav:hover { background: #e0f2fe; border-color: #3b82f6; color: #0369a1; transform: translateY(-2px); }
+        
+        .controls { display: flex; gap: 15px; background: #e0f2fe; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd; align-items: flex-end; flex-wrap: wrap; }
+        .input-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
+        .input-group label { font-size: 12px; font-weight: bold; color: #0369a1; margin-bottom: 5px; }
+        select, input { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        
+        .btn { padding: 8px 20px; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; color: white; }
+        .btn-run { background: #0284c7; }
+        .btn-print { background: #333; }
+        .btn-excel { background: #10b981; }
+        .btn-refresh { background: #f59e0b; }
+
+        /* BI Dashboard Styles */
+        .bi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .bi-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border-top: 4px solid; }
+        .bi-card.profit { border-color: #10b981; }
+        .bi-card.efficiency { border-color: #3b82f6; }
+        .bi-card.commissions { border-color: #8b5cf6; }
+        .bi-card.alerts { border-color: #ef4444; }
+        .bi-card h3 { margin: 0 0 15px 0; color: #1e293b; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+        .bi-metric { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border-radius: 8px; margin-bottom: 10px; }
+        .bi-metric-label { color: #64748b; font-size: 13px; }
+        .bi-metric-value { font-size: 20px; font-weight: bold; color: #1e293b; }
+        .bi-metric-value.positive { color: #10b981; }
+        .bi-metric-value.negative { color: #ef4444; }
+        .chart-container { position: relative; height: 250px; margin-top: 15px; }
+        .alert-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: bold; }
+        .alert-badge.warning { background: #fef3c7; color: #92400e; }
+        .alert-badge.danger { background: #fee2e2; color: #991b1b; }
+        .alert-badge.success { background: #d1fae5; color: #065f46; }
+        .commission-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; padding: 10px; border-bottom: 1px solid #e2e8f0; align-items: center; }
+        .commission-row.header { background: #f1f5f9; font-weight: bold; color: #475569; border-radius: 6px; }
+        .efficiency-bar { height: 24px; background: #e2e8f0; border-radius: 12px; overflow: hidden; position: relative; }
+        .efficiency-fill { height: 100%; border-radius: 12px; transition: width 0.5s ease; }
+        .efficiency-fill.remnants { background: linear-gradient(90deg, #10b981, #34d399); }
+        .efficiency-fill.rolls { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .efficiency-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: bold; color: #1e293b; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
+        th { background: #1e293b; color: white; }
+        tr:nth-child(even) { background: #f8fafc; }
+        
+        .total-row { background: #334155; color: white; font-weight: bold; font-size: 15px; }
+        .opening-row { background: #fff7ed; font-weight: bold; color: #9a3412; }
+        .debit { color: #166534; font-weight: bold; } 
+        .credit { color: #991b1b; font-weight: bold; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .card { border: none; box-shadow: none; margin: 0; padding: 0; }
+            th { background: #ccc !important; color: #000 !important; border: 1px solid #000 !important; }
+            td { border: 1px solid #000 !important; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- CFO Dashboard Header -->
+    <div class="card no-print">
+        <h2>📊 BI Dashboard | لوحة المعلومات التحليلية</h2>
+        <div class="nav-grid">
+            <a href="#profitability" class="btn-nav" onclick="scrollToSection('profitabilitySection')">📈 الربحية</a>
+            <a href="#efficiency" class="btn-nav" onclick="scrollToSection('efficiencySection')">⚡ كفاءة المخزن</a>
+            <a href="#commissions" class="btn-nav" onclick="scrollToSection('commissionsSection')">💰 العمولات</a>
+            <a href="#alerts" class="btn-nav" onclick="scrollToSection('alertsSection')">🔔 تنبيهات المالية</a>
+            <button class="btn btn-refresh" onclick="loadAllBI()">🔄 تحديث الكل</button>
+        </div>
+    </div>
+
+    <!-- BI GRID: Top Row Analytics -->
+    <div class="bi-grid" id="biDashboard">
+        <!-- Profitability Card -->
+        <div class="bi-card profit" id="profitabilitySection">
+            <h3>📈 ربحية الفئات (Net Revenue)</h3>
+            <div id="profitMetrics">
+                <div class="bi-metric">
+                    <span class="bi-metric-label">PPF</span>
+                    <span class="bi-metric-value" id="ppfNet">-</span>
+                </div>
+                <div class="bi-metric">
+                    <span class="bi-metric-label">Window Film</span>
+                    <span class="bi-metric-value" id="windowNet">-</span>
+                </div>
+                <div class="bi-metric">
+                    <span class="bi-metric-label">Polish</span>
+                    <span class="bi-metric-value" id="polishNet">-</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Efficiency Card -->
+        <div class="bi-card efficiency" id="efficiencySection">
+            <h3>⚡ كفاءة استهلاك المخزن</h3>
+            <div id="efficiencyMetrics">
+                <div class="bi-metric">
+                    <span class="bi-metric-label">الفضلات/البقايا (Remnants)</span>
+                    <span class="bi-metric-value positive" id="remnantCount">-</span>
+                </div>
+                <div class="bi-metric">
+                    <span class="bi-metric-label">الرولات الكاملة</span>
+                    <span class="bi-metric-value" id="rollCount">-</span>
+                </div>
+                <div class="bi-metric">
+                    <span class="bi-metric-label">نسبة الكفاءة</span>
+                    <span class="bi-metric-value positive" id="efficiencyRate">-</span>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">توزيع الاستهلاك:</div>
+                <div class="efficiency-bar">
+                    <div class="efficiency-fill remnants" id="remnantBar" style="width: 0%;"></div>
+                    <span class="efficiency-label" id="efficiencyLabel">0% فضلات</span>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 180px;">
+                <canvas id="efficiencyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Commissions Card -->
+        <div class="bi-card commissions" id="commissionsSection">
+            <h3>💰 أد reps المبيعات</h3>
+            <div id="commissionList" style="max-height: 300px; overflow-y: auto;">
+                <div class="commission-row header">
+                    <div>المندوب</div>
+                    <div>المبيعات</div>
+                    <div>العمولة</div>
+                    <div>الصافي</div>
+                </div>
+                <div id="commissionData">
+                    <div style="padding: 20px; text-align: center; color: #64748b;">جاري التحميل...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CFO Alerts Card -->
+        <div class="bi-card alerts" id="alertsSection">
+            <h3>🔔 تنبيهات تتطلب مراجعة</h3>
+            <div id="alertsContainer">
+                <div style="padding: 15px; background: #fef3c7; border-radius: 8px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; color: #92400e;">فواتير بانتظار التحويل للمحاسبة</span>
+                        <span class="alert-badge warning" id="pendingGLCount">0</span>
+                    </div>
+                    <p style="margin: 8px 0 0 0; font-size: 12px; color: #a16207;">
+                        فواتير تم إنشاؤها لكن فشل إنشاء القيد المحاسبي لها
+                    </p>
+                    <button class="btn btn-run" style="margin-top: 10px; width: 100%;" onclick="viewPendingInvoices()">عرض التفاصيل</button>
+                </div>
+            </div>
+            <div id="pendingInvoicesList" style="max-height: 250px; overflow-y: auto; display: none;">
+                <table style="font-size: 12px;">
+                    <thead><tr><th>رقم الفاتورة</th><th>العميل</th><th>المبلغ</th><th>التاريخ</th></tr></thead>
+                    <tbody id="pendingInvoicesBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. القوائم السريعة -->
+    <div class="card no-print">
+        <h2>📋 التقارير المحاسبية</h2>
+        <div class="nav-grid">
+            <a href="/inventory/inventory_status.html" class="btn-nav">📦 المخزن</a>
+            <a href="/sales/sales_report.html" class="btn-nav">📊 المبيعات</a>
+            <a href="/financial/treasury_report.html" class="btn-nav">💰 السيولة</a>
+            <a href="payroll_report.html" class="btn-nav">💸 الرواتب</a>
+            <a href="/service/job_profitability.html" class="btn-nav">📉 الربحية</a>
+        </div>
+    </div>
+
+    <!-- 2. ميزان المراجعة -->
+    <div class="card">
+        <h2 style="cursor:pointer" onclick="toggleSection('tbSection')">⚖️ ميزان المراجعة (Trial Balance) <span>▼</span></h2>
+        <div id="tbSection">
+            <div class="controls no-print">
+                <div class="input-group">
+                    <label>المستوى</label>
+                    <select id="level"><option value="3">تفصيلي (3)</option><option value="2">رئيسي (2)</option><option value="1">ختامي (1)</option></select>
+                </div>
+                <div class="input-group"><label>من</label><input type="date" id="tbFrom"></div>
+                <div class="input-group"><label>إلى</label><input type="date" id="tbTo"></div>
+                <div class="input-group" style="flex:0"><button class="btn btn-run" onclick="loadTB()">عرض</button></div>
+                <div class="input-group" style="flex:0"><button class="btn btn-print" onclick="window.print()">طباعة</button></div>
+            </div>
+            <table id="tbTable">
+                <thead>
+                    <tr>
+                        <th rowspan="2">الكود</th>
+                        <th rowspan="2">الحساب</th>
+                        <th colspan="2">رصيد أول المدة</th>
+                        <th colspan="2">حركات الفترة</th>
+                        <th colspan="2">رصيد ختامي</th>
+                    </tr>
+                    <tr>
+                        <th>مدين</th><th>دائن</th>
+                        <th>مدين</th><th>دائن</th>
+                        <th>مدين</th><th>دائن</th>
+                    </tr>
+                </thead>
+                <tbody><tr><td colspan="8">اختر المعايير...</td></tr></tbody>
+                <tfoot>
+                    <tr class="total-row" id="tbFooter" style="display:none">
+                        <td colspan="2">الإجمالي</td>
+                        <td>0</td><td>0</td>
+                        <td>0</td><td>0</td>
+                        <td>0</td><td>0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- 3. دفتر الأستاذ (الجديد) -->
+    <div class="card">
+        <h2 style="cursor:pointer" onclick="toggleSection('glSection')">📒 دفتر الأستاذ العام (General Ledger) <span>▼</span></h2>
+        <div id="glSection">
+            <div class="controls no-print">
+                <div class="input-group" style="flex:2">
+                    <label>اختر الحساب (اسم أو كود)</label>
+                    <select id="glAccount" style="width:100%"><option value="">جاري التحميل...</option></select>
+                </div>
+                <div class="input-group"><label>من</label><input type="date" id="glFrom"></div>
+                <div class="input-group"><label>إلى</label><input type="date" id="glTo"></div>
+                <div class="input-group" style="flex:0"><button class="btn btn-run" onclick="loadGL()">عرض</button></div>
+                <div class="input-group" style="flex:0"><button class="btn btn-excel" onclick="exportGL()">Excel</button></div>
+            </div>
+            
+            <div id="glHeader" style="text-align:center; display:none; margin-bottom:15px;">
+                <h3>حساب: <span id="glName"></span> (<span id="glCode"></span>)</h3>
+                <p>الفترة من <span id="glD1"></span> إلى <span id="glD2"></span></p>
+            </div>
+
+            <table id="glTable">
+                <thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>البيان الفرعي</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
+                <tbody><tr><td colspan="7">اختر حساب...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const API = '/api';
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const currentDay = today.toISOString().split('T')[0];
+
+    // تهيئة التواريخ
+    ['tbFrom', 'glFrom'].forEach(id => document.getElementById(id).value = firstDay);
+    ['tbTo', 'glTo'].forEach(id => document.getElementById(id).value = currentDay);
+
+    // تحميل الحسابات للأستاذ
+    window.onload = async () => {
+        try {
+            const res = await fetch(`${API}/accounts`);
+            const accs = await res.json();
+            const sel = document.getElementById('glAccount');
+            sel.innerHTML = '<option value="">-- اختر الحساب --</option>';
+            // عرض الحسابات الفرعية فقط
+            accs.filter(a => a.isTransactional).forEach(a => {
+                sel.innerHTML += `<option value="${a._id}">${a.name} (${a.code})</option>`;
+            });
+        } catch(e) {}
+    };
+
+    function toggleSection(id) {
+        const el = document.getElementById(id);
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // --- ميزان المراجعة ---
+    async function loadTB() {
+        const level = document.getElementById('level').value; // 'detailed', 'main', 'final' (mapped from select)
+        const from = document.getElementById('tbFrom').value;
+        const to = document.getElementById('tbTo').value;
+        
+        // Map select values to query params expected by backend
+        let levelParam = 'detailed';
+        if(level === '2') levelParam = 'main';
+        if(level === '1') levelParam = 'final';
+
+        try {
+            const res = await fetch(`${API}/reports/trial-balance?level=${levelParam}&from=${from}&to=${to}`);
+            const data = await res.json();
+            const tbody = document.querySelector('#tbTable tbody');
+            tbody.innerHTML = '';
+            let sumOpenDr = 0, sumOpenCr = 0;
+            let sumPeriodDr = 0, sumPeriodCr = 0;
+            let sumCloseDr = 0, sumCloseCr = 0;
+
+            if (data.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="8">لا توجد بيانات</td></tr>';
+                 return;
+            }
+
+            data.forEach(r => {
+                // Determine if we should show this row based on logic (handled by backend mostly, but we render)
+                // Columns: Code, Name, OpenDr, OpenCr, PerDr, PerCr, CloseDr, CloseCr
+                sumOpenDr += r.openDebit; sumOpenCr += r.openCredit;
+                sumPeriodDr += r.periodDebit; sumPeriodCr += r.periodCredit;
+                sumCloseDr += r.closeDebit; sumCloseCr += r.closeCredit;
+
+                tbody.innerHTML += `
+                    <tr style="${r.level==='main'?'background:#e2e8f0;font-weight:bold':''}">
+                        <td>${r.code}</td>
+                        <td style="text-align:right">${r.name}</td>
+                        
+                        <!-- رصيد أول المدة -->
+                        <td class="debit" style="color:#555">${r.openDebit > 0 ? r.openDebit.toLocaleString() : '-'}</td>
+                        <td class="credit" style="color:#555">${r.openCredit > 0 ? r.openCredit.toLocaleString() : '-'}</td>
+                        
+                        <!-- حركات الفترة -->
+                        <td class="debit">${r.periodDebit > 0 ? r.periodDebit.toLocaleString() : '-'}</td>
+                        <td class="credit">${r.periodCredit > 0 ? r.periodCredit.toLocaleString() : '-'}</td>
+                        
+                        <!-- رصيد ختامي -->
+                        <td class="debit" style="background:#f0fdf4">${r.closeDebit > 0 ? r.closeDebit.toLocaleString() : '-'}</td>
+                        <td class="credit" style="background:#fef2f2">${r.closeCredit > 0 ? r.closeCredit.toLocaleString() : '-'}</td>
+                    </tr>`;
+            });
+            
+            document.getElementById('tbFooter').style.display = '';
+            // Update Footer Cells
+            const footerCells = document.getElementById('tbFooter').cells;
+            // footerCells[0] is Title "الإجمالي"
+            // We need 6 value cells.
+            // Let's rewrite footer row structure in HTML first or just update by index if stable.
+            // Better to regenerate footer HTML
+            const tfoot = document.querySelector('#tbTable tfoot');
+            tfoot.innerHTML = `
+                <tr class="total-row" id="tbFooter">
+                    <td colspan="2">الإجمالي</td>
+                    <td>${sumOpenDr.toLocaleString()}</td>
+                    <td>${sumOpenCr.toLocaleString()}</td>
+                    <td>${sumPeriodDr.toLocaleString()}</td>
+                    <td>${sumPeriodCr.toLocaleString()}</td>
+                    <td>${sumCloseDr.toLocaleString()}</td>
+                    <td>${sumCloseCr.toLocaleString()}</td>
+                </tr>
+            `;
+
+        } catch(e) { console.error(e); alert('خطأ تحميل الميزان'); }
+    }
+
+    // --- دفتر الأستاذ ---
+    async function loadGL() {
+        const accId = document.getElementById('glAccount').value;
+        const from = document.getElementById('glFrom').value;
+        const to = document.getElementById('glTo').value;
+        if(!accId) return alert('اختر الحساب');
+
+        try {
+            const res = await fetch(`${API}/reports/general-ledger?accountId=${accId}&fromDate=${from}&toDate=${to}`);
+            const data = await res.json();
+            
+            document.getElementById('glHeader').style.display = 'block';
+            document.getElementById('glName').innerText = data.accountName;
+            document.getElementById('glCode').innerText = data.accountCode;
+            document.getElementById('glD1').innerText = from;
+            document.getElementById('glD2').innerText = to;
+
+            const tbody = document.querySelector('#glTable tbody');
+            tbody.innerHTML = `
+                <tr class="opening-row">
+                    <td colspan="4">الرصيد الافتتاحي (ما قبل الفترة)</td>
+                    <td>-</td><td>-</td>
+                    <td>${data.openingBalance.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                </tr>
+            `;
+
+            if(data.transactions.length === 0) {
+                tbody.innerHTML += '<tr><td colspan="7">لا توجد حركات</td></tr>';
+            } else {
+                data.transactions.forEach(t => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${new Date(t.date).toLocaleDateString('ar-EG')}</td>
+                            <td>${t.ref}</td>
+                            <td>${t.desc}</td>
+                            <td>${t.lineDesc || '-'}</td>
+                            <td class="debit">${t.debit>0 ? t.debit.toLocaleString() : '-'}</td>
+                            <td class="credit">${t.credit>0 ? t.credit.toLocaleString() : '-'}</td>
+                            <td style="font-weight:bold">${t.balance.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+            }
+            // رصيد ختامي
+            tbody.innerHTML += `<tr class="total-row"><td colspan="6" style="text-align:left">الرصيد النهائي:</td><td>${data.finalBalance.toLocaleString()}</td></tr>`;
+
+        } catch(e) { alert('خطأ تحميل الأستاذ'); }
+    }
+
+    // تصدير إكسيل بسيط (CSV)
+    function exportGL() {
+        const table = document.getElementById('glTable');
+        let csv = [];
+        for(let row of table.rows) {
+            let cols = [];
+            for(let cell of row.cells) cols.push('"' + cell.innerText + '"');
+            csv.push(cols.join(","));
+        }
+        const blob = new Blob(["\uFEFF"+csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "General_Ledger.csv";
+        link.click();
+    }
+
+    // ==========================================
+    // BI DASHBOARD FUNCTIONS
+    // ==========================================
+
+    let profitChartInstance = null;
+    let efficiencyChartInstance = null;
+
+    function authHeaders() {
+        const token = localStorage.getItem('token') || '';
+        return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    }
+
+    function scrollToSection(id) {
+        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function loadAllBI() {
+        await Promise.all([
+            loadProfitabilityAnalytics(),
+            loadEfficiencyReport(),
+            loadCommissionsTable(),
+            loadCFOAlerts()
+        ]);
+    }
+
+    // 1. Profitability Analytics (Net Revenue per Category)
+    // Formula: Net = Total / 1.14 (removing 14% VAT)
+    async function loadProfitabilityAnalytics() {
+        try {
+            const res = await fetch(`${API}/sales`, { headers: authHeaders() });
+            if (!res.ok) throw new Error('Failed to fetch sales data');
+            const invoices = await res.json();
+
+            const categories = { PPF: 0, 'Window Film': 0, Polish: 0, Other: 0 };
+
+            invoices.forEach(inv => {
+                const netRevenue = (inv.totalAmount || 0) / 1.14; // Remove VAT
+                (inv.items || []).forEach(item => {
+                    const category = item.category || item.materialCategory || 'Other';
+                    if (category.includes('PPF') || category.includes('Paint')) {
+                        categories.PPF += netRevenue;
+                    } else if (category.includes('Window') || category.includes('Tint')) {
+                        categories['Window Film'] += netRevenue;
+                    } else if (category.includes('Polish') || category.includes('Ceramic')) {
+                        categories.Polish += netRevenue;
+                    } else {
+                        categories.Other += netRevenue;
+                    }
+                });
+            });
+
+            // Update metrics
+            document.getElementById('ppfNet').textContent = categories.PPF.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+            document.getElementById('windowNet').textContent = categories['Window Film'].toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+            document.getElementById('polishNet').textContent = categories.Polish.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+
+            // Render Chart
+            const ctx = document.getElementById('profitChart').getContext('2d');
+            if (profitChartInstance) profitChartInstance.destroy();
+
+            profitChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['PPF', 'Window Film', 'Polish', 'Other'],
+                    datasets: [{
+                        data: [categories.PPF, categories['Window Film'], categories.Polish, categories.Other],
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#64748b'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((context.raw / total) * 100).toFixed(1);
+                                    return `${context.label}: ${val} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Profitability error:', e);
+            document.getElementById('profitMetrics').innerHTML = '<div style="color:#ef4444">خطأ تحميل البيانات</div>';
+        }
+    }
+
+    // 2. Efficiency Report (Stock Consumption Ratios)
+    // Remnants (barcodes with -P1, -P2) vs Full Rolls
+    async function loadEfficiencyReport() {
+        try {
+            const res = await fetch(`${API}/stocktransactions`, { headers: authHeaders() });
+            if (!res.ok) throw new Error('Failed to fetch stock data');
+            const transactions = await res.json();
+
+            let remnantCount = 0;
+            let rollCount = 0;
+            let totalItems = 0;
+
+            transactions.filter(tx => tx.type === 'Outbound').forEach(tx => {
+                (tx.items || []).forEach(item => {
+                    const barcode = item.barcode || item.rollCode || item.pieceCode || '';
+                    totalItems++;
+                    if (barcode.match(/-P\d+$/)) {
+                        remnantCount++;
+                    } else {
+                        rollCount++;
+                    }
+                });
+            });
+
+            // Also check inventory_pieces for remnant status
+            try {
+                const piecesRes = await fetch(`${API}/inventory/pieces`, { headers: authHeaders() });
+                if (piecesRes.ok) {
+                    const pieces = await piecesRes.json();
+                    pieces.filter(p => p.status === 'consumed' || p.status === 'reserved').forEach(p => {
+                        if (p.isRemnant || p.parentBarcode) {
+                            remnantCount++;
+                        }
+                    });
+                }
+            } catch (e) { /* fallback to transaction data only */ }
+
+            const efficiencyRate = totalItems > 0 ? ((remnantCount / totalItems) * 100).toFixed(1) : 0;
+            const remnantPercent = totalItems > 0 ? ((remnantCount / totalItems) * 100) : 0;
+
+            // Update metrics
+            document.getElementById('remnantCount').textContent = remnantCount.toLocaleString();
+            document.getElementById('rollCount').textContent = rollCount.toLocaleString();
+            document.getElementById('efficiencyRate').textContent = efficiencyRate + '%';
+
+            // Update efficiency bar
+            document.getElementById('remnantBar').style.width = remnantPercent + '%';
+            document.getElementById('efficiencyLabel').textContent = `${remnantPercent.toFixed(1)}% فضلات`;
+
+            // Render Chart
+            const ctx = document.getElementById('efficiencyChart').getContext('2d');
+            if (efficiencyChartInstance) efficiencyChartInstance.destroy();
+
+            efficiencyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['الفضلات (Remnants)', 'الرولات الكاملة'],
+                    datasets: [{
+                        label: 'عدد القطع المستهلكة',
+                        data: [remnantCount, rollCount],
+                        backgroundColor: ['#10b981', '#3b82f6'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                        x: { ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Efficiency error:', e);
+            document.getElementById('efficiencyMetrics').innerHTML = '<div style="color:#ef4444">خطأ تحميل البيانات</div>';
+        }
+    }
+
+    // 3. Commissions Table (Sales Agent Performance)
+    async function loadCommissionsTable() {
+        try {
+            const res = await fetch(`${API}/sales`, { headers: authHeaders() });
+            if (!res.ok) throw new Error('Failed to fetch sales data');
+            const invoices = await res.json();
+
+            const agentStats = {};
+
+            invoices.forEach(inv => {
+                const agent = inv.agent || inv.salesAgent || inv.agentName || 'غير محدد';
+                const total = inv.totalAmount || 0;
+                const commission = inv.agentCommissionValue || inv.commissionValue || (total * 0.05) || 0; // Default 5%
+                const net = total - commission;
+
+                if (!agentStats[agent]) {
+                    agentStats[agent] = { sales: 0, commission: 0, net: 0, count: 0 };
+                }
+                agentStats[agent].sales += total;
+                agentStats[agent].commission += commission;
+                agentStats[agent].net += net;
+                agentStats[agent].count++;
+            });
+
+            // Sort by sales volume
+            const sortedAgents = Object.entries(agentStats)
+                .sort((a, b) => b[1].sales - a[1].sales)
+                .slice(0, 10); // Top 10
+
+            const container = document.getElementById('commissionData');
+            if (sortedAgents.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">لا توجد بيانات مبيعات</div>';
+                return;
+            }
+
+            container.innerHTML = sortedAgents.map(([name, stats]) => `
+                <div class="commission-row">
+                    <div style="font-weight: 600; color: #1e293b;">${name}</div>
+                    <div>${stats.sales.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</div>
+                    <div style="color: #ef4444;">${stats.commission.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</div>
+                    <div style="color: #10b981; font-weight: bold;">${stats.net.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</div>
+                </div>
+            `).join('');
+        } catch (e) {
+            console.error('Commissions error:', e);
+            document.getElementById('commissionData').innerHTML = '<div style="padding: 20px; text-align: center; color: #ef4444;">خطأ تحميل البيانات</div>';
+        }
+    }
+
+    // 4. CFO Alerts (Pending GL Sync)
+    async function loadCFOAlerts() {
+        try {
+            const res = await fetch(`${API}/sales`, { headers: authHeaders() });
+            if (!res.ok) throw new Error('Failed to fetch sales data');
+            const invoices = await res.json();
+
+            const pendingInvoices = invoices.filter(inv => inv.glStatus === 'pending_manual_entry');
+
+            document.getElementById('pendingGLCount').textContent = pendingInvoices.length;
+
+            const tbody = document.getElementById('pendingInvoicesBody');
+            if (pendingInvoices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#64748b;">لا توجد فواتير بانتظار المراجعة</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pendingInvoices.map(inv => `
+                <tr>
+                    <td>${inv.invoiceNumber || '-'}</td>
+                    <td>${inv.customerName || '-'}</td>
+                    <td>${(inv.totalAmount || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</td>
+                    <td>${inv.date ? new Date(inv.date).toLocaleDateString('ar-EG') : '-'}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error('CFO Alerts error:', e);
+            document.getElementById('pendingGLCount').textContent = '?';
+        }
+    }
+
+    function viewPendingInvoices() {
+        const list = document.getElementById('pendingInvoicesList');
+        list.style.display = list.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        // Load accounting reports
+        window.onload && window.onload();
+        // Load BI Dashboard
+        setTimeout(loadAllBI, 500);
+    });
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

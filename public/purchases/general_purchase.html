@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>?????? ??????? ???? (???????)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1200px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        
+        .row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: #475569; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #475569; color: white; padding: 10px; font-size: 13px; text-align: center; }
+        td { padding: 5px; border-bottom: 1px solid #eee; }
+        td input, td select { width: 100%; border: 1px solid #ddd; padding: 8px; border-radius: 4px; text-align: center; font-size: 13px; }
+        .readonly-input { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-weight: bold; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; font-size: 14px; }
+        .btn-add { background: #3b82f6; margin-top: 10px; font-size: 12px; }
+        .btn-save { background: #10b981; width: 100%; margin-top: 20px; font-size: 16px; padding: 15px; justify-content: center; }
+        .btn-del { background: #ef4444; padding: 5px 10px; font-size: 12px; }
+        .btn-list { background: #64748b; }
+        
+        .tax-box { background: #f1f5f9; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 20px; width: 450px; float: left; }
+        .tax-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; }
+        .tax-row input { width: 100px; padding: 5px; text-align: center; }
+        .final-row { border-top: 2px solid #cbd5e1; padding-top: 10px; margin-top: 10px; font-size: 18px; color: #0f172a; }
+        
+        #msg { display: none; padding: 15px; margin-bottom: 15px; border-radius: 5px; text-align: center; font-weight: bold; }
+        
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>
+        ? ?????? ??????? ???? (??????? / ?????)
+        <div class="toolbar no-print">
+            <a href="/purchases/purchase_list.html" class="btn btn-list">??? ?????????</a>
+        </div>
+    </h2>
+    <div id="msg"></div>
+
+    <div class="row">
+        <div class="col">
+            <label>??? ????????</label>
+            <input id="invNum" placeholder="????? ???????">
+        </div>
+        <div class="col"><label>?????? / ?????</label><select id="supplier"><option value="">-- ???? --</option></select></div>
+        <div class="col"><label>???????</label><input type="date" id="date"></div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <label>??????? ????</label>
+            <textarea id="notes" rows="2" placeholder="??? ?????..."></textarea>
+        </div>
+    </div>
+
+    <table id="itemsTable">
+        <thead>
+            <tr>
+                <th width="40%">?????? (?????)</th>
+                <th width="25%">???? ??????? (???????)</th>
+                <th width="15%">??????</th>
+                <th width="15%">??????? ?????</th>
+                <th width="5%" class="no-print">x</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button class="btn btn-add no-print" onclick="addEmptyRow()">+ ????? ???</button>
+
+    <div style="clear:both"></div>
+
+    <div class="tax-box">
+        <div class="tax-row">
+            <span>????????:</span> <span id="subtotal">0.00</span>
+        </div>
+        <div class="tax-row">
+            <span>+ ????? (????):</span> <input type="number" id="taxVal" value="0" oninput="calcTotal()">
+        </div>
+        <div class="tax-row final-row">
+            <span>?????? (???????):</span> <span id="finalTotal">0.00</span>
+        </div>
+    </div>
+
+    <div style="clear:both"></div>
+    <button class="btn btn-save no-print" onclick="saveInvoice()">? ??? ???????</button>
+</div>
+
+<script>
+    const API = '/api';
+    let accounts = [];
+    let editingId = null;
+
+    window.onload = async () => {
+        document.getElementById('date').valueAsDate = new Date();
+        await loadData();
+        
+        const params = new URLSearchParams(window.location.search);
+        if(params.get('id')) {
+            editingId = params.get('id');
+            loadInvoice(editingId);
+        } else {
+            addEmptyRow();
+        }
+    };
+
+    async function loadData() {
+        try {
+            const [sRes, aRes, fsRes] = await Promise.all([
+                fetch(`${API}/suppliers`),
+                fetch(`${API}/accounts`),
+                fetch(`${API}/financial-settings`)
+            ]);
+            const suppliers = await sRes.json();
+            accounts = await aRes.json();
+            window.financialSettings = await fsRes.json() || {};
+
+            const supSel = document.getElementById('supplier');
+            suppliers.forEach(s => supSel.innerHTML += `<option value="${s._id}">${s.name}</option>`);
+        } catch(e) { alert('فشل تحميل البيانات'); }
+    }
+
+    async function loadInvoice(id) {
+        try {
+            const res = await fetch(`${API}/purchases/${id}`);
+            if(!res.ok) throw new Error('??? ????? ????????');
+            const inv = await res.json();
+            
+            document.getElementById('invNum').value = inv.invoiceNumber;
+            document.getElementById('supplier').value = inv.supplier?._id || inv.supplier;
+            document.getElementById('date').value = inv.date.split('T')[0];
+            document.getElementById('notes').value = inv.notes || '';
+            document.getElementById('taxVal').value = inv.totalTax || 0;
+            
+            const tbody = document.querySelector('tbody');
+            tbody.innerHTML = ''; // Clear rows
+            
+            if(inv.items && inv.items.length > 0) {
+                inv.items.forEach(item => {
+                    addEmptyRow({
+                        desc: item.itemName,
+                        acc: item.expenseAccount,
+                        amount: item.cost
+                    });
+                });
+            } else {
+                addEmptyRow();
+            }
+            calcTotal();
+            
+            // Change title/button
+            document.querySelector('h2').innerHTML = `? ????? ?????? ??????? (???: ${inv.invoiceNumber}) <div class="toolbar no-print"><a href="/purchases/purchase_list.html" class="btn btn-list">????</a></div>`;
+        } catch(e) {
+            alert(e.message);
+        }
+    }
+
+    function addEmptyRow(d = {}) { 
+        const tbody = document.querySelector('tbody');
+        const tr = document.createElement('tr');
+        
+        let accOpts = '<option value="">-- ???? ?????? --</option>';
+        // Filter Expense Accounts (usually start with 5) or Assets (1)
+        const expAccs = accounts.filter(a => a.isTransactional && (a.code.startsWith('5') || a.code.startsWith('1')));
+        
+        expAccs.forEach(a => {
+            const selected = (d.acc === a._id) ? 'selected' : '';
+            accOpts += `<option value="${a._id}" ${selected}>${a.code} - ${a.name}</option>`;
+        });
+
+        tr.innerHTML = `
+            <td><input class="desc" value="${d.desc||''}" placeholder="????: ?????? ?????? ????? ??????"></td>
+            <td><select class="acc">${accOpts}</select></td>
+            <td><input type="number" class="amount" value="${d.amount||0}" oninput="calcTotal()"></td>
+            <td><input class="note" placeholder="..."></td>
+            <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function calcTotal() {
+        let sub = 0;
+        document.querySelectorAll('.amount').forEach(i => sub += parseFloat(i.value)||0);
+        document.getElementById('subtotal').innerText = sub.toFixed(2);
+        
+        const tax = parseFloat(document.getElementById('taxVal').value)||0;
+        document.getElementById('finalTotal').innerText = (sub + tax).toFixed(2);
+    }
+
+    async function saveInvoice() {
+        const items = [];
+        const rows = document.querySelectorAll('tbody tr');
+        
+        for(const tr of rows) {
+            const desc = tr.querySelector('.desc').value;
+            const acc = tr.querySelector('.acc').value;
+            const amount = parseFloat(tr.querySelector('.amount').value)||0;
+            
+            if(desc && amount > 0 && acc) {
+                items.push({
+                    itemName: desc,
+                    expenseAccount: acc,
+                    quantity: 1,
+                    cost: amount,
+                    lineTotal: amount
+                });
+            }
+        }
+
+        if(items.length === 0) { alert('يجب إضافة عناصر قبل الحفظ'); return; }
+        const supplier = document.getElementById('supplier').value;
+        if(!supplier) { alert('اختر المورد'); return; }
+
+        const data = {
+            invoiceNumber: document.getElementById('invNum').value || 'GEN-' + Date.now(),
+            date: document.getElementById('date').value,
+            supplier: supplier,
+            accSupplier: window.financialSettings?.defaultSupplierAccountId || null,
+            items: items,
+            subtotal: parseFloat(document.getElementById('subtotal').innerText),
+            totalTax: parseFloat(document.getElementById('taxVal').value)||0,
+            totalAmount: parseFloat(document.getElementById('finalTotal').innerText),
+            notes: document.getElementById('notes').value
+        };
+
+        try {
+            const url = editingId ? `${API}/purchases/${editingId}` : `${API}/purchases`;
+            const method = editingId ? 'PUT' : 'POST';
+            
+            const res = await fetch(url, { 
+                method: method, 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify(data) 
+            });
+            if(res.ok) { 
+                alert('? ?? ????? ?????'); 
+                window.location.href = '/purchases/purchase_list.html'; 
+            } else { 
+                const err = await res.json();
+                alert('???: ' + err.message); 
+            }
+        } catch(e) { alert('??? ?????'); }
+    }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

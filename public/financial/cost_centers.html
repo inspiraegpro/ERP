@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Ù…Ø±Ø§ÙƒØ² Ø§Ù„ØªÙƒÙ„ÙØ©</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 800px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+        .row { display: flex; gap: 10px; margin-bottom: 15px; }
+        input, select { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        th { background: #1e293b; color: white; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>ðŸ¢ Ø¯Ù„ÙŠÙ„ Ù…Ø±Ø§ÙƒØ² Ø§Ù„ØªÙƒÙ„ÙØ© (Cost Centers)</h2>
+    <div class="row">
+        <input id="code" placeholder="Ø§Ù„ÙƒÙˆØ¯ (Ù…Ø«Ø§Ù„: 101)">
+        <input id="name" placeholder="Ø§Ø³Ù… Ø§Ù„Ù…Ø±ÙƒØ² (Ù…Ø«Ø§Ù„: ÙØ±Ø¹ Ø§Ù„ØªØ¬Ù…Ø¹)">
+        <select id="type">
+            <option value="Production">Ø¥Ù†ØªØ§Ø¬ ÙˆØªØ´ØºÙŠÙ„</option>
+            <option value="Sales">Ø¨ÙŠØ¹ ÙˆØªØ³ÙˆÙŠÙ‚</option>
+            <option value="Admin">Ø¥Ø¯Ø§Ø±ÙŠ ÙˆØ¹Ù…ÙˆÙ…ÙŠ</option>
+        </select>
+        <button onclick="save()">Ø­ÙØ¸</button>
+    </div>
+    <table id="tbl"><thead><tr><th>Ø§Ù„ÙƒÙˆØ¯</th><th>Ø§Ù„Ø§Ø³Ù…</th><th>Ø§Ù„Ù†ÙˆØ¹</th><th>Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª</th></tr></thead><tbody></tbody></table>
+</div>
+<script>
+    const API = '/api/cost-centers';
+    
+    async function load() {
+        try {
+            const res = await fetch(API);
+            if (!res.ok) throw new Error('ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª');
+            const data = await res.json();
+            const tbody = document.querySelector('tbody');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;color:#666;text-align:center">Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø±Ø§ÙƒØ² ØªÙƒÙ„ÙØ© Ù…Ø³Ø¬Ù„Ø©</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(c => `
+                <tr><td>${c.code}</td><td>${c.name}</td><td>${c.type}</td>
+                <td><button onclick="del('${c._id}')" style="background:#ef4444;padding:5px 10px">ðŸ—‘ï¸</button></td></tr>
+            `).join('');
+        } catch(e) { 
+            console.error('Ø®Ø·Ø£ ÙÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª:', e);
+            document.querySelector('tbody').innerHTML = '<tr><td colspan="4" style="padding:20px;color:#ef4444;text-align:center">Ø­Ø¯Ø« Ø®Ø·Ø£ ÙÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª: ' + e.message + '</td></tr>';
+        }
+    }
+    
+    async function save() {
+        const code = document.getElementById('code').value.trim();
+        const name = document.getElementById('name').value.trim();
+        const type = document.getElementById('type').value;
+        
+        if(!code || !name) {
+            alert('ÙŠØ±Ø¬Ù‰ Ø¥ÙƒÙ…Ø§Ù„ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©');
+            return;
+        }
+        
+        try {
+            const res = await fetch(API, { 
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify({ code, name, type }) 
+            });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'ÙØ´Ù„ Ø§Ù„Ø­ÙØ¸');
+            }
+            
+            // Ù…Ø³Ø­ Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø¨Ø¹Ø¯ Ø§Ù„Ø­ÙØ¸ Ø§Ù„Ù†Ø§Ø¬Ø­
+            document.getElementById('code').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('type').value = 'Admin';
+            
+            await load();
+        } catch(e) {
+            alert('Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„Ø­ÙØ¸: ' + e.message);
+            console.error('Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø­ÙØ¸:', e);
+        }
+    }
+    
+    async function del(id) {
+        if(!confirm('Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø§Ù„Ø­Ø°ÙØŸ')) return;
+        
+        try {
+            const res = await fetch(`${API}/${id}`, { method:'DELETE' });
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'ÙØ´Ù„ Ø§Ù„Ø­Ø°Ù');
+            }
+            await load();
+        } catch(e) {
+            alert('Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„Ø­Ø°Ù: ' + e.message);
+            console.error('Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø­Ø°Ù:', e);
+        }
+    }
+    
+    load();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

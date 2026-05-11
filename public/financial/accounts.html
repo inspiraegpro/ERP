@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الحسابات - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --p: #163a5f;
+            --s: #526277;
+            --a: #b98918;
+            --ok: #1f6f5f;
+            --danger: #9f3a38;
+            --bd: rgba(22,58,95,.12);
+            --sf: rgba(255,255,255,.97);
+            --soft: #f5f7fb;
+        }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem),
+                linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--p);
+        }
+        .shell { max-width: 1400px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .panel, .table-panel, .modal-content {
+            border-radius: 24px;
+            box-shadow: 0 18px 38px rgba(22,58,95,.08);
+        }
+        .hero {
+            background: linear-gradient(135deg, var(--p), #244c73);
+            color: #fff;
+            padding: 2rem;
+            margin-bottom: 1.25rem;
+        }
+        .hero-row, .toolbar, .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .hero h1 { margin: 0 0 .75rem; font-size: clamp(1.9rem, 2.4vw, 2.6rem); }
+        .hero p { margin: 0; color: rgba(255,255,255,.84); line-height: 1.85; max-width: 58rem; }
+        .hero-tags { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+        .hero-tag {
+            padding: .7rem .95rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            border: 1px solid rgba(255,255,255,.18);
+            font-weight: 700;
+        }
+        .toolbar, .table-panel {
+            background: var(--sf);
+            border: 1px solid var(--bd);
+        }
+        .toolbar { padding: 1rem 1.1rem; margin-bottom: 1rem; }
+        .toolbar-actions, .toolbar-filters {
+            display: flex;
+            gap: .75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: .92rem 1.15rem;
+            font-size: .95rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .18s ease;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn.primary { background: var(--p); color: #fff; }
+        .btn.accent { background: var(--a); color: #fff; }
+        .btn.light { background: #fff; color: var(--p); border: 1px solid var(--bd); }
+        .btn.danger { background: var(--danger); color: #fff; }
+        .search-input, .form-control, textarea, select {
+            border: 1px solid rgba(82,98,119,.2);
+            border-radius: 12px;
+            padding: .8rem .9rem;
+            font-size: .95rem;
+            box-sizing: border-box;
+            width: 100%;
+        }
+        .search-input { min-width: 280px; }
+        .table-panel { padding: 1.1rem; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #eef2f7;
+            color: var(--p);
+            padding: .95rem .8rem;
+            border-bottom: 1px solid var(--bd);
+            font-size: .9rem;
+        }
+        tbody td {
+            padding: .85rem .7rem;
+            border-bottom: 1px solid rgba(82,98,119,.12);
+            text-align: center;
+            vertical-align: middle;
+        }
+        tbody tr:hover { background: #fbfcfe; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 90px;
+            padding: .4rem .65rem;
+            border-radius: 999px;
+            font-size: .84rem;
+            font-weight: 800;
+        }
+        .badge.main { background: rgba(185,137,24,.12); color: #8f6a0d; }
+        .badge.sub { background: rgba(22,58,95,.08); color: var(--p); }
+        .badge.active { background: rgba(31,111,95,.12); color: var(--ok); }
+        .empty-state {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #738396;
+            font-weight: 700;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 1300;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-content {
+            background: #fff;
+            width: min(620px, 100%);
+            border: 1px solid var(--bd);
+            overflow: hidden;
+        }
+        .modal-head, .modal-foot {
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid var(--bd);
+        }
+        .modal-foot {
+            border-bottom: none;
+            border-top: 1px solid var(--bd);
+            display: flex;
+            justify-content: flex-end;
+            gap: .75rem;
+        }
+        .modal-body { padding: 1rem 1.2rem; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+        .field { display: flex; flex-direction: column; gap: .4rem; }
+        .field.span-2 { grid-column: span 2; }
+        .field label { font-weight: 700; color: var(--s); }
+        .message {
+            display: none;
+            margin-bottom: 1rem;
+            padding: .95rem 1rem;
+            border-radius: 14px;
+            font-weight: 700;
+        }
+        .message.show { display: block; }
+        .message.error { background: rgba(159,58,56,.1); color: var(--danger); border: 1px solid rgba(159,58,56,.2); }
+        .message.success { background: rgba(31,111,95,.1); color: var(--ok); border: 1px solid rgba(31,111,95,.18); }
+        @media (max-width: 900px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .field.span-2 { grid-column: auto; }
+            .search-input { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <div class="hero-row">
+                <div>
+                    <h1>شجرة الحسابات</h1>
+                    <p>إدارة الحسابات الرئيسية والفرعية داخل النظام، وربطها بالدفاتر والتقارير والقيد اليومي بنفس الشكل الحديث لباقي النظام.</p>
+                </div>
+                <a class="btn light" href="/financial/financial_reports.html">الذهاب إلى الدفاتر والتقارير</a>
+            </div>
+            <div class="hero-tags">
+                <span class="hero-tag">الحسابات الرئيسية</span>
+                <span class="hero-tag">الحسابات الفرعية</span>
+                <span class="hero-tag">رفع الشجرة القياسية</span>
+            </div>
+        </section>
+
+        <div id="messageBox" class="message"></div>
+
+        <section class="toolbar">
+            <div class="toolbar-actions">
+                <button class="btn primary" type="button" onclick="openAddModal()">إضافة حساب جديد</button>
+                <button class="btn accent" type="button" onclick="loadStandardTree()">رفع الشجرة القياسية</button>
+                <a class="btn light" href="/financial/cost_centers.html" style="text-decoration:none; display:inline-flex; align-items:center;">مراكز التكلفة</a>
+                <button class="btn light" type="button" onclick="refreshAccounts()">تحديث</button>
+            </div>
+            <div class="toolbar-filters">
+                <button class="btn light" id="toggleBtn" type="button" onclick="toggleAccountType()">إظهار الحسابات الرئيسية</button>
+                <input class="search-input" type="text" id="searchInput" placeholder="بحث في الحسابات..." oninput="searchAccounts()">
+            </div>
+        </section>
+
+        <section class="table-panel">
+            <div class="section-head">
+                <div>
+                    <h2 style="margin:0;">قائمة الحسابات</h2>
+                    <p style="margin:.3rem 0 0; color:#738396;">عرض مرتب حسب الكود مع دعم التعديل والحذف.</p>
+                </div>
+                <span id="accountCount" class="badge sub">0 حساب</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>الكود</th>
+                        <th>اسم الحساب</th>
+                        <th>النوع</th>
+                        <th>الرصيد</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="accountsTableBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state" style="display:none;">لا توجد حسابات مطابقة للبحث الحالي.</div>
+        </section>
+    </div>
+
+    <div id="accountModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-head">
+                <div class="section-head">
+                    <h3 id="modalTitle" style="margin:0;">إضافة حساب جديد</h3>
+                    <button class="btn light" type="button" onclick="closeModal()">إغلاق</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <form id="accountForm">
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="accountCode">كود الحساب</label>
+                            <input class="form-control" type="text" id="accountCode" name="code" required>
+                        </div>
+                        <div class="field">
+                            <label for="accountName">اسم الحساب</label>
+                            <input class="form-control" type="text" id="accountName" name="name" required>
+                        </div>
+                        <div class="field">
+                            <label for="accountType">نوع الحساب</label>
+                            <select id="accountType" name="type" required>
+                                <option value="">اختر النوع</option>
+                                <option value="main">رئيسي</option>
+                                <option value="sub">فرعي</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="parentAccount">الحساب الأب</label>
+                            <select id="parentAccount" name="parent">
+                                <option value="">لا يوجد</option>
+                            </select>
+                        </div>
+                        <div class="field span-2">
+                            <label for="accountDescription">الوصف</label>
+                            <textarea id="accountDescription" name="description" rows="4"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-foot">
+                <button class="btn light" type="button" onclick="closeModal()">إلغاء</button>
+                <button class="btn primary" type="button" onclick="saveAccount()">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allAccounts = [];
+        let showMainAccounts = false;
+
+        function authHeaders() {
+            const token = localStorage.getItem('token') || '';
+            return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+        }
+
+        async function apiCall(url, options = {}) {
+            options.headers = authHeaders();
+            const response = await fetch(url, options);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || data.error || 'حدث خطأ في الاتصال بالخادم');
+            return data;
+        }
+
+        function handleError(error, fallbackMsg) {
+            console.error(error);
+            showMessage(error.message || fallbackMsg, 'error');
+        }
+
+        function showMessage(message, type = 'error') {
+            const box = document.getElementById('messageBox');
+            box.className = `message show ${type}`;
+            box.textContent = message;
+        }
+
+        function clearMessage() {
+            const box = document.getElementById('messageBox');
+            box.className = 'message';
+            box.textContent = '';
+        }
+
+        async function loadAccounts() {
+            try {
+                clearMessage();
+                const response = await apiCall('/api/accounts');
+                allAccounts = Array.isArray(response) ? response : [];
+                displayAccounts();
+                updateAccountCount();
+                loadParentAccounts();
+            } catch (error) {
+                handleError(error, 'فشل تحميل الحسابات');
+            }
+        }
+
+        function getVisibleAccounts(searchTerm = '') {
+            const normalized = String(searchTerm || '').toLowerCase().trim();
+            let filtered = showMainAccounts ? allAccounts : allAccounts.filter(account => account.type !== 'main');
+
+            if (normalized) {
+                filtered = filtered.filter(account =>
+                    String(account.name || '').toLowerCase().includes(normalized) ||
+                    String(account.code || '').toLowerCase().includes(normalized)
+                );
+            }
+
+            return filtered.sort((a, b) => String(a.code || '').localeCompare(String(b.code || '')));
+        }
+
+        function displayAccounts(searchTerm = '') {
+            const tbody = document.getElementById('accountsTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const filtered = getVisibleAccounts(searchTerm);
+
+            if (!filtered.length) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tbody.innerHTML = filtered.map(account => `
+                <tr>
+                    <td>${account.code || ''}</td>
+                    <td>${account.name || ''}</td>
+                    <td><span class="badge ${account.type === 'main' ? 'main' : 'sub'}">${account.type === 'main' ? 'رئيسي' : 'فرعي'}</span></td>
+                    <td>${Number(account.balance || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td><span class="badge active">نشط</span></td>
+                    <td>
+                        <div style="display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap;">
+                            <button class="btn light" type="button" onclick="editAccount('${account._id}')">تعديل</button>
+                            <button class="btn danger" type="button" onclick="deleteAccount('${account._id}')">حذف</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateAccountCount() {
+            const count = getVisibleAccounts(document.getElementById('searchInput').value).length;
+            document.getElementById('accountCount').textContent = `${count} حساب`;
+        }
+
+        function toggleAccountType() {
+            showMainAccounts = !showMainAccounts;
+            document.getElementById('toggleBtn').textContent = showMainAccounts ? 'إخفاء الحسابات الرئيسية' : 'إظهار الحسابات الرئيسية';
+            searchAccounts();
+        }
+
+        function searchAccounts() {
+            const searchTerm = document.getElementById('searchInput').value;
+            displayAccounts(searchTerm);
+            updateAccountCount();
+        }
+
+        function loadParentAccounts() {
+            const select = document.getElementById('parentAccount');
+            const mainAccounts = allAccounts.filter(account => account.type === 'main');
+            select.innerHTML = '<option value="">لا يوجد</option>' + mainAccounts.map(account => `
+                <option value="${account._id}">${account.code} - ${account.name}</option>
+            `).join('');
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'إضافة حساب جديد';
+            document.getElementById('accountForm').reset();
+            delete document.getElementById('accountForm').dataset.accountId;
+            document.getElementById('accountModal').style.display = 'flex';
+        }
+
+        function editAccount(accountId) {
+            const account = allAccounts.find(item => item._id === accountId);
+            if (!account) return;
+
+            document.getElementById('modalTitle').textContent = 'تعديل حساب';
+            document.getElementById('accountCode').value = account.code || '';
+            document.getElementById('accountName').value = account.name || '';
+            document.getElementById('accountType').value = account.type || '';
+            document.getElementById('parentAccount').value = account.parent || '';
+            document.getElementById('accountDescription').value = account.description || '';
+            document.getElementById('accountForm').dataset.accountId = accountId;
+            document.getElementById('accountModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('accountModal').style.display = 'none';
+            delete document.getElementById('accountForm').dataset.accountId;
+        }
+
+        async function saveAccount() {
+            try {
+                const form = document.getElementById('accountForm');
+                const formData = new FormData(form);
+                const accountData = Object.fromEntries(formData);
+                const accountId = form.dataset.accountId;
+
+                if (accountId) {
+                    await apiCall(`/api/accounts/${accountId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(accountData)
+                    });
+                } else {
+                    await apiCall('/api/accounts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(accountData)
+                    });
+                }
+
+                closeModal();
+                await loadAccounts();
+                showMessage('تم حفظ الحساب بنجاح.', 'success');
+            } catch (error) {
+                handleError(error, 'فشل حفظ الحساب');
+            }
+        }
+
+        async function deleteAccount(accountId) {
+            if (!confirm('هل أنت متأكد من حذف هذا الحساب؟')) return;
+
+            try {
+                await apiCall(`/api/accounts/${accountId}`, { method: 'DELETE' });
+                await loadAccounts();
+                showMessage('تم حذف الحساب بنجاح.', 'success');
+            } catch (error) {
+                handleError(error, 'فشل حذف الحساب');
+            }
+        }
+
+        async function loadStandardTree() {
+            if (!confirm('هل أنت متأكد من رفع الشجرة القياسية؟ قد يؤدي ذلك إلى استبدال الحسابات الحالية.')) return;
+
+            try {
+                await apiCall('/api/accounts/seed-standard-tree', { method: 'POST' });
+                await loadAccounts();
+                showMessage('تم رفع الشجرة القياسية بنجاح.', 'success');
+            } catch (error) {
+                handleError(error, 'فشل رفع الشجرة القياسية');
+            }
+        }
+
+        function refreshAccounts() {
+            loadAccounts();
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAccounts);
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

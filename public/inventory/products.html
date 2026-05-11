@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المنتجات - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <script src="/common-functions.js"></script>
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <span>جاري تحميل البيانات...</span>
+        </div>
+    </div>
+
+    <main class="main-content products-page">
+        <section class="section-header">
+            <div>
+                <h1>إدارة المنتجات والأسعار</h1>
+                <p>إضافة المنتجات، تحديث الأسعار (شامل/غير شامل الضريبة)، وربطها بالحسابات المحاسبية.</p>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-primary" type="button" onclick="openAddModal()">إضافة منتج جديد</button>
+                <button class="btn btn-success" type="button" onclick="saveAllPrices()">حفظ جميع الأسعار</button>
+                <button class="btn btn-secondary" type="button" onclick="refreshProducts()">تحديث</button>
+            </div>
+        </section>
+
+        <section class="card toolbar-card">
+            <div class="toolbar-row">
+                <div class="search-container">
+                    <label for="searchInput">بحث سريع</label>
+                    <input type="text" id="searchInput" placeholder="ابحث بالاسم أو الكود أو النوع" oninput="searchProducts()">
+                </div>
+                <div class="summary-badge">
+                    <span id="productCount" class="badge badge-primary">0 منتج</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h3>قائمة المنتجات</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table" id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>التبويب (Tab)</th>
+                                <th>الصنف (Item)</th>
+                                <th>الوحدة</th>
+                                <th>سعر البيع (شامل الضريبة)</th>
+                                <th>السعر الصافي (للفاتورة)</th>
+                                <th>الرصيد</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="productModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">إضافة منتج جديد</h3>
+                <button class="close-btn" type="button" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productCode">كود المنتج *</label>
+                            <input type="text" id="productCode" name="code" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="productName">اسم المنتج *</label>
+                            <input type="text" id="productName" name="name" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productType">التبويب (للفاتورة)</label>
+                            <input type="text" id="productType" name="type" list="types" placeholder="PPF, Vinyl, Matt...">
+                            <datalist id="types">
+                                <option value="PPF"></option>
+                                <option value="Vinyl"></option>
+                                <option value="Matt"></option>
+                                <option value="Window Film"></option>
+                                <option value="Additional Services"></option>
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label for="productUnit">الوحدة *</label>
+                            <input type="text" id="productUnit" name="unit" value="ROLL" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productCategory">Category (التصنيف)</label>
+                            <input type="text" id="productCategory" name="category" placeholder="مثال: PPF, Vinyl...">
+                        </div>
+                        <div class="form-group">
+                            <label for="productGrade">Grade (الدرجة)</label>
+                            <input type="text" id="productGrade" name="grade" placeholder="مثال: Premium, Standard...">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productColor">Color (اللون/الظل)</label>
+                            <input type="text" id="productColor" name="color" placeholder="مثال: Clear, Black, Gray...">
+                        </div>
+                        <div class="form-group">
+                            <label for="productMaterialType">materialType (الخامة)</label>
+                            <input type="text" id="productMaterialType" name="materialType" placeholder="مثال: PPF, Window Film...">
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>الأبعاد القياسية</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="productLength">الطول (متر)</label>
+                                <input type="number" id="productLength" name="dimensions.length" step="0.01" placeholder="مثال: 15" oninput="calcArea()">
+                            </div>
+                            <div class="form-group">
+                                <label for="productWidth">العرض (متر)</label>
+                                <input type="number" id="productWidth" name="dimensions.width" step="0.01" placeholder="مثال: 1.52" oninput="calcArea()">
+                            </div>
+                            <div class="form-group">
+                                <label for="productArea">المساحة (م²)</label>
+                                <input type="number" id="productArea" name="dimensions.area" readonly class="readonly">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>التسعير</h4>
+                        <div style="background:#f0fdf4;padding:12px;border-radius:8px;margin-bottom:1rem;border:1px solid #bbf7d0;">
+                            <p style="margin:0 0 8px;font-size:13px;color:#166534;">
+                                <strong>ملاحظة:</strong> السعر الذي تدخله هنا هو السعر الشامل للضريبة (14%). سيقوم النظام بحساب السعر الصافي تلقائياً.
+                            </p>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="productPrice">سعر البيع (شامل الضريبة) *</label>
+                                <input type="number" id="productPrice" name="price" step="0.01" placeholder="مثال: 5000" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="productCost">تكلفة الشراء</label>
+                                <input type="number" id="productCost" name="cost" step="0.01">
+                            </div>
+                        </div>
+                        <div id="pricePreview" style="display:none;background:#fef9c3;padding:10px;border-radius:8px;margin-top:8px;font-size:13px;">
+                            <strong>معاينة التسعير:</strong><br>
+                            السعر الشامل (مدخل): <span id="previewWithVat">0</span> ج.م<br>
+                            السعر الصافي (للفاتورة): <span id="previewWithoutVat">0</span> ج.م<br>
+                            ضريبة القيمة المضافة (14%): <span id="previewVat">0</span> ج.م
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>الربط المحاسبي</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="accInventory">حساب المخزون الافتراضي</label>
+                                <select id="accInventory" name="accounts.inventory">
+                                    <option value="">-- اختر الحساب --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="accCogs">حساب تكلفة المبيعات</label>
+                                <select id="accCogs" name="accounts.cogs">
+                                    <option value="">-- اختر الحساب --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="accSales">حساب إيرادات المبيعات</label>
+                                <select id="accSales" name="accounts.sales">
+                                    <option value="">-- اختر الحساب --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="productDescription">الوصف</label>
+                        <textarea id="productDescription" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">إلغاء</button>
+                <button type="button" class="btn btn-primary" onclick="saveProduct()">حفظ المنتج</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .products-page {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .toolbar-card {
+            padding: 1rem 1.25rem;
+        }
+
+        .toolbar-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .search-container {
+            min-width: min(100%, 360px);
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .search-container label {
+            font-weight: 700;
+            color: #163a5f;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(22, 58, 95, 0.14);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .summary-badge {
+            display: flex;
+            align-items: center;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .table th, .table td {
+            white-space: nowrap;
+        }
+
+        .price-col {
+            text-align: left !important;
+            direction: ltr;
+        }
+
+        .badge {
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .badge-primary {
+            background: #163a5f;
+            color: #fff;
+        }
+
+        .badge-success {
+            background: #1f6f5f;
+            color: #fff;
+        }
+
+        .badge-warning {
+            background: #b98918;
+            color: #fff;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(22, 58, 95, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 18px;
+            width: min(960px, 100%);
+            max-height: 92vh;
+            overflow-y: auto;
+            box-shadow: 0 28px 60px rgba(22, 58, 95, 0.18);
+        }
+
+        .modal-header,
+        .modal-footer {
+            padding: 1.1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid rgba(22, 58, 95, 0.08);
+        }
+
+        .modal-body {
+            padding: 1.25rem;
+        }
+
+        .modal-footer {
+            border-top: 1px solid rgba(22, 58, 95, 0.08);
+            justify-content: flex-end;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #526277;
+            cursor: pointer;
+            font-size: 1.8rem;
+            line-height: 1;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-weight: 700;
+            color: #163a5f;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 0.9rem;
+            border: 1px solid rgba(22, 58, 95, 0.14);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .form-section {
+            margin-bottom: 1.35rem;
+            padding: 1rem;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(22, 58, 95, 0.03), rgba(185, 137, 24, 0.05));
+            border: 1px solid rgba(22, 58, 95, 0.08);
+        }
+
+        .form-section h4 {
+            margin: 0 0 1rem;
+            color: #163a5f;
+        }
+
+        .readonly {
+            background: #f5f7fa;
+            color: #526277;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+.form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar-row,
+            .page-actions {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <script>
+        const VAT_RATE = 0.14;
+        let allProducts = [];
+
+        // Helper functions from price_list.html for display
+        function normalizeSalesLabel(text) {
+            return String(text || "")
+                .replace(/\bsku\b/gi, "")
+                .replace(/رول/g, "")
+                .replace(/أمتار\s*طولي/g, "")
+                .replace(/متر(?:\s*طولي)?/g, "")
+                .replace(/\s{2,}/g, " ")
+                .trim();
+        }
+
+        function deriveCategory(product) {
+            return normalizeSalesLabel(product.category || product.type || "غير مصنف");
+        }
+
+        function deriveGrade(product) {
+            return normalizeSalesLabel(product.grade || product.specGrade || "");
+        }
+
+        function deriveColor(product) {
+            return normalizeSalesLabel(product.color || product.shade || "");
+        }
+
+        function isPieceProduct(product) {
+            const unit = String(product.unit || "").toLowerCase();
+            return unit.includes("piece") || unit.includes("قطعة") || Boolean(product.isPiece);
+        }
+
+        function deriveSalesDisplay(product) {
+            if (isPieceProduct(product)) return normalizeSalesLabel(product.name || "صنف قطعة");
+            const parts = [deriveCategory(product), deriveGrade(product), deriveColor(product)].filter(Boolean);
+            return parts.join(" - ") || normalizeSalesLabel(product.name || "صنف");
+        }
+
+        function deriveProductKind(product) {
+            // توضيح طبقات التسمية:
+            // - Tab (التبويب): category (يظهر في المبيعات)
+            // - Material (الخامة): materialType/type (يظهر في المبيعات)
+            // - Item (الصنف): name (يظهر في المشتريات/الاستلام/الصرف)
+            const tab = deriveCategory(product) || '-';
+            const material = normalizeSalesLabel(product.materialType || product.type || '-') || '-';
+            const item = normalizeSalesLabel(product.name || '-') || '-';
+            return `
+                <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.2;">
+                    <span class="badge" style="background:rgba(22,58,95,0.06); color:#163a5f;">Tab: ${tab}</span>
+                    <span class="badge" style="background:rgba(185,137,24,0.10); color:#b98918;">Material: ${material}</span>
+                    <span class="badge" style="background:rgba(16,185,129,0.10); color:#10b981;">Item: ${item}</span>
+                </div>
+            `;
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            if (!token || !user.username) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const userDisplay = document.getElementById('userDisplay');
+            if (userDisplay) {
+                userDisplay.textContent = user.name || user.username;
+            }
+        }
+
+        /**
+         * Extract sale price (with VAT) from product
+         */
+        function getSalePrice(product) {
+            if (!product) return 0;
+            // Check new pricing structure first
+            if (product.pricing?.salePrice) {
+                return Number(product.pricing.salePrice);
+            }
+            // Legacy: check old structure
+            if (product.pricing?.unitSalePrice) {
+                return Number(product.pricing.unitSalePrice);
+            }
+            // Legacy: check top-level price
+            if (product.price) {
+                return Number(product.price);
+            }
+            return 0;
+        }
+
+        /**
+         * Extract price without VAT from product
+         */
+        function getPriceWithoutVat(product) {
+            if (!product) return 0;
+            // Check new pricing structure first
+            if (product.pricing?.priceWithoutVat) {
+                return Number(product.pricing.priceWithoutVat);
+            }
+            // Calculate from sale price
+            const salePrice = getSalePrice(product);
+            return salePrice / (1 + VAT_RATE);
+        }
+
+        async function loadProducts() {
+            try {
+                showLoading();
+                const response = await apiCall('/api/products');
+                allProducts = response || [];
+                displayProducts();
+                updateProductCount();
+                await loadAccounts();
+            } catch (error) {
+                handleError(error, 'فشل تحميل المنتجات');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayProducts() {
+            const tbody = document.getElementById('productsTableBody');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            const filteredProducts = searchTerm
+                ? allProducts.filter(product =>
+                    String(product.name || '').toLowerCase().includes(searchTerm) ||
+                    String(product.code || '').toLowerCase().includes(searchTerm) ||
+                    String(product.type || '').toLowerCase().includes(searchTerm)
+                )
+                : allProducts;
+
+            tbody.innerHTML = filteredProducts.map(product => {
+                const salePrice = getSalePrice(product);
+                const netPrice = getPriceWithoutVat(product);
+                const stock = product.currentStock || product.stock || 0;
+                const tab = product.category || product.type || '-';
+                const unit = product.unit || 'ROLL';
+                
+                return `
+                <tr data-id="${product._id}">
+                    <td><span class="badge badge-primary">${tab}</span></td>
+                    <td>${product.name || '-'}</td>
+                    <td>${unit}</td>
+                    <td>
+                        <input type="number" class="price-input" 
+                            value="${salePrice.toFixed(2)}" 
+                            data-id="${product._id}" 
+                            data-original="${salePrice.toFixed(2)}"
+                            oninput="markPriceChanged(this); updateNetPrice(this)"
+                            style="width:110px;padding:4px 8px;border:1px solid rgba(22,58,95,0.2);border-radius:6px;">
+                    </td>
+                    <td class="net-cell" data-id="${product._id}" style="color:#059669;font-weight:600;">${netPrice.toFixed(2)}</td>
+                    <td>
+                        <span class="badge ${stock > 0 ? 'badge-success' : 'badge-warning'}">
+                            ${stock > 0 ? stock : 'غير متوفر'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" type="button" onclick="editProduct('${product._id}')">تعديل</button>
+                        <button class="btn btn-sm btn-danger" type="button" onclick="deleteProduct('${product._id}')">حذف</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        // Inline price editing helper functions
+        function markPriceChanged(input) {
+            const original = Number(input.getAttribute('data-original') || 0);
+            const current = Number(input.value || 0);
+            input.style.borderColor = current !== original ? '#10b981' : 'rgba(22,58,95,0.2)';
+            input.style.background = current !== original ? 'rgba(16,185,129,0.08)' : '#fff';
+        }
+
+        function updateVatDisplay(input) {
+            const priceWithVat = Number(input.value || 0);
+            const productId = input.getAttribute('data-id');
+            const priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;
+            const vatAmount = priceWithVat > 0 ? priceWithVat - priceWithoutVat : 0;
+            
+            const row = input.closest('tr');
+            if (row) {
+                const vatCell = row.querySelector('.vat-cell');
+                const netCell = row.querySelector('.net-cell');
+                if (vatCell) vatCell.textContent = vatAmount.toFixed(2);
+                if (netCell) netCell.textContent = priceWithoutVat.toFixed(2);
+            }
+        }
+
+        function updateNetPrice(input) {
+            const priceWithVat = Number(input.value || 0);
+            const priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;
+            
+            const row = input.closest('tr');
+            if (row) {
+                const netCell = row.querySelector('.net-cell');
+                if (netCell) netCell.textContent = priceWithoutVat.toFixed(2);
+            }
+        }
+
+        // Bulk save all changed prices
+        async function saveAllPrices() {
+            const changedInputs = Array.from(document.querySelectorAll('.price-input')).filter(
+                input => Number(input.value || 0) !== Number(input.getAttribute('data-original') || 0)
+            );
+            
+            if (!changedInputs.length) {
+                alert('لا توجد أسعار معدلة للحفظ.');
+                return;
+            }
+
+            try {
+                showLoading();
+                for (const input of changedInputs) {
+                    const productId = input.getAttribute('data-id');
+                    const product = allProducts.find(p => String(p._id) === String(productId));
+                    if (!product) continue;
+                    
+                    // Update pricing
+                    if (!product.pricing) product.pricing = {};
+                    const priceWithVat = Number(input.value || 0);
+                    product.pricing.salePrice = priceWithVat;
+                    product.pricing.unitSalePrice = priceWithVat;
+                    product.pricing.priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;
+                    product.pricing.vatAmount = priceWithVat > 0 ? priceWithVat - product.pricing.priceWithoutVat : 0;
+                    
+                    // Save to API
+                    await apiCall(`/api/products/${productId}`, 'PUT', product);
+                }
+                
+                alert(`تم حفظ ${changedInputs.length} سعر بنجاح.`);
+                await loadProducts(); // Reload to refresh data
+            } catch (error) {
+                handleError(error, 'فشل حفظ الأسعار');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateProductCount() {
+            document.getElementById('productCount').textContent = `${allProducts.length} منتج`;
+        }
+
+        function searchProducts() {
+            displayProducts();
+        }
+
+        async function loadAccounts() {
+            try {
+                const accounts = await apiCall('/api/accounts');
+                const cogsSelect = document.getElementById('accCogs');
+                const salesSelect = document.getElementById('accSales');
+                const invSelect = document.getElementById('accInventory');
+
+                const accountOptions = (accounts || []).map(account =>
+                    `<option value="${account._id}">${account.code} - ${account.name}</option>`
+                ).join('');
+
+                cogsSelect.innerHTML = '<option value="">-- اختر الحساب --</option>' + accountOptions;
+                salesSelect.innerHTML = '<option value="">-- اختر الحساب --</option>' + accountOptions;
+                if(invSelect) invSelect.innerHTML = '<option value="">-- اختر الحساب --</option>' + accountOptions;
+            } catch (error) {
+                console.log('Failed to load accounts');
+            }
+        }
+
+        function calcArea() {
+            const length = parseFloat(document.getElementById('productLength').value) || 0;
+            const width = parseFloat(document.getElementById('productWidth').value) || 0;
+            document.getElementById('productArea').value = (length * width).toFixed(2);
+        }
+
+        function updatePricePreview() {
+            const priceInput = document.getElementById('productPrice');
+            const preview = document.getElementById('pricePreview');
+            
+            const priceWithVat = parseFloat(priceInput.value) || 0;
+            const priceWithoutVat = priceWithVat / (1 + VAT_RATE);
+            const vatAmount = priceWithVat - priceWithoutVat;
+
+            document.getElementById('previewWithVat').textContent = priceWithVat.toFixed(2);
+            document.getElementById('previewWithoutVat').textContent = priceWithoutVat.toFixed(2);
+            document.getElementById('previewVat').textContent = vatAmount.toFixed(2);
+            
+            preview.style.display = priceWithVat > 0 ? 'block' : 'none';
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'إضافة منتج جديد';
+            document.getElementById('productForm').reset();
+            delete document.getElementById('productForm').dataset.productId;
+            document.getElementById('productArea').value = '';
+            document.getElementById('pricePreview').style.display = 'none';
+            document.getElementById('productModal').style.display = 'flex';
+            
+            // Add price preview listener
+            document.getElementById('productPrice').addEventListener('input', updatePricePreview);
+        }
+
+        function editProduct(productId) {
+            const product = allProducts.find(item => item._id === productId);
+            if (!product) {
+                return;
+            }
+
+            document.getElementById('modalTitle').textContent = 'تعديل المنتج';
+            document.getElementById('productCode').value = product.code || '';
+            document.getElementById('productName').value = product.name || '';
+            document.getElementById('productType').value = product.type || '';
+            document.getElementById('productUnit').value = product.unit || '';
+            
+            // New fields from price_list
+            document.getElementById('productCategory').value = product.category || '';
+            document.getElementById('productGrade').value = product.grade || '';
+            document.getElementById('productColor').value = product.color || '';
+            document.getElementById('productMaterialType').value = product.materialType || '';
+            
+            // Dimensions
+            const dims = product.dimensions || {};
+            document.getElementById('productLength').value = dims.length || '';
+            document.getElementById('productWidth').value = dims.width || '';
+            document.getElementById('productArea').value = dims.area || '';
+            
+            // Price - show sale price (with VAT) for editing
+            const salePrice = getSalePrice(product);
+            document.getElementById('productPrice').value = salePrice || '';
+            
+            // Cost
+            document.getElementById('productCost').value = product.cost || '';
+            
+            // Accounts
+            const accs = product.accounts || {};
+            document.getElementById('accCogs').value = accs.cogs || '';
+            document.getElementById('accSales').value = accs.sales || '';
+            const invField = document.getElementById('accInventory');
+            if(invField) invField.value = accs.inventory || '';
+            
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productForm').dataset.productId = productId;
+            document.getElementById('productModal').style.display = 'flex';
+            
+            // Update price preview
+            updatePricePreview();
+            
+            // Add price preview listener
+            document.getElementById('productPrice').removeEventListener('input', updatePricePreview);
+            document.getElementById('productPrice').addEventListener('input', updatePricePreview);
+        }
+
+        function closeModal() {
+            document.getElementById('productModal').style.display = 'none';
+            delete document.getElementById('productForm').dataset.productId;
+        }
+
+        async function saveProduct() {
+            try {
+                const form = document.getElementById('productForm');
+                const productId = form.dataset.productId;
+
+                // Build product data
+                const formData = new FormData(form);
+                const productData = {};
+                
+                // Simple fields
+                productData.code = formData.get('code');
+                productData.name = formData.get('name');
+                productData.type = formData.get('type');
+                productData.unit = formData.get('unit');
+                productData.description = formData.get('description');
+                
+                // New fields from price_list
+                productData.category = formData.get('category');
+                productData.grade = formData.get('grade');
+                productData.color = formData.get('color');
+                productData.materialType = formData.get('materialType');
+                
+                // Dimensions
+                productData.dimensions = {
+                    length: parseFloat(formData.get('dimensions.length')) || 0,
+                    width: parseFloat(formData.get('dimensions.width')) || 0,
+                    area: parseFloat(document.getElementById('productArea').value) || 0
+                };
+                
+                // Price (sale price with VAT) - Backend will calculate net price
+                productData.price = parseFloat(formData.get('price')) || 0;
+                
+                // Cost
+                productData.cost = parseFloat(formData.get('cost')) || 0;
+                
+                // Accounts
+                productData.accounts = {
+                    cogs: document.getElementById('accCogs').value,
+                    sales: document.getElementById('accSales').value,
+                    inventory: document.getElementById('accInventory') ? document.getElementById('accInventory').value : ''
+                };
+
+                if (productId) {
+                    await apiCall(`/api/products/${productId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(productData)
+                    });
+                } else {
+                    await apiCall('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(productData)
+                    });
+                }
+
+                closeModal();
+                await loadProducts();
+            } catch (error) {
+                handleError(error, 'فشل حفظ المنتج');
+            }
+        }
+
+        async function deleteProduct(productId) {
+            if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
+                return;
+            }
+
+            try {
+                await apiCall(`/api/products/${productId}`, { method: 'DELETE' });
+                await loadProducts();
+            } catch (error) {
+                handleError(error, 'فشل حذف المنتج');
+            }
+        }
+
+        function refreshProducts() {
+            loadProducts();
+        }
+
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+            }
+        }
+
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadProducts();
+        });
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

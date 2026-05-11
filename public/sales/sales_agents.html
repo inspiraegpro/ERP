@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة وكلاء البيع</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 28px; margin-bottom: 5px; }
+        
+        .content { padding: 30px; }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; transform: translateY(-2px); }
+        .btn-export { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; }
+        .btn-edit { background: #f59e0b; color: white; padding: 5px 10px; font-size: 12px; }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        th {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 12px;
+            text-align: right;
+            font-weight: 600;
+            border-bottom: 2px solid #0369a1;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: right;
+        }
+        
+        tr:hover { background: #f8fafc; }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-internal { background: #dcfce7; color: #166534; }
+        .badge-external { background: #fef3c7; color: #92400e; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #0369a1;
+            box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.1);
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-start;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .modal-footer button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .btn-save { background: #10b981; color: white; }
+        .btn-cancel { background: #94a3b8; color: white; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        
+        .empty-state p { font-size: 18px; margin-bottom: 20px; }
+        
+        .commission-info {
+            background: #f0fdf4;
+            padding: 8px 12px;
+            border-left: 4px solid #10b981;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #166534;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+    </style>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script></head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>💼 إدارة وكلاء البيع</h1>
+    </div>
+    
+    <div class="content">
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="openAddModal()">➕ وكيل جديد</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="ابحث عن وكيل..." onkeyup="filterAgents()">
+            </div>
+            <button class="btn btn-export" onclick="exportToExcel()">📥 تصدير Excel</button>
+        </div>
+        
+        <div id="tableContainer"></div>
+    </div>
+</div>
+
+<!-- Modal: Add/Edit Agent -->
+<div id="agentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header" id="modalTitle">وكيل بيع جديد</div>
+        
+        <form>
+            <div class="form-group">
+                <label>الاسم *</label>
+                <input type="text" id="agentName" required>
+            </div>
+            
+            <div class="form-group">
+                <label>النوع *</label>
+                <select id="agentType" required>
+                    <option value="">-- اختر --</option>
+                    <option value="internal">موظف داخلي</option>
+                    <option value="external">وكيل خارجي</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>الهاتف</label>
+                <input type="tel" id="agentPhone">
+            </div>
+            
+            <div class="form-group">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="agentEmail">
+            </div>
+            
+            <div class="form-group">
+                <label>نوع العمولة *</label>
+                <select id="commissionType" required>
+                    <option value="">-- اختر --</option>
+                    <option value="percentage">نسبة مئوية (%)</option>
+                    <option value="fixed">مبلغ ثابت (EGP)</option>
+                    <option value="variable">متغيرة حسب الفاتورة</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label id="commissionLabel">قيمة العمولة *</label>
+                <input type="number" id="commissionValue" step="0.01" min="0" required>
+            </div>
+            
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <input type="text" id="agentNotes" placeholder="ملاحظات إضافية">
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-save" onclick="saveAgent()">💾 حفظ</button>
+                <button type="button" class="btn-cancel" onclick="closeModal()">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let agents = [];
+    let currentEditId = null;
+    
+    window.onload = async () => {
+        await loadAgents();
+    };
+    
+    async function loadAgents() {
+        try {
+            const res = await fetch(`${API}/agents`);
+            if (!res.ok) throw new Error('فشل تحميل الوكلاء');
+            agents = await res.json();
+            renderTable();
+        } catch (e) {
+            console.error(e);
+            alert('خطأ: ' + e.message);
+        }
+    }
+    
+    function renderTable() {
+        const container = document.getElementById('tableContainer');
+        
+        if (agents.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <p>لا توجد وكلاء حتى الآن</p>
+                    <button class="btn btn-primary" onclick="openAddModal()">➕ إضافة وكيل جديد</button>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>النوع</th>
+                        <th>الهاتف</th>
+                        <th>البريد الإلكتروني</th>
+                        <th>العمولة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        agents.forEach(agent => {
+            const typeLabel = agent.type === 'internal' ? 'موظف' : 'خارجي';
+            const typeBadge = agent.type === 'internal' ? 'badge-internal' : 'badge-external';
+            const commissionLabel = getCommissionLabel(agent);
+            
+            html += `
+                <tr>
+                    <td><strong>${agent.name}</strong></td>
+                    <td><span class="badge ${typeBadge}">${typeLabel}</span></td>
+                    <td>${agent.phone || '-'}</td>
+                    <td>${agent.email || '-'}</td>
+                    <td>
+                        <div class="commission-info">${commissionLabel}</div>
+                    </td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-edit" onclick="editAgent('${agent._id}')">✏️ تعديل</button>
+                            <button class="btn btn-danger" onclick="deleteAgent('${agent._id}')">🗑️ حذف</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+    
+    function getCommissionLabel(agent) {
+        const type = agent.commissionType;
+        const value = agent.commissionValue;
+        
+        if (type === 'percentage') return `${value}% من الفاتورة`;
+        if (type === 'fixed') return `${value} EGP ثابت`;
+        if (type === 'variable') return `متغيرة - ${value} EGP أساسي`;
+        return '-';
+    }
+    
+    function openAddModal() {
+        currentEditId = null;
+        document.getElementById('modalTitle').innerText = 'وكيل بيع جديد';
+        document.getElementById('agentName').value = '';
+        document.getElementById('agentType').value = '';
+        document.getElementById('agentPhone').value = '';
+        document.getElementById('agentEmail').value = '';
+        document.getElementById('commissionType').value = '';
+        document.getElementById('commissionValue').value = '';
+        document.getElementById('agentNotes').value = '';
+        document.getElementById('agentModal').style.display = 'flex';
+    }
+    
+    async function editAgent(id) {
+        const agent = agents.find(a => a._id === id);
+        if (!agent) return;
+        
+        currentEditId = id;
+        document.getElementById('modalTitle').innerText = 'تعديل الوكيل';
+        document.getElementById('agentName').value = agent.name;
+        document.getElementById('agentType').value = agent.type;
+        document.getElementById('agentPhone').value = agent.phone || '';
+        document.getElementById('agentEmail').value = agent.email || '';
+        document.getElementById('commissionType').value = agent.commissionType;
+        document.getElementById('commissionValue').value = agent.commissionValue;
+        document.getElementById('agentNotes').value = agent.notes || '';
+        document.getElementById('agentModal').style.display = 'flex';
+    }
+    
+    function closeModal() {
+        document.getElementById('agentModal').style.display = 'none';
+    }
+    
+    async function saveAgent() {
+        const name = document.getElementById('agentName').value.trim();
+        const type = document.getElementById('agentType').value;
+        const phone = document.getElementById('agentPhone').value.trim();
+        const email = document.getElementById('agentEmail').value.trim();
+        const commissionType = document.getElementById('commissionType').value;
+        const commissionValue = parseFloat(document.getElementById('commissionValue').value);
+        const notes = document.getElementById('agentNotes').value.trim();
+        
+        if (!name || !type || !commissionType || isNaN(commissionValue)) {
+            alert('الرجاء ملء جميع الحقول المطلوبة');
+            return;
+        }
+        
+        const data = {
+            name, type, phone, email, commissionType, commissionValue, notes
+        };
+        
+        try {
+            const url = currentEditId ? `${API}/agents/${currentEditId}` : `${API}/agents`;
+            const method = currentEditId ? 'PUT' : 'POST';
+            
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (res.ok) {
+                alert(currentEditId ? '✅ تم التحديث بنجاح' : '✅ تم الإضافة بنجاح');
+                closeModal();
+                await loadAgents();
+            } else {
+                const err = await res.json();
+                alert('❌ خطأ: ' + (err.error || 'فشل العملية'));
+            }
+        } catch (e) {
+            alert('❌ خطأ في الاتصال: ' + e.message);
+        }
+    }
+    
+    async function deleteAgent(id) {
+        if (!confirm('⚠️ هل تريد حذف هذا الوكيل؟')) return;
+        
+        try {
+            const res = await fetch(`${API}/agents/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert('✅ تم الحذف بنجاح');
+                await loadAgents();
+            } else {
+                alert('❌ فشل الحذف');
+            }
+        } catch (e) {
+            alert('❌ خطأ: ' + e.message);
+        }
+    }
+    
+    function filterAgents() {
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = agents.filter(a => 
+            a.name.toLowerCase().includes(searchText) ||
+            a.phone?.toLowerCase().includes(searchText) ||
+            a.email?.toLowerCase().includes(searchText)
+        );
+        
+        // Temporarily replace agents array to render filtered results
+        const originalAgents = agents;
+        agents = filtered;
+        renderTable();
+        agents = originalAgents;
+    }
+    
+    function exportToExcel() {
+        if (agents.length === 0) {
+            alert('لا توجد بيانات للتصدير');
+            return;
+        }
+        
+        let csv = 'الاسم,النوع,الهاتف,البريد,نوع العمولة,قيمة العمولة\n';
+        agents.forEach(a => {
+            csv += `"${a.name}","${a.type === 'internal' ? 'موظف' : 'خارجي'}","${a.phone || '-'}","${a.email || '-'}","${a.commissionType}","${a.commissionValue}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `وكلاء_البيع_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

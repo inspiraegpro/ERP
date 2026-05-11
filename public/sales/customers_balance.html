@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ميزان مراجعة العملاء</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+        .hover-scale { transition: transform 0.2s; }
+        .hover-scale:hover { transform: scale(1.01); }
+    </style>
+</head>
+<body class="bg-gray-50 p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6 min-h-[600px] border border-gray-100">
+    
+    <div class="flex justify-between items-center border-b pb-4 mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <i class="fas fa-balance-scale text-orange-500"></i>
+                ميزان مراجعة العملاء
+            </h2>
+            <p class="text-slate-500 text-sm mt-1">ملخص أرصدة وحركات جميع العملاء</p>
+        </div>
+        <button onclick="loadData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow flex items-center gap-2">
+            <i class="fas fa-sync-alt"></i> تحديث
+        </button>
+    </div>
+
+    <div class="bg-orange-50 p-5 rounded-xl mb-6 border border-orange-100 shadow-sm">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-2">بحث بالاسم</label>
+                <div class="relative">
+                    <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="اكتب اسم العميل..." class="w-full p-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                    <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-2">من تاريخ</label>
+                <input type="date" id="fromDate" class="w-full p-2.5 border border-gray-300 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-2">إلى تاريخ</label>
+                <input type="date" id="toDate" class="w-full p-2.5 border border-gray-300 rounded-lg">
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table id="balanceTable" class="w-full border-collapse bg-white">
+            <thead>
+                <tr class="bg-slate-800 text-white text-sm">
+                    <th class="p-3 text-right">الكود</th>
+                    <th class="p-3 text-right">اسم العميل</th>
+                    <th class="p-3 text-center">رصيد سابق</th>
+                    <th class="p-3 text-center bg-green-500/20">حركة مدينة (بيع)</th>
+                    <th class="p-3 text-center bg-red-500/20">حركة دائنة (تحصيل)</th>
+                    <th class="p-3 text-center">الرصيد الحالي</th>
+                </tr>
+            </thead>
+            <tbody id="tbody" class="text-sm text-slate-700 divide-y divide-slate-100">
+                <tr><td colspan="6" class="text-center p-8 text-slate-400">جارِ تحميل البيانات...</td></tr>
+            </tbody>
+            <tfoot class="font-bold bg-slate-100 border-t-2 border-slate-300">
+                <tr>
+                    <td colspan="2" class="p-3 text-left pl-10">الإجمالي</td>
+                    <td id="tOpen" class="p-3 text-center text-slate-600">0.00</td>
+                    <td id="tDeb" class="p-3 text-center text-green-600">0.00</td>
+                    <td id="tCred" class="p-3 text-center text-red-600">0.00</td>
+                    <td id="tEnd" class="p-3 text-center text-slate-800">0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    const API = '/api';
+    
+    window.onload = function() {
+        const today = new Date();
+        document.getElementById('toDate').valueAsDate = today;
+        document.getElementById('fromDate').valueAsDate = new Date(today.getFullYear(), 0, 1);
+        loadData();
+    };
+
+    async function loadData() {
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        const tbody = document.getElementById('tbody');
+        
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8"><i class="fas fa-spinner fa-spin text-orange-500 text-2xl"></i></td></tr>';
+
+        try {
+            // استخدام رابط العملاء الجديد
+            const res = await fetch(`${API}/customers/reports/balance-summary?fromDate=${from}&toDate=${to}`);
+            const data = await res.json();
+            
+            tbody.innerHTML = '';
+            if(!data.length) { 
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-slate-400">لا توجد بيانات</td></tr>'; 
+                return; 
+            }
+
+            let sOpen=0, sDeb=0, sCred=0, sEnd=0;
+
+            data.forEach(row => {
+                sOpen += row.openingBalance; 
+                sDeb += row.periodDebit; 
+                sCred += row.periodCredit; 
+                sEnd += row.closingBalance;
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-orange-50 cursor-pointer transition duration-150 border-b";
+                
+                // 🔥🔥🔥🔥 هنا التصحيح: التأكد من اسم الملف بالظبط 🔥🔥🔥🔥
+                // تأكد أن الملف في الفولدر اسمه customer_statement.html
+                tr.onclick = () => { 
+                    window.location.href = `/sales/customer_statement.html?id=${row.id}`; 
+                };
+                
+                tr.innerHTML = `
+                    <td class="p-3 font-mono text-slate-500">${row.code}</td>
+                    <td class="p-3 font-bold text-slate-700">${row.name}</td>
+                    <td class="p-3 text-center font-bold text-slate-500">${fmt(row.openingBalance)}</td>
+                    <td class="p-3 text-center font-bold text-green-600 bg-green-50/30">${fmt(row.periodDebit)}</td>
+                    <td class="p-3 text-center font-bold text-red-600 bg-red-50/30">${fmt(row.periodCredit)}</td>
+                    <td class="p-3 text-center font-black dir-ltr ${row.closingBalance < 0 ? 'text-red-600' : 'text-slate-800'}">${fmt(row.closingBalance)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('tOpen').innerText = fmt(sOpen);
+            document.getElementById('tDeb').innerText = fmt(sDeb);
+            document.getElementById('tCred').innerText = fmt(sCred);
+            document.getElementById('tEnd').innerText = fmt(sEnd);
+
+        } catch (e) { 
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-red-500">خطأ: ${e.message}</td></tr>`;
+        }
+    }
+
+    function filterTable() {
+        const txt = document.getElementById('searchInput').value.toLowerCase();
+        const trs = document.querySelectorAll('#balanceTable tbody tr');
+        trs.forEach(tr => {
+            const name = tr.cells[1]?.innerText.toLowerCase();
+            tr.style.display = name?.includes(txt) ? '' : 'none';
+        });
+    }
+
+    function fmt(n) { return parseFloat(n).toLocaleString('en-US', {minimumFractionDigits:2}); }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإدارة المالية - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --p: #163a5f; --bd: rgba(22,58,95,.12); --sf: rgba(255,255,255,.97); --soft: #f5f7fb;
+        }
+        body {
+            margin: 0; font-family: "Segoe UI", Tahoma, sans-serif;
+            background: radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem), linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--p);
+        }
+        .shell { max-width: 1380px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .card { border-radius: 24px; box-shadow: 0 18px 38px rgba(22,58,95,.08); }
+        .hero { background: linear-gradient(135deg, var(--p), #244c73); color: #fff; padding: 2rem; margin-bottom: 1.25rem; }
+        .hero h1 { margin: 0 0 .7rem; font-size: clamp(1.9rem, 2.2vw, 2.5rem); }
+        .hero p { margin: 0; color: rgba(255,255,255,.85); line-height: 1.85; max-width: 55rem; }
+        .tags { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
+        .tag { padding: .7rem .95rem; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); font-weight: 700; }
+        .card { background: var(--sf); border: 1px solid var(--bd); padding: 1.25rem; margin-bottom: 1.25rem; }
+        .head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .head h2 { margin: 0; }
+        .hint { color: #738396; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 1rem; }
+        .module-card {
+            text-decoration: none; color: inherit; display: block; background: var(--sf);
+            border: 1px solid var(--bd); border-radius: 20px; padding: 1.1rem; transition: transform .18s ease, border-color .18s ease;
+        }
+        .module-card:hover { transform: translateY(-2px); border-color: rgba(22,58,95,.2); }
+        .module-icon {
+            width: 58px; height: 58px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            background: #edf3f8; color: var(--p); font-weight: 800; font-size: 1.5rem; margin-bottom: 1rem;
+        }
+        .module-card h3 { margin: 0 0 .5rem; color: var(--p); }
+        .module-card p { margin: 0; color: #6f8094; line-height: 1.75; }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>الإدارة المالية والحسابات</h1>
+            <p>مركز التحكم المالي الموحد. من هنا يمكنك إدارة حسابات الخزينة، سندات القبض والدفع، مراجعة قيود اليومية، إعداد شجرة الحسابات، واستخراج التقارير المالية والختامية.</p>
+            <div class="tags">
+                <span class="tag">شجرة الحسابات</span>
+                <span class="tag">الخزينة والبنوك</span>
+                <span class="tag">قيود اليومية</span>
+                <span class="tag">التقارير الختامية</span>
+            </div>
+        </section>
+
+        <!-- Treasury & Cash Management -->
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>الخزينة والمقبوضات</h2>
+                    <p class="hint">إدارة حركة الأموال النقدية، البنوك، وسندات الدفع والقبض.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <a class="module-card" href="/financial/treasury.html"><div class="module-icon">💰</div><h3>حركات الخزينة</h3><p>تسجيل وإدارة إيداعات ومصروفات الخزينة النقدية.</p></a>
+                <a class="module-card" href="/financial/payment_receipt.html"><div class="module-icon">🧾</div><h3>سندات القبض والدفع</h3><p>طباعة وإصدار سندات نقدية رسمية للعملاء أو الموردين.</p></a>
+                <a class="module-card" href="/financial/treasury_report.html"><div class="module-icon">📑</div><h3>تقرير الخزينة</h3><p>عرض حركة الخزينة وتتبع الإيداعات والمسحوبات خلال فترة.</p></a>
+                <a class="module-card" href="/financial/treasury_statement.html"><div class="module-icon">📋</div><h3>كشف حساب خزينة</h3><p>استخراج كشف حساب مفصل لحركة خزينة أو بنك محدد.</p></a>
+            </div>
+        </section>
+
+        <!-- Accounting & Ledgers -->
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>المحاسبة العامة</h2>
+                    <p class="hint">إعدادات الهيكل المالي، دفتر اليومية، ومراكز التكلفة.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <a class="module-card" href="/financial/accounts.html"><div class="module-icon">🌳</div><h3>شجرة الحسابات</h3><p>إدارة وتكويد حسابات الأصول، الخصوم، الإيرادات، والمصروفات.</p></a>
+                <a class="module-card" href="/financial/journal.html"><div class="module-icon">📖</div><h3>قيود اليومية</h3><p>دفتر اليومية العامة لمراجعة وتتبع جميع الحركات المحاسبية.</p></a>
+                <a class="module-card" href="/financial/manual_entry.html"><div class="module-icon">✍️</div><h3>قيد يومية يدوي</h3><p>تسجيل التسويات والقيود اليدوية والتوجيه المحاسبي المباشر.</p></a>
+                <a class="module-card" href="/financial/cost_centers.html"><div class="module-icon">🎯</div><h3>مراكز التكلفة</h3><p>إعداد وتتبع الإيرادات والمصروفات الموجهة لمراكز وتصنيفات محددة.</p></a>
+                <a class="module-card" href="/financial/financial_settings.html"><div class="module-icon">⚙️</div><h3>الإعدادات المالية</h3><p>توجيه وربط الحسابات الافتراضية للقيود التلقائية (Mapping).</p></a>
+            </div>
+        </section>
+
+        <!-- Financial Reports -->
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>التقارير المالية والختامية</h2>
+                    <p class="hint">ميزان المراجعة، الأرباح والخسائر، والمركز المالي.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <a class="module-card" href="/financial/financial_reports.html"><div class="module-icon">📊</div><h3>التقارير المالية</h3><p>استخراج ميزان المراجعة، قائمة الدخل، ودفتر الأستاذ للحسابات.</p></a>
+            </div>
+        </section>
+    </div>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

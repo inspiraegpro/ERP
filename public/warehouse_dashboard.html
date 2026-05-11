@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة مستودع الصرف - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { 
+            --primary: #163a5f; 
+            --secondary: #526277; 
+            --accent: #b98918; 
+            --success: #1f6f5f; 
+            --danger: #9f3a38; 
+            --border: rgba(22, 58, 95, 0.12); 
+            --surface: rgba(255, 255, 255, 0.97); 
+            --background: #f4f7fb;
+        }
+        body { 
+            margin: 0; 
+            font-family: "Segoe UI", Tahoma, sans-serif; 
+            background: radial-gradient(circle at top left, rgba(185, 137, 24, 0.08), transparent 400px), var(--background); 
+            color: var(--primary); 
+        }
+        .shell { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+        .hero { 
+            background: linear-gradient(135deg, var(--primary), #244c73); 
+            color: #fff; padding: 2.5rem; border-radius: 24px; margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .hero h1 { margin: 0; font-size: 2.5rem; }
+        .hero p { opacity: 0.8; margin-top: 0.5rem; }
+        
+        .card { background: var(--surface); padding: 2rem; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        
+        .job-list { display: grid; gap: 1rem; }
+        .job-item { 
+            background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; transition: 0.3s;
+        }
+        .job-item:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .job-info h3 { margin: 0; font-size: 1.25rem; }
+        .job-info p { margin: 5px 0 0; color: var(--secondary); font-size: 0.9rem; }
+        
+        .btn { 
+            border: none; border-radius: 12px; padding: 0.8rem 1.5rem; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; font-size: 0.95rem;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #1a4570; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--primary); }
+
+        /* Modal */
+        .modal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; 
+            align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .modal-content { 
+            background: #fff; width: 90%; max-width: 800px; border-radius: 24px; padding: 2.5rem;
+            max-height: 90vh; overflow-y: auto; position: relative;
+        }
+        .close-btn { position: absolute; top: 1rem; left: 1rem; background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--secondary); }
+        
+        .req-products { background: var(--background); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; }
+        .req-products h4 { margin: 0 0 0.5rem; }
+        .req-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        
+        .issue-row { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; align-items: center; }
+        input { padding: 0.8rem; border-radius: 10px; border: 1px solid var(--border); outline: none; }
+        input:focus { border-color: var(--primary); }
+        
+        .status-pill { padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; background: #e0e7ff; color: #4338ca; }
+        .empty-state { text-align: center; padding: 3rem; color: var(--secondary); }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="hero">
+            <h1>لوحة صرف المواد</h1>
+            <p>إدارة طلبات الصرف لأوامر الشغل المحولة من قسم العمليات.</p>
+        </div>
+
+        <div class="card">
+            <div class="section-header">
+                <h2>طلبات بانتظار الصرف</h2>
+                <button class="btn btn-outline" onclick="loadJobs()">تحديث</button>
+            </div>
+            <div id="jobsList" class="job-list">
+                <div class="empty-state">جاري التحميل...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issuance Modal -->
+    <div id="issueModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h2 id="modalTitle">صرف مواد أمر الشغل</h2>
+            
+            <div class="req-products">
+                <h4>المواد المطلوبة (من العمليات):</h4>
+                <div id="reqProductsList"></div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <h4>المواد المصروفة فعلياً (امسح الباركود):</h4>
+                <div id="issueRows"></div>
+                <button class="btn btn-outline" onclick="addIssueRow()" style="margin-top: 0.5rem; width: 100%;">+ إضافة باركود يدوياً</button>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="submitIssuance()">إتمام الصرف وتحويل المهمة</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        const token = localStorage.getItem('token') || '';
+        let currentJob = null;
+        let products = [];
+        let technicians = [];
+
+        function authHeaders(includeJson = false) {
+            const h = {};
+            if (includeJson) h['Content-Type'] = 'application/json';
+            if (token) h['Authorization'] = `Bearer ${token}`;
+            return h;
+        }
+
+        async function loadData() {
+            try {
+                const [prodRes, techRes] = await Promise.all([
+                    fetch(`${API}/products`, { headers: authHeaders() }),
+                    fetch(`${API}/hr/employees?activeOnly=true&technicianOnly=true`, { headers: authHeaders() })
+                ]);
+                products = await prodRes.json();
+                technicians = await techRes.json();
+                loadJobs();
+            } catch (e) {
+                console.error('Failed to load metadata', e);
+            }
+        }
+
+        function resolveProductName(id) {
+            const p = products.find(prod => String(prod._id) === String(id));
+            return p ? p.name : id;
+        }
+
+        async function loadJobs() {
+            const list = document.getElementById('jobsList');
+            try {
+                const res = await fetch(`${API}/service-jobs`, { headers: authHeaders() });
+                const jobs = await res.json();
+                const filtered = Array.isArray(jobs) ? jobs.filter(j => j.status === 'PENDING_WAREHOUSE') : [];
+                
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="empty-state">لا يوجد طلبات صرف حالياً.</div>';
+                    return;
+                }
+
+                list.innerHTML = filtered.map(j => `
+                    <div class="job-item">
+                        <div class="job-info">
+                            <h3>أمر شغل #${j.jobOrder}</h3>
+                            <p>${j.customerName} | ${j.carName}</p>
+                            <span class="status-pill">${(j.requiredProducts || []).length} مواد مطلوبة</span>
+                        </div>
+                        <button class="btn btn-primary" onclick='openModal(${JSON.stringify(j)})'>صرف المواد</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                list.innerHTML = '<div class="empty-state">حدث خطأ أثناء تحميل البيانات.</div>';
+            }
+        }
+
+        function openModal(job) {
+            currentJob = job;
+            document.getElementById('modalTitle').textContent = `صرف مواد أمر الشغل #${job.jobOrder}`;
+            document.getElementById('reqProductsList').innerHTML = (job.requiredProducts || []).map(rp => `
+                <div class="req-item">
+                    <span>${resolveProductName(rp.productId)}</span>
+                    <strong>${rp.quantity} قطعة</strong>
+                </div>
+            `).join('');
+            
+            document.getElementById('issueRows').innerHTML = '';
+            addIssueRow();
+            document.getElementById('issueModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('issueModal').style.display = 'none';
+        }
+
+        function addIssueRow() {
+            const div = document.createElement('div');
+            div.className = 'issue-row';
+            div.innerHTML = `
+                <input type="text" class="barcode-input" placeholder="باركود القطعة" style="flex: 2;">
+                <input type="number" class="qty-input" placeholder="الكمية" value="1" style="flex: 1;">
+                <button class="btn" onclick="this.parentElement.remove()" style="color:red; background:none;">&times;</button>
+            `;
+            document.getElementById('issueRows').appendChild(div);
+            div.querySelector('.barcode-input').focus();
+        }
+
+        async function submitIssuance() {
+            const rows = Array.from(document.querySelectorAll('.issue-row'));
+            const issuedInventory = rows.map(r => ({
+                barcode: r.querySelector('.barcode-input').value,
+                quantity: Number(r.querySelector('.qty-input').value)
+            })).filter(i => i.barcode);
+
+            if (issuedInventory.length === 0) {
+                alert('يرجى إضافة باركود واحد على الأقل.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/inventory/issue-job/${currentJob._id}`, {
+                    method: 'PUT',
+                    headers: authHeaders(true),
+                    body: JSON.stringify({ issuedInventory })
+                });
+
+                if (res.ok) {
+                    alert('تم الصرف بنجاح! المهمة الآن قيد التنفيذ لدى الفنيين.');
+                    closeModal();
+                    loadJobs();
+                } else {
+                    const err = await res.json();
+                    alert('خطأ: ' + err.message);
+                }
+            } catch (e) {
+                alert('فشل الاتصال بالسيرفر.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

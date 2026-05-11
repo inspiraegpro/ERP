@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل النقدية</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1200px; margin: 0 auto; margin-bottom: 20px; }
+        
+        .bal-grid { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .bal-card { background: #1e293b; color: white; padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: center; }
+        .bal-val { font-size: 24px; font-weight: bold; color: #4ade80; display: block; margin-top: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #e0f2fe; color: #0369a1; }
+        
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; color: white; margin: 0 2px; }
+        .btn-edit { background: #f59e0b; } .btn-del { background: #ef4444; } .btn-print { background: #3b82f6; }
+        .btn-new { background: #10b981; padding: 8px 15px; text-decoration: none; font-size: 14px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>💰 أرصدة الخزائن والبنوك</h2>
+    <div class="bal-grid" id="balContainer">Loading...</div>
+</div>
+
+<div class="card">
+    <h2 style="display:flex; justify-content:space-between">
+        📜 حركة النقدية
+        <a href="/financial/treasury.html" class="btn-new">+ إذن جديد</a>
+    </h2>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px; align-items:center;">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 بحث..." onkeyup="filterData()" style="padding:10px; border:1px solid #ddd; border-radius:5px; flex:2">
+        <input type="date" id="dateFrom" class="search-box" style="padding:10px; border:1px solid #ddd; border-radius:5px; flex:1">
+        <input type="date" id="dateTo" class="search-box" style="padding:10px; border:1px solid #ddd; border-radius:5px; flex:1">
+        <button onclick="loadList()" class="btn-new" style="background:#3b82f6; border:none; cursor:pointer; color:white; padding:10px 20px; border-radius:5px;">🔍 تصفية</button>
+        <button onclick="deleteSelected()" class="btn-del" style="padding:10px 20px; font-size:14px; font-weight:bold; background:#ef4444; border:none; color:white; border-radius:5px;">🗑️ حذف المحدد</button>
+    </div>
+
+    <table>
+        <thead><tr><th><input type="checkbox" onchange="toggleAll(this)"></th><th>الرقم</th><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الخزينة</th><th>الطرف الآخر</th><th>طريقة الدفع</th><th>إجراءات</th></tr></thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+
+    function authHeaders() {
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    let allTransactions = [];
+
+    async function load() {
+        // الأرصدة
+        const balRes = await fetch(`${API}/treasury/balances/summary`, { headers: authHeaders() });
+        const bals = await balRes.json();
+        document.getElementById('balContainer').innerHTML = bals.map(b => `
+            <div class="bal-card"><div>${b.name}</div><span class="bal-val">${b.balance.toLocaleString()}</span></div>
+        `).join('');
+
+        loadList();
+    }
+
+    async function loadList() {
+        const from = document.getElementById('dateFrom').value;
+        const to = document.getElementById('dateTo').value;
+        let url = `${API}/treasury`;
+        if(from && to) url += `?from=${from}&to=${to}`;
+
+        // الجدول
+        const listRes = await fetch(url);
+        allTransactions = await listRes.json();
+        filterData();
+    }
+
+    function filterData() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const tbody = document.getElementById('tbody');
+
+        const filtered = allTransactions.filter(t => {
+            const str = (t.serialNumber + ' ' + (t.targetAccount?.name||'') + ' ' + (t.description||'')).toLowerCase();
+            return str.includes(query);
+        });
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;color:#666;">لا توجد بيانات</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(t => `
+            <tr>
+                <td><input type="checkbox" class="row-check" value="${t._id}"></td>
+                <td>${t.serialNumber}</td>
+                <td>${new Date(t.date).toLocaleDateString('ar-EG')}</td>
+                <td style="color:${t.type==='Inbound'?'green':'red'}">${t.type==='Inbound'?'قبض':'صرف'}</td>
+                <td style="font-weight:bold">${t.amount.toLocaleString()}</td>
+                <td>${t.treasuryAccount?.name}</td>
+                <td>${t.targetAccount?.name}</td>
+                <td>${t.paymentMethod}</td>
+                <td>
+                    <button class="btn btn-print" onclick="window.open('/financial/treasury_print.html?id=${t._id}','_blank','width=800,height=600')">🖨️</button>
+                    ${isAdmin ? `<button class="btn btn-edit" onclick="location.href='/financial/treasury.html?id=${t._id}'">✏️</button>` : ''}
+                    ${isAdmin ? `<button class="btn btn-del" onclick="del('${t._id}')">🗑️</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function toggleAll(source) {
+        const checkboxes = document.querySelectorAll('.row-check');
+        for(let i=0; i<checkboxes.length; i++) checkboxes[i].checked = source.checked;
+    }
+
+    async function deleteSelected() {
+        if(!isAdmin) return alert('الحذف متاح للأدمن فقط');
+        const checkboxes = document.querySelectorAll('.row-check:checked');
+        if(checkboxes.length === 0) return alert('اختر عنصر واحد على الأقل للحذف');
+        if(!confirm(`هل أنت متأكد من حذف ${checkboxes.length} إذن؟ سيتم إلغاء القيود المالية.`)) return;
+
+        const ids = Array.from(checkboxes).map(cb => cb.value);
+        try {
+            const res = await fetch(`${API}/treasury/bulk-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({ ids })
+            });
+            if(res.ok) { alert('تم الحذف بنجاح ✅'); loadList(); }
+            else { alert('حدث خطأ أثناء الحذف'); }
+        } catch(e) { alert('خطأ اتصال: ' + e.message); }
+    }
+
+    async function del(id) {
+        if(!isAdmin) return alert('الحذف متاح للأدمن فقط');
+        if(!confirm('حذف الإذن؟ (سيتم إلغاء القيد المالي)')) return;
+        await fetch(`${API}/treasury/${id}`, { method: 'DELETE', headers: authHeaders() });
+        alert('تم الحذف'); loadList();
+    }
+
+    load();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

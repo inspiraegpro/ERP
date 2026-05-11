@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سجل التدقيق - Inspera ERP</title>
+    
+    <!-- Improved CSS -->
+    <link rel="stylesheet" href="/improved-styles.css">
+    
+    <!-- Common Functions -->
+    <script src="/common-functions.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h2>🏢 Inspera ERP</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/index.html" class="nav-link">🏠 الرئيسية</a></li>
+                <li><a href="/admin/admin_dashboard.html" class="nav-link">⚙️ لوحة التحكم</a></li>
+                <li><a href="/admin/audit_logs.html" class="nav-link active">📋 سجل التدقيق</a></li>
+                <li><a href="/login.html" onclick="logout(event)" class="nav-link">🔐 تسجيل خروج</a></li>
+            </ul>
+            <div class="nav-user">
+                <span id="userDisplay">👤 مستخدم</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <span>جاري التحميل...</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="section-header">
+            <h1>📋 سجل التدقيق</h1>
+            <p>عرض جميع العمليات والتغييرات على النظام</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="card">
+            <div class="card-header">
+                <h3>🔍 تصفية السجلات</h3>
+            </div>
+            <div class="card-body">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="filterMethod">طريقة الطلب:</label>
+                        <select id="filterMethod">
+                            <option value="">الكل</option>
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="filterEndpoint">نقطة النهاية:</label>
+                        <input type="text" id="filterEndpoint" placeholder="ابحث عن endpoint..." />
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="filterUser">المستخدم:</label>
+                        <select id="filterUser">
+                            <option value="">الكل</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="applyFilters()">
+                        🔍 تطبيق الفلاتر
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">
+                        ❌ مسح الفلاتر
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="summary-grid">
+            <div class="card summary-card">
+                <div class="summary-header">
+                    <h3>📊 إجمالي الطلبات</h3>
+                </div>
+                <div class="summary-body">
+                    <div class="summary-number" id="totalRequests">0</div>
+                    <div class="summary-label">طلب</div>
+                </div>
+            </div>
+
+            <div class="card summary-card">
+                <div class="summary-header">
+                    <h3>✅ الطلبات الناجحة</h3>
+                </div>
+                <div class="summary-body">
+                    <div class="summary-number" id="successfulRequests">0</div>
+                    <div class="summary-label">طلب</div>
+                </div>
+            </div>
+
+            <div class="card summary-card">
+                <div class="summary-header">
+                    <h3>❌ الطلبات الفاشلة</h3>
+                </div>
+                <div class="summary-body">
+                    <div class="summary-number" id="failedRequests">0</div>
+                    <div class="summary-label">طلب</div>
+                </div>
+            </div>
+
+            <div class="card summary-card">
+                <div class="summary-header">
+                    <h3>👥 المستخدمون النشطون</h3>
+                </div>
+                <div class="summary-body">
+                    <div class="summary-number" id="uniqueUsers">0</div>
+                    <div class="summary-label">مستخدم</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Logs Table -->
+        <div class="card">
+            <div class="card-header">
+                <h3>📝 السجلات التفصيلية</h3>
+                <span class="badge badge-primary" id="logCount">0 سجل</span>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الوقت</th>
+                                <th>المستخدم</th>
+                                <th>الطريقة</th>
+                                <th>نقطة النهاية</th>
+                                <th>الحالة</th>
+                                <th>معلومات إضافية</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 2rem;">
+                                    <p>جاري تحميل السجلات...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Styles -->
+    <style>
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            color: #666;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .method-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .method-GET {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .method-POST {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .method-PUT {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .method-DELETE {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-200,
+        .status-201,
+        .status-204 {
+            color: #16a34a;
+            font-weight: 600;
+        }
+
+        .status-400,
+        .status-401,
+        .status-403,
+        .status-404 {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .status-500 {
+            color: #991b1b;
+            font-weight: 600;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .summary-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+    </style>
+
+    <script>
+        let allLogs = [];
+        let auditStats = {};
+
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            
+            if (token && user.username) {
+                document.getElementById('userDisplay').textContent = `👤 ${user.name || user.username}`;
+            } else {
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Show loading
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+            }
+        }
+
+        // Hide loading
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        // Load audit logs
+        async function loadAuditLogs() {
+            try {
+                showLoading();
+                console.log('📥 Fetching audit logs...');
+                
+                // Load logs
+                const response = await apiCall('/api/admin/audit-logs');
+                allLogs = Array.isArray(response) ? response : [];
+                console.log(`✅ Audit logs loaded: ${allLogs.length}`);
+                
+                // Load statistics
+                const statsResponse = await apiCall('/api/admin/audit-stats');
+                auditStats = statsResponse || {};
+                console.log('✅ Audit stats loaded:', auditStats);
+                
+                // Display data
+                displayLogs(allLogs);
+                updateStatistics();
+                populateUserFilter();
+                
+            } catch (error) {
+                console.error('❌ Error loading audit logs:', error);
+                alert('فشل تحميل سجلات التدقيق: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display logs
+        function displayLogs(logs) {
+            const tbody = document.getElementById('auditLogsBody');
+            const count = document.getElementById('logCount');
+            
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">لا توجد سجلات</td></tr>';
+                count.textContent = '0 سجل';
+                return;
+            }
+            
+            tbody.innerHTML = logs.map((log, index) => {
+                const date = new Date(log.timestamp || log.date);
+                const methodClass = `method-${log.method}`;
+                const statusClass = `status-${Math.floor((log.statusCode || 200) / 100) * 100}`;
+                
+                return `
+                    <tr>
+                        <td>${date.toLocaleDateString('ar-SA')}</td>
+                        <td>${date.toLocaleTimeString('ar-SA')}</td>
+                        <td>${log.user || 'مجهول'}</td>
+                        <td>
+                            <span class="method-badge ${methodClass}">
+                                ${log.method}
+                            </span>
+                        </td>
+                        <td><code style="font-size: 0.85rem;">${log.endpoint || log.path}</code></td>
+                        <td class="${statusClass}">${log.statusCode || 200}</td>
+                        <td>${log.message || log.ip || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            count.textContent = `${logs.length} سجل`;
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const stats = auditStats;
+            
+            document.getElementById('totalRequests').textContent = (stats.totalRequests || 0).toLocaleString('ar-SA');
+            document.getElementById('successfulRequests').textContent = (stats.successfulRequests || 0).toLocaleString('ar-SA');
+            document.getElementById('failedRequests').textContent = (stats.failedRequests || 0).toLocaleString('ar-SA');
+            document.getElementById('uniqueUsers').textContent = (stats.uniqueUsers || 0).toLocaleString('ar-SA');
+        }
+
+        // Populate user filter
+        function populateUserFilter() {
+            const users = new Set();
+            allLogs.forEach(log => {
+                if (log.user) users.add(log.user);
+            });
+            
+            const select = document.getElementById('filterUser');
+            Array.from(users).forEach(user => {
+                const option = document.createElement('option');
+                option.value = user;
+                option.textContent = user;
+                select.appendChild(option);
+            });
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const method = document.getElementById('filterMethod').value;
+            const endpoint = document.getElementById('filterEndpoint').value.toLowerCase();
+            const user = document.getElementById('filterUser').value;
+            
+            let filtered = allLogs.filter(log => {
+                const matchMethod = !method || log.method === method;
+                const matchEndpoint = !endpoint || (log.endpoint || log.path || '').toLowerCase().includes(endpoint);
+                const matchUser = !user || log.user === user;
+                
+                return matchMethod && matchEndpoint && matchUser;
+            });
+            
+            displayLogs(filtered);
+        }
+
+        // Clear filters
+        function clearFilters() {
+            document.getElementById('filterMethod').value = '';
+            document.getElementById('filterEndpoint').value = '';
+            document.getElementById('filterUser').value = '';
+            displayLogs(allLogs);
+        }
+
+        // Logout
+        function logout(event) {
+            event.preventDefault();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadAuditLogs();
+            
+            // Refresh logs every 30 seconds
+            setInterval(loadAuditLogs, 30000);
+        });
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

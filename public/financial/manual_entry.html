@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إضافة قيد يدوي</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 30px; border-radius: 10px; max-width: 1200px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        h2 { color: #1e293b; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        
+        .row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+        th { background: #e0f2fe; padding: 10px; color: #0369a1; border: 1px solid #ccc; }
+        td { padding: 5px; border: 1px solid #eee; }
+        td input, td select { border: 1px solid #ddd; text-align: center; width: 100%; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-add { background: #3b82f6; margin-top: 10px; }
+        .btn-save { background: #10b981; width: 100%; margin-top: 20px; font-size: 16px; padding: 15px; }
+        
+        .diff-box { margin-top: 15px; font-weight: bold; text-align: center; padding: 15px; border-radius: 5px; font-size: 16px; }
+        .balanced { background: #dcfce7; color: #166534; border: 1px solid #166534; }
+        .unbalanced { background: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📝 إضافة قيد تسوية يدوي (مع مراكز التكلفة)</h2>
+    
+    <div class="row">
+        <div class="col"><label>رقم القيد (اختياري)</label><input id="refNo" placeholder="MAN-AUTO"></div>
+        <div class="col"><label>التاريخ</label><input type="date" id="date"></div>
+        <div class="col" style="flex:2"><label>بيان القيد (الشرح الرئيسي)</label><input id="desc" placeholder="مثال: تسوية عهدة نقدية - تسوية مخزون"></div>
+    </div>
+
+    <table id="tbl">
+        <thead>
+            <tr>
+                <th width="25%">الحساب</th>
+                <th width="20%">مركز التكلفة</th> <!-- عمود جديد -->
+                <th width="25%">البيان الفرعي</th>
+                <th width="12%">مدين</th>
+                <th width="12%">دائن</th>
+                <th width="6%">x</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot style="background:#f8fafc; font-weight:bold">
+            <tr>
+                <td colspan="3" style="text-align:left; padding:10px;">الإجمالي:</td>
+                <td id="sumDebit" style="color:green">0.00</td>
+                <td id="sumCredit" style="color:red">0.00</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    <button class="btn btn-add" onclick="addRow()">+ سطر جديد</button>
+
+    <div id="diffBox" class="diff-box balanced">✅ القيد متزن (الفرق: 0.00)</div>
+
+    <button class="btn btn-save" onclick="save()">💾 حفظ وترحيل القيد</button>
+</div>
+
+<script>
+    const API = '/api';
+    let accounts = [];
+    let costCenters = [];
+
+    window.onload = async () => {
+        document.getElementById('date').valueAsDate = new Date();
+        
+        // تحميل الحسابات ومراكز التكلفة
+        try {
+            const [accRes, ccRes] = await Promise.all([
+                fetch(`${API}/accounts`),
+                fetch(`${API}/cost-centers`)
+            ]);
+            const dataAcc = await accRes.json();
+            const dataCC = await ccRes.json();
+
+            accounts = dataAcc.filter(a => a.isTransactional);
+            costCenters = dataCC;
+            
+            addRow();
+            addRow(); 
+        } catch(e) { alert('فشل تحميل البيانات الأساسية'); }
+    };
+
+    function getAccOptions() {
+        return accounts.map(a => `<option value="${a._id}">${a.code} - ${a.name}</option>`).join('');
+    }
+
+    function getCCOptions() {
+        return `<option value="">-- عام --</option>` + 
+               costCenters.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+    }
+
+    function addRow() {
+        const tbody = document.querySelector('tbody');
+        const row = `<tr>
+            <td><select class="acc" style="text-align:right"><option value="">-- اختر الحساب --</option>${getAccOptions()}</select></td>
+            <td><select class="cc" style="background:#f0f9ff">${getCCOptions()}</select></td> <!-- قائمة المراكز -->
+            <td><input class="line-desc" placeholder="بيان فرعي"></td>
+            <td><input type="number" class="dr" value="0" oninput="calc()"></td>
+            <td><input type="number" class="cr" value="0" oninput="calc()"></td>
+            <td><button style="color:red;background:none;border:none;cursor:pointer" onclick="this.closest('tr').remove();calc()">X</button></td>
+        </tr>`;
+        tbody.insertAdjacentHTML('beforeend', row);
+    }
+
+    function calc() {
+        let dr = 0, cr = 0;
+        document.querySelectorAll('.dr').forEach(i => dr += parseFloat(i.value)||0);
+        document.querySelectorAll('.cr').forEach(i => cr += parseFloat(i.value)||0);
+        
+        document.getElementById('sumDebit').innerText = dr.toFixed(2);
+        document.getElementById('sumCredit').innerText = cr.toFixed(2);
+        
+        const diff = dr - cr;
+        const box = document.getElementById('diffBox');
+        
+        if(Math.abs(diff) < 0.01) {
+            box.className = 'diff-box balanced';
+            box.innerText = '✅ القيد متزن';
+        } else {
+            box.className = 'diff-box unbalanced';
+            box.innerText = `❌ غير متزن (الفرق: ${diff.toFixed(2)}) - يرجى المراجعة`;
+        }
+    }
+
+    async function save() {
+        const rows = document.querySelectorAll('tbody tr');
+        const lines = [];
+        
+        rows.forEach(tr => {
+            const accId = tr.querySelector('.acc').value;
+            if(accId) {
+                lines.push({
+                    accountId: accId,
+                    accountName: tr.querySelector('.acc').selectedOptions[0].text,
+                    costCenter: tr.querySelector('.cc').value || null, // حفظ المركز
+                    description: tr.querySelector('.line-desc').value,
+                    debit: parseFloat(tr.querySelector('.dr').value)||0,
+                    credit: parseFloat(tr.querySelector('.cr').value)||0
+                });
+            }
+        });
+
+        if(lines.length < 2) { alert('يجب إدخال طرفين على الأقل'); return; }
+
+        const dr = lines.reduce((s,l)=>s+l.debit,0);
+        const cr = lines.reduce((s,l)=>s+l.credit,0);
+        
+        if(Math.abs(dr-cr) > 0.01) { alert('لا يمكن الحفظ: القيد غير متزن!'); return; }
+
+        const data = {
+            referenceNo: document.getElementById('refNo').value,
+            entryDate: document.getElementById('date').value,
+            description: document.getElementById('desc').value,
+            lines: lines
+        };
+
+        try {
+            const res = await fetch(`${API}/journal`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+            });
+            if(res.ok) {
+                const json = await res.json();
+                if(confirm('تم الحفظ بنجاح ✅. هل تريد طباعة القيد؟')) {
+                    window.open(`journal_details.html?id=${json._id}`, '_blank');
+                }
+                window.location.href = '/financial/journal.html';
+            } else {
+                const j = await res.json();
+                alert('خطأ: ' + j.message);
+            }
+        } catch(e) { alert('خطأ اتصال'); }
+    }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المخازن - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --p: #163a5f; --bd: rgba(22,58,95,.12); --sf: rgba(255,255,255,.97); --soft: #f5f7fb;
+        }
+        body {
+            margin: 0; font-family: "Segoe UI", Tahoma, sans-serif;
+            background: radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem), linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--p);
+        }
+        .shell { max-width: 1380px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .card { border-radius: 24px; box-shadow: 0 18px 38px rgba(22,58,95,.08); }
+        .hero { background: linear-gradient(135deg, var(--p), #244c73); color: #fff; padding: 2rem; margin-bottom: 1.25rem; }
+        .hero h1 { margin: 0 0 .7rem; font-size: clamp(1.9rem, 2.2vw, 2.5rem); }
+        .hero p { margin: 0; color: rgba(255,255,255,.85); line-height: 1.85; max-width: 55rem; }
+        .tags { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
+        .tag { padding: .7rem .95rem; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); font-weight: 700; }
+        .card { background: var(--sf); border: 1px solid var(--bd); padding: 1.25rem; margin-bottom: 1.25rem; }
+        .head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .head h2 { margin: 0; }
+        .hint { color: #738396; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 1rem; }
+        .module-card {
+            text-decoration: none; color: inherit; display: block; background: var(--sf);
+            border: 1px solid var(--bd); border-radius: 20px; padding: 1.1rem; transition: transform .18s ease, border-color .18s ease;
+        }
+        .module-card:hover { transform: translateY(-2px); border-color: rgba(22,58,95,.2); }
+        .module-icon {
+            width: 58px; height: 58px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            background: #edf3f8; color: var(--p); font-weight: 800; font-size: 1rem; margin-bottom: 1rem;
+        }
+        .module-card h3 { margin: 0 0 .5rem; color: var(--p); }
+        .module-card p { margin: 0; color: #6f8094; line-height: 1.75; }
+
+        /* Reports Styles */
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .report-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .report-card.active { border-color: var(--p); background: #f0f4f8; }
+        .report-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: var(--p); }
+        .report-icon { font-size: 2rem; }
+        
+        .metrics-row { 
+            display: flex; 
+            gap: 1rem; 
+            margin-bottom: 1.5rem; 
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        .metric-box {
+            background: #fff;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            min-width: 180px;
+            border-right: 4px solid var(--p);
+            flex-shrink: 0;
+        }
+        .metric-box label { color: #64748b; font-size: 0.85rem; display: block; }
+        .metric-box .val { font-size: 1.4rem; font-weight: 800; color: #1e293b; }
+
+        .filter-bar {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            border: 1px solid #e2e8f0;
+        }
+        .table-container { overflow-x: auto; }
+        .table-v2 { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; }
+        .table-v2 th, .table-v2 td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+        .table-v2 th { background: #f1f5f9; font-weight: bold; color: #334155; }
+        .table-v2 tr:hover { background: #f8fafc; }
+        
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; }
+        .badge.issued { background: #dcfce7; color: #166534; }
+        .badge.awaiting { background: #fef9c3; color: #b45309; }
+        
+        .spinner {
+            border: 4px solid rgba(0,0,0,.1);
+            width: 36px; height: 36px; border-radius: 50%;
+            border-left-color: var(--p);
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>موديول المخازن الشامل</h1>
+            <p>بوابة إدارة المخزون: استلام، صرف، تحويلات، حالة الرولات، كشف الحركات، التقارير الشاملة وأوامر التشغيل المعلقة للصرف.</p>
+            <div class="tags">
+                <span class="tag">إذن استلام</span>
+                <span class="tag">إذن صرف</span>
+                <span class="tag">تقارير شاملة</span>
+                <span class="tag">أوامر التشغيل</span>
+            </div>
+        </section>
+
+        <!-- Quick Access -->
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>العمليات السريعة</h2>
+                    <p class="hint">إجراءات الحركات المخزنية والتعريفات الأساسية.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <a class="module-card" href="/inventory/stock_in.html"><div class="module-icon">📥</div><h3>إذن الاستلام</h3><p>استلام خامات أو رولات وربطها بفواتير الشراء أو الشحنات.</p></a>
+                <a class="module-card" href="/inventory/stock_out.html"><div class="module-icon">📤</div><h3>إذن الصرف</h3><p>صرف الخامات وربطها بأمر الشغل أو فاتورة البيع.</p></a>
+                <a class="module-card" href="/inventory/stock_report.html"><div class="module-icon">📜</div><h3>سجل الحركات</h3><p>سجل حركات المخزن وارد وصادر وطباعة الأذونات.</p></a>
+                <a class="module-card" href="/inventory/inventory_barcodes.html"><div class="module-icon">🏷️</div><h3>الباركود والطباعة</h3><p>طباعة ليبول الرولات والقطع.</p></a>
+                <a class="module-card" href="/inventory/stock_inventory_report.html"><div class="module-icon">📋</div><h3>الجرد التفصيلي</h3><p>ميزان مراجعة المخزن (رولات وقطع).</p></a>
+                <a class="module-card" href="/inventory/products.html"><div class="module-icon">🔍</div><h3>بطاقات الأصناف</h3><p>البحث عن صنف وإدارة البيانات الأساسية.</p></a>
+                <a class="module-card" href="/reports/price_list.html"><div class="module-icon" style="background:#fef3c7; color:#b45309;">💰</div><h3 style="color:#b45309">تسعير الخامات</h3><p>إدارة وتحديث قائمة أسعار البيع للخامات مقسمة حسب النوع والصنف.</p></a>
+                <a class="module-card" href="/inventory/cutting_planner.html"><div class="module-icon">✂️</div><h3>مخطط القص</h3><p>تخطيط تقطيع الرولات بأقل هالك.</p></a>
+                <a class="module-card" href="/inventory/stock_verification.html"><div class="module-icon">✅</div><h3>جرد المخزن</h3><p>مطابقة الرصيد الفعلي مع رصيد النظام.</p></a>
+            </div>
+        </section>
+
+        <!-- Reports & Dashboard -->
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>التقارير ولوحة المعلومات</h2>
+                    <p class="hint">تحليلات، تقارير مخزنية متقدمة، وأوامر التشغيل المعلقة.</p>
+                </div>
+            </div>
+
+            <div class="reports-grid">
+                <div class="report-card" id="card-pending_jobs" onclick="loadReport('pending_jobs')">
+                    <div class="report-icon">⏳</div>
+                    <div>
+                        <h3>أوامر للتشغيل والتسليم</h3>
+                        <p>ملخص بطلبات الفنيين المعلقة والمصروفة</p>
+                    </div>
+                </div>
+                <div class="report-card" id="card-balance" onclick="loadReport('balance')">
+                    <div class="report-icon">📉</div>
+                    <div>
+                        <h3>ميزان المراجعة</h3>
+                        <p>الأرصدة والقيمة التقديرية الحالية</p>
+                    </div>
+                </div>
+                <div class="report-card" id="card-movements" onclick="loadReport('movements')">
+                    <div class="report-icon">🔄</div>
+                    <div>
+                        <h3>سجل الحركة المجمع</h3>
+                        <p>تفاصيل المنصرف والوارد</p>
+                    </div>
+                </div>
+                <div class="report-card" id="card-category" onclick="loadReport('category')">
+                    <div class="report-icon">📊</div>
+                    <div>
+                        <h3>أداء الفئات</h3>
+                        <p>الحركة المخزنية حسب الفئة</p>
+                    </div>
+                </div>
+                <div class="report-card" id="card-lowstock" onclick="loadReport('lowstock')">
+                    <div class="report-icon">⚠️</div>
+                    <div>
+                        <h3>النواقص (الحد الأدنى)</h3>
+                        <p>الأصناف التي اقتربت من النفاد</p>
+                    </div>
+                </div>
+                <div class="report-card" id="card-inventory_movement" onclick="loadReport('inventory_movement')">
+                    <div class="report-icon">📅</div>
+                    <div>
+                        <h3>الحركة اليومية</h3>
+                        <p>يومية المخازن المجمعة</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportLoading" style="display:none; text-align:center; padding: 2rem;">
+                <div class="spinner"></div> جاري تجهيز البيانات...
+            </div>
+
+            <div id="reportContent" style="display:none; margin-top: 1rem;">
+                <div class="metrics-row" id="metricsRow"></div>
+                <div class="filter-bar" id="filterBar"></div>
+                
+                <div class="table-container">
+                    <table class="table-v2">
+                        <thead id="reportHead"></thead>
+                        <tbody id="reportBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/global-navigation.js"></script>
+    <script>
+        const API = '/api';
+        let currentReportData = null;
+
+        async function loadReport(type) {
+            // Update Active Card
+            document.querySelectorAll('.report-card').forEach(c => c.classList.remove('active'));
+            const activeCard = document.getElementById(`card-${type}`);
+            if(activeCard) activeCard.classList.add('active');
+
+            document.getElementById('reportLoading').style.display = 'block';
+            document.getElementById('reportContent').style.display = 'none';
+            document.getElementById('metricsRow').innerHTML = '';
+            document.getElementById('filterBar').innerHTML = '';
+            document.getElementById('reportHead').innerHTML = '';
+            document.getElementById('reportBody').innerHTML = '';
+            
+            try {
+                if (type === 'pending_jobs') {
+                    const res = await fetch(`${API}/service-jobs`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+                    const jobs = await res.json();
+                    
+                    const inTargetFlow = jobs.filter(job => ['AwaitingWarehouseIssue', 'IssuedToTechnician'].includes(job.workflowStatus));
+                    currentReportData = inTargetFlow;
+                } else {
+                    let url = '';
+                    if (type === 'balance') url = `${API}/inventory/report/detailed`;
+                    else if (type === 'movements') url = `${API}/inventory/reports/movement`;
+                    else if (type === 'category') url = `${API}/inventory/reports/category`;
+                    else if (type === 'lowstock') url = `${API}/inventory/reports/lowstock`;
+                    else if (type === 'inventory_movement') {
+                        const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+                        const endDate = new Date().toISOString().split('T')[0];
+                        url = `${API}/inventory/reports/movement?startDate=${startDate}&endDate=${endDate}`;
+                    }
+                    
+                    if(url) {
+                        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+                        currentReportData = await res.json();
+                    }
+                }
+                
+                await renderReport(type);
+            } catch (error) {
+                console.error(error);
+                alert('خطأ في تحميل التقرير');
+            } finally {
+                document.getElementById('reportLoading').style.display = 'none';
+                document.getElementById('reportContent').style.display = 'block';
+            }
+        }
+
+        async function renderReport(type) {
+            const metrics = document.getElementById('metricsRow');
+            const head = document.getElementById('reportHead');
+            const body = document.getElementById('reportBody');
+            const filters = document.getElementById('filterBar');
+
+            if (type === 'pending_jobs') {
+                const jobs = currentReportData || [];
+                const awaiting = jobs.filter(j => j.workflowStatus === 'AwaitingWarehouseIssue');
+                const issued = jobs.filter(j => j.workflowStatus === 'IssuedToTechnician');
+                
+                metrics.innerHTML = `
+                    <div class="metric-box"><label>أوامر بانتظار الصرف</label><div class="val" style="color: #b45309">${awaiting.length}</div></div>
+                    <div class="metric-box"><label>أوامر تم صرفها</label><div class="val" style="color: #166534">${issued.length}</div></div>
+                    <div class="metric-box"><label>إجمالي العمليات</label><div class="val">${jobs.length}</div></div>
+                `;
+
+                head.innerHTML = `<tr><th>رقم الأمر</th><th>العميل</th><th>السيارة</th><th>الفني</th><th>الحالة</th><th>تاريخ الإنشاء</th></tr>`;
+                
+                body.innerHTML = jobs.map(j => `
+                    <tr>
+                        <td><strong>${j.jobOrder || '-'}</strong></td>
+                        <td>${j.customerName || '-'}</td>
+                        <td>${j.carName || '-'}</td>
+                        <td>${j.technicianName || '-'}</td>
+                        <td><span class="badge ${j.workflowStatus === 'AwaitingWarehouseIssue' ? 'awaiting' : 'issued'}">${j.workflowStatus === 'AwaitingWarehouseIssue' ? 'بانتظار الصرف' : 'تم الصرف'}</span></td>
+                        <td>${new Date(j.createdAt || j.date).toLocaleDateString('ar-EG')}</td>
+                    </tr>
+                `).join('');
+
+            } else if (type === 'balance') {
+                const rolls = currentReportData.rolls || [];
+                const pieces = currentReportData.pieces || [];
+                
+                const pResp = await fetch(`${API}/products`);
+                const products = await pResp.json();
+                const priceMap = {};
+                products.forEach(p => priceMap[p.name] = p.pricing?.purchasePrice || p.pricing?.standardCost || 0);
+
+                const totalArea = rolls.reduce((s,r)=>s+(r.currentArea||0),0) + pieces.reduce((s,p)=>s+(p.area||0),0);
+                let totalValue = 0;
+
+                const all = [
+                    ...rolls.map(r=>({
+                        ...r, t:'رول', a:r.currentArea||0, 
+                        dim:`${r.currentLengthCm || r.originalLengthCm}×${r.width || r.widthCm}`,
+                        val: (r.currentArea || r.originalArea || 0) * (priceMap[r.productName] || 0)
+                    })), 
+                    ...pieces.map(p=>({
+                        ...p, t:'قطعة', a:p.area||0, 
+                        dim:`${p.lengthCm}×${p.widthCm}`,
+                        val: (p.area || 0) * (priceMap[p.productName] || 0)
+                    }))
+                ];
+                
+                totalValue = all.reduce((sum, item) => sum + item.val, 0);
+                
+                metrics.innerHTML = `
+                    <div class="metric-box"><label>إجمالي المساحة</label><div class="val">${totalArea.toFixed(2)} م²</div></div>
+                    <div class="metric-box"><label>قيمة المخزن (تقديرية)</label><div class="val">${totalValue.toLocaleString()}</div></div>
+                    <div class="metric-box"><label>عدد الوحدات (رول/قطعة)</label><div class="val">${all.length}</div></div>
+                `;
+
+                head.innerHTML = `<tr><th>الكود</th><th>الصنف</th><th>الأبعاد (سم)</th><th>المساحة (م²)</th><th>القيمة التقديرية</th><th>النوع</th></tr>`;
+                
+                body.innerHTML = all.map(i => `
+                    <tr>
+                        <td><code>${i.rollCode || i.pieceCode}</code></td>
+                        <td>${i.productName || '-'}</td>
+                        <td dir="ltr" style="text-align:right">${i.dim}</td>
+                        <td>${i.a.toFixed(2)}</td>
+                        <td>${i.val.toLocaleString()}</td>
+                        <td>${i.t}</td>
+                    </tr>
+                `).join('');
+
+            } else if (type === 'movements') {
+                const summary = currentReportData.summary || {};
+                metrics.innerHTML = `
+                    <div class="metric-box"><label>إجمالي الوارد</label><div class="val">${summary.totalInboundArea?.toFixed(2) || 0} م²</div></div>
+                    <div class="metric-box"><label>إجمالي المنصرف</label><div class="val">${summary.totalOutboundArea?.toFixed(2) || 0} م²</div></div>
+                `;
+
+                head.innerHTML = `<tr><th>التاريخ</th><th>النوع</th><th>المرجع</th><th>الخامة / المنتج</th><th>المساحة</th></tr>`;
+                const moves = [...(currentReportData.inbound || []), ...(currentReportData.outbound || [])]
+                                .sort((a,b) => new Date(b.date) - new Date(a.date));
+                
+                body.innerHTML = moves.map(m => `
+                    <tr>
+                        <td>${new Date(m.date).toLocaleDateString('ar-EG')}</td>
+                        <td style="color:${m.type==='Inbound'?'green':'red'}">${m.type==='Inbound'?'وارد':'صرف'}</td>
+                        <td>${m.serialNumber || m.manualRef || m.supplierDoc || '-'}</td>
+                        <td>${(m.items || []).map(i => i.productName || i.productCode || i.product).join(', ')}</td>
+                        <td>${(m.items || []).reduce((s,i) => s + (i.area || i.consumedArea || i.quantity || 0), 0).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+            } else if (type === 'category') {
+                const categories = currentReportData.categories || [];
+                metrics.innerHTML = `
+                    <div class="metric-box"><label>عدد الفئات النشطة</label><div class="val">${categories.length}</div></div>
+                    <div class="metric-box"><label>إجمالي المساحة</label><div class="val">${categories.reduce((s,c) => s + (c.totalArea || 0), 0).toFixed(2)} م²</div></div>
+                `;
+                head.innerHTML = `<tr><th>الفئة</th><th>عدد القطع</th><th>المساحة (م²)</th><th>القيمة</th><th>نسبة</th></tr>`;
+                body.innerHTML = categories.map(c => `
+                    <tr>
+                        <td><strong>${c.name || 'غير مصنف'}</strong></td>
+                        <td>${c.count || 0}</td>
+                        <td>${(c.totalArea || 0).toFixed(2)}</td>
+                        <td>${(c.totalValue || 0).toLocaleString()}</td>
+                        <td>${(c.percentage || 0).toFixed(1)}%</td>
+                    </tr>
+                `).join('');
+
+            } else if (type === 'lowstock') {
+                const items = currentReportData.items || [];
+                metrics.innerHTML = `
+                    <div class="metric-box"><label>أصناف منخفضة</label><div class="val">${items.length}</div></div>
+                    <div class="metric-box"><label>حرجة (أقل من أسبوع)</label><div class="val" style="color:${items.length > 10 ? 'red' : 'orange'}">${items.filter(i => i.daysRemaining < 7).length}</div></div>
+                `;
+                head.innerHTML = `<tr><th>الصنف</th><th>الرصيد الحالي</th><th>الحد الأدنى</th><th>الاستهلاك اليومي</th><th>الأيام المتبقية</th><th>الحالة</th></tr>`;
+                body.innerHTML = items.map(i => `
+                    <tr style="background:${i.daysRemaining < 7 ? '#fef2f2' : i.daysRemaining < 14 ? '#fffbeb' : 'transparent'}">
+                        <td><strong>${i.productName}</strong></td>
+                        <td>${i.currentStock}</td>
+                        <td>${i.minStock}</td>
+                        <td>${(i.dailyConsumption||0).toFixed(2)}</td>
+                        <td>${i.daysRemaining}</td>
+                        <td style="color:${i.daysRemaining < 7 ? '#dc2626' : i.daysRemaining < 14 ? '#d97706' : '#16a34a'}">${i.status}</td>
+                    </tr>
+                `).join('');
+
+            } else if (type === 'inventory_movement') {
+                const transactions = currentReportData.transactions || [];
+                metrics.innerHTML = `
+                    <div class="metric-box"><label>الفترة (افتراضي)</label><div class="val">آخر 30 يوم</div></div>
+                    <div class="metric-box"><label>إجمالي الحركات</label><div class="val">${transactions.length}</div></div>
+                `;
+                head.innerHTML = `<tr><th>التاريخ</th><th>النوع</th><th>الخامة</th><th>الكمية</th><th>القيمة</th><th>المرجع</th></tr>`;
+                body.innerHTML = transactions.map(t => `
+                    <tr>
+                        <td>${new Date(t.date).toLocaleDateString('ar-EG')}</td>
+                        <td style="color:${t.type==='inbound'?'green':'red'}">${t.type==='inbound'?'وارد':'صرف'}</td>
+                        <td>${t.materialName || t.productName || '-'}</td>
+                        <td>${t.quantity}</td>
+                        <td>${(t.value || 0).toLocaleString()}</td>
+                        <td>${t.reference || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز الباركود والجرد الافتتاحي</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%); color: #163a5f; }
+        .shell { max-width: 1280px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .panel { background: rgba(255,255,255,.96); border: 1px solid rgba(22,58,95,.12); border-radius: 24px; box-shadow: 0 18px 38px rgba(22,58,95,.08); }
+        .hero { background: linear-gradient(135deg, #163a5f, #244c73); color: #fff; padding: 2rem; margin-bottom: 1.25rem; }
+        .hero h1 { margin: 0 0 .75rem; }
+        .hero p { margin: 0; color: rgba(255,255,255,.84); line-height: 1.8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+        .panel { padding: 1.25rem; }
+        .panel h2 { margin: 0 0 .75rem; }
+        .field { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .9rem; }
+        .field label { font-weight: 700; color: #526277; }
+        input, select { width: 100%; border: 1px solid rgba(82,98,119,.2); border-radius: 14px; padding: .85rem .95rem; font-size: .97rem; box-sizing: border-box; }
+        .actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+        .btn { border: none; border-radius: 14px; padding: .9rem 1.15rem; font-size: .95rem; font-weight: 800; cursor: pointer; }
+        .btn.primary { background: #163a5f; color: #fff; }
+        .btn.accent { background: #b98918; color: #fff; }
+        .btn.danger { background: #9f3a38; color: #fff; }
+        .btn.light { background: #fff; color: #163a5f; border: 1px solid rgba(22,58,95,.12); }
+        .status { margin-top: .9rem; padding: .85rem 1rem; border-radius: 14px; display: none; font-weight: 700; }
+        .status.show { display: block; }
+        .status.ok { background: rgba(31,111,95,.08); color: #1f6f5f; }
+        .status.err { background: rgba(159,58,56,.08); color: #9f3a38; }
+        .sample { margin-top: 1rem; max-height: 280px; overflow: auto; border: 1px solid rgba(22,58,95,.12); border-radius: 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: .7rem; border-bottom: 1px solid rgba(82,98,119,.12); text-align: center; font-size: .92rem; }
+        th { background: #eef2f7; }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>مركز الجرد الافتتاحي والباركود</h1>
+            <p>من هنا نرفع رصيد أول المدة بصورة نظيفة، نعيد تهيئة المخزون التشغيلي، ونطبع الليبول الخاص بالرول أو القطعة بالباركود والمقاس الواضح للفني.</p>
+        </section>
+
+        <div class="grid">
+            <section class="panel">
+                <h2>استيراد رصيد أول المدة</h2>
+                <div class="field">
+                    <label for="openingFile">ملف الجرد الافتتاحي</label>
+                    <input id="openingFile" type="file" accept=".txt">
+                </div>
+                <div class="field">
+                    <label for="warehouseId">المخزن</label>
+                    <input id="warehouseId" value="main_warehouse">
+                </div>
+                <div class="actions">
+                    <button class="btn light" onclick="previewImport()">معاينة</button>
+                    <button class="btn primary" onclick="runImport()">استيراد نهائي</button>
+                    <button class="btn danger" onclick="resetInventory()">تصفير المخزون التشغيلي</button>
+                </div>
+                <div id="importStatus" class="status"></div>
+                <div class="sample">
+                    <table>
+                        <thead><tr><th>الخامة</th><th>الصنف</th><th>الباركود</th><th>النوع</th><th>المقاس</th></tr></thead>
+                        <tbody id="sampleBody"><tr><td colspan="5">لا توجد معاينة بعد.</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>طباعة الليبول</h2>
+                <div class="field">
+                    <label for="barcodeValue">الباركود</label>
+                    <input id="barcodeValue" placeholder="اكتب أو امسح الباركود">
+                </div>
+                <div class="actions">
+                    <button class="btn accent" onclick="openLabel()">فتح الليبول</button>
+                    <button class="btn light" onclick="lookupBarcode()">تحقق من الباركود</button>
+                </div>
+                <div id="lookupStatus" class="status"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token') || '';
+
+        function authHeaders() {
+            return token ? { Authorization: `Bearer ${token}` } : {};
+        }
+
+        function setStatus(id, message, ok = true) {
+            const node = document.getElementById(id);
+            node.className = `status show ${ok ? 'ok' : 'err'}`;
+            node.textContent = message;
+        }
+
+        function getFormData() {
+            const fileInput = document.getElementById('openingFile');
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            if (file) formData.append('file', file);
+            formData.append('warehouseId', document.getElementById('warehouseId').value || 'main_warehouse');
+            return formData;
+        }
+
+        async function previewImport() {
+            const formData = getFormData();
+            const response = await fetch('/api/inventory/opening-balance/preview', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: formData
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                setStatus('importStatus', result.error || 'تعذر معاينة الملف.', false);
+                return;
+            }
+
+            setStatus('importStatus', `المعاينة جاهزة: ${result.totalRows} سطر | ${result.rolls} رول | ${result.remnants} بواقي`);
+            const body = document.getElementById('sampleBody');
+            body.innerHTML = result.sample.map((row) => `
+                <tr>
+                    <td>${row.materialType}</td>
+                    <td>${row.productName}</td>
+                    <td><code>${row.barcode_id}</code></td>
+                    <td>${row.itemType === 'roll' ? 'رول' : 'فضلة'}</td>
+                    <td>${row.lengthCm} × ${row.widthCm}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function runImport() {
+            const formData = getFormData();
+            const response = await fetch('/api/inventory/opening-balance/import', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: formData
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                setStatus('importStatus', result.error || 'تعذر الاستيراد.', false);
+                return;
+            }
+
+            setStatus('importStatus', `تم الاستيراد: ${result.createdRolls} رول و ${result.createdPieces} فضلة.`);
+        }
+
+        async function resetInventory() {
+            if (!confirm('سيتم تصفير المخزون التشغيلي بالكامل. هل تريد المتابعة؟')) return;
+
+            const response = await fetch('/api/inventory/opening-balance/reset', {
+                method: 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                setStatus('importStatus', result.error || 'تعذر التصفير.', false);
+                return;
+            }
+            setStatus('importStatus', 'تم تصفير المخزون التشغيلي بنجاح.');
+        }
+
+        async function lookupBarcode() {
+            const value = document.getElementById('barcodeValue').value.trim();
+            if (!value) return;
+            const response = await fetch(`/api/inventory/lookup/${encodeURIComponent(value)}`, {
+                headers: authHeaders()
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                setStatus('lookupStatus', result.error || 'الباركود غير موجود.', false);
+                return;
+            }
+            setStatus('lookupStatus', `تم العثور على ${result.productName} | ${result.lengthCm} × ${result.widthCm} سم`);
+        }
+
+        function openLabel() {
+            const value = document.getElementById('barcodeValue').value.trim();
+            if (!value) return;
+            window.open(`/inventory/inventory_label.html?barcode=${encodeURIComponent(value)}`, '_blank', 'width=520,height=420');
+        }
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

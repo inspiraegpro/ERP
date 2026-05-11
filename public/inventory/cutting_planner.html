@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مخطط التقطيع الذكي</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; color: #334155; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
+        
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2, h3 { margin-top: 0; color: #1e293b; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        label { display: block; font-weight: bold; font-size: 12px; margin-top: 8px; color: #64748b; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        .btn { width: 100%; padding: 10px; margin-top: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-add { background: #3b82f6; }
+        .btn-calc { background: #10b981; font-size: 16px; margin-top: 20px; }
+        .btn-clear { background: #ef4444; }
+        .btn-ghost { background: #cbd5e1; color: #333; margin-top: 5px; }
+
+        canvas { background: #0f172a; border-radius: 8px; border: 1px solid #334155; display: block; margin-top: 10px; max-width: 100%; }
+        
+        .pieces-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        .pieces-table th { background: #e2e8f0; text-align: center; border: 1px solid #ccc; padding: 8px; color: #334155; }
+        .pieces-table td { border: 1px solid #eee; padding: 5px; text-align: center; vertical-align: middle; }
+        
+        .action-btn { padding: 2px 6px; border-radius: 4px; border: none; cursor: pointer; color: white; font-size: 11px; margin-left: 2px; }
+        .del-btn { background: #ef4444; }
+
+        .list-item { background: #f0f9ff; padding: 8px; border: 1px solid #bae6fd; margin-top: 5px; border-radius: 4px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .stats-box { display: flex; gap: 10px; margin-bottom: 15px; }
+        .stat { flex: 1; background: #e0f2fe; padding: 10px; text-align: center; border-radius: 5px; font-weight: bold; }
+        .stat span { display: block; font-size: 18px; color: #0284c7; }
+
+        .invoice-badge { background:#dcfce7; color:#166534; padding:10px; border-radius:5px; margin-bottom:15px; border:1px solid #86efac; display:none; font-size: 13px; }
+        .search-box { display: flex; gap: 5px; margin-bottom: 15px; }
+        .badge-roll { background: #1e293b; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="header" style="margin-bottom: 20px;">
+    <h2>✂️ مخطط التقطيع الذكي (Cutting Optimization)</h2>
+    <div id="invoiceInfo" class="invoice-badge"></div>
+</div>
+
+<div class="container">
+    <!-- المدخلات -->
+    <div class="card">
+        <h3>1. إعدادات العملية</h3>
+        <!-- اختيار المخزن للصرف -->
+        <label style="color:#d97706">🏭 المخزن الذي سيتم الصرف منه:</label>
+        <select id="warehouseSelect" onchange="resetProcess()">
+            <option value="">-- اختر المخزن --</option>
+        </select>
+
+        <div class="search-box" style="margin-top:15px">
+            <input id="searchInv" placeholder="رقم أمر الشغل (الفاتورة)">
+            <button onclick="searchInvoice()" class="btn-add" style="width:auto; margin:0">جلب القطع</button>
+        </div>
+
+        <hr style="margin: 15px 0; border:0; border-top:1px dashed #ccc;">
+
+        <h3>2. الرولات المتاحة (المخزون)</h3>
+        <p style="font-size:11px; color:#666">يتم جلب الرولات تلقائياً للخامات المتوفرة فقط. القطع التي ليس لها رصيد لن تظهر.</p>
+        
+        <label>إضافة رول (بحث بالاسم/الكود):</label>
+        <div class="search-prod-box">
+            <input id="prodSearchQuery" placeholder="ابحث عن خامة...">
+            <button class="btn-add" onclick="searchProducts()" style="width:auto; padding:8px;">🔍</button>
+        </div>
+        <select id="rollProduct" onchange="loadRollsForProduct()" style="margin-top:5px;">
+            <option value="">-- نتائج البحث --</option>
+        </select>
+        
+        <label>كود الرول (المتاح في المخزن):</label>
+        <select id="availableRolls" onchange="fillRollDims()">
+            <option value="">-- اختر رول --</option>
+        </select>
+
+        <div style="display:flex; gap:5px; margin-top:5px">
+            <input id="rollL" type="number" placeholder="طول" value="15">
+            <input id="rollW" type="number" placeholder="عرض" value="1.52">
+        </div>
+        <button class="btn btn-add" onclick="addRoll()">➕ إضافة</button>
+        
+        <div style="margin-top:15px; font-weight:bold; font-size:12px; color:#475569">قائمة الرولات للتشغيل:</div>
+        <div id="rollList" style="max-height: 200px; overflow-y: auto;"></div>
+        <button class="btn btn-ghost" onclick="clearRolls()">مسح الرولات</button>
+
+        <hr style="margin: 20px 0; border:0; border-top:1px dashed #ccc;">
+        
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer">
+            <input type="checkbox" id="allowRotate" checked style="width:auto"> 
+            السماح بتدوير القطع (Rotate 90°)
+        </label>
+
+        <button class="btn btn-calc" onclick="runPlanner()">🚀 احسب أفضل تقطيع</button>
+    </div>
+
+    <!-- النتائج -->
+    <div class="card">
+        <h3>3. القطع المطلوبة (المتبقية من الفاتورة)</h3>
+        <table class="pieces-table">
+            <thead>
+                <tr>
+                    <th width="30%">اسم القطعة</th>
+                    <th width="30%">الصنف (الخامة)</th>
+                    <th width="20%">الأبعاد (م)</th>
+                    <th width="10%">العدد</th>
+                    <th width="10%"></th>
+                </tr>
+            </thead>
+            <tbody id="pieceListTable"></tbody>
+        </table>
+
+        <!-- إضافة يدوية -->
+        <div style="margin-top:10px; background:#f8fafc; padding:10px; border:1px dashed #ccc; border-radius:5px;">
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <input id="pieceName" placeholder="اسم القطعة">
+                <select id="pieceMat"><option value="">-- اختر خامة --</option></select>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <input id="pieceL" type="number" placeholder="طول" step="0.01">
+                <input id="pieceW" type="number" placeholder="عرض" step="0.01">
+                <input id="pieceQ" type="number" value="1" placeholder="عدد">
+                <button class="btn-add" onclick="addPiece()" style="width:auto; padding:5px 15px;">+</button>
+            </div>
+        </div>
+        <button class="btn btn-ghost" onclick="clearPieces()" style="margin-bottom:20px;">مسح القطع</button>
+
+        <h3>4. مخطط القص والنتائج</h3>
+        <div class="stats-box">
+            <div class="stat">الاستغلال<span id="usage">0%</span></div>
+            <div class="stat">الهادر<span id="waste">0%</span></div>
+            <div class="stat">الرولات<span id="usedRolls">0</span></div>
+        </div>
+
+        <div id="visuals"></div>
+        
+        <button id="saveBtn" class="btn btn-save" style="display:none; background:#d97706" onclick="createStockOut()">✂️ تنفيذ واعتماد الصرف</button>
+    </div>
+</div>
+
+<script>
+    // 👇 الرابط الصحيح للسيرفر المحلي
+    const API = '/api'; 
+    
+    let rolls = [], piecesTemplate = [], expandedPieces = [];
+    let allProducts = []; 
+    let currentInvoiceId = null; 
+
+    window.onload = async () => {
+        await loadWarehouses();
+        // تحميل المنتجات في الخلفية عشان نعرف الأسماء
+        try {
+            const res = await fetch(`${API}/products`);
+            allProducts = await res.json();
+            // ملء قائمة الإضافة اليدوية للقطع
+            const matSel = document.getElementById('pieceMat');
+            allProducts.forEach(p => {
+                matSel.innerHTML += `<option value="${p._id}">${p.name}</option>`;
+            });
+        } catch(e) {}
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const invId = urlParams.get('invoiceId');
+        if(invId) loadInvoiceData(invId);
+    };
+
+    function resetProcess() {
+        rolls = []; piecesTemplate = [];
+        refreshRollList(); refreshPieceList();
+        document.getElementById('visuals').innerHTML = '';
+        document.getElementById('invoiceInfo').style.display = 'none';
+        currentInvoiceId = null;
+    }
+
+    async function loadWarehouses() {
+        try {
+            const res = await fetch(`/api/warehouses/transactional`);
+            const data = await res.json();
+            const sel = document.getElementById('warehouseSelect');
+            data.forEach(w => sel.innerHTML += `<option value="${w._id}">${w.path}</option>`);
+        } catch(e) {}
+    }
+
+    function searchProducts() {
+        const query = document.getElementById('prodSearchQuery').value.toLowerCase();
+        const sel = document.getElementById('rollProduct');
+        sel.innerHTML = '<option value="">-- اختر خامة --</option>';
+        
+        const filtered = allProducts.filter(p => 
+            p.name.toLowerCase().includes(query) || (p.code && p.code.toLowerCase().includes(query))
+        );
+
+        filtered.forEach(p => {
+            const w = p.dimensions?.width ? p.dimensions.width / 100 : 1.52;
+            const l = p.dimensions?.length ? p.dimensions.length / 100 : 15;
+            sel.innerHTML += `<option value="${p._id}" data-w="${w}" data-l="${l}">${p.name}</option>`;
+        });
+    }
+
+    function updateRollDims() {
+        const sel = document.getElementById('rollProduct');
+        const opt = sel.options[sel.selectedIndex];
+        if(opt.value) {
+            document.getElementById('rollW').value = opt.getAttribute('data-w');
+            document.getElementById('rollL').value = opt.getAttribute('data-l'); 
+            loadRollsForProduct(); 
+        }
+    }
+
+    async function searchInvoice() {
+        const num = document.getElementById('searchInv').value.trim();
+        if(!num) return alert('أدخل رقم الفاتورة');
+        try {
+            const res = await fetch(`${API}/sales/job-order/${encodeURIComponent(num)}`);
+            if(!res.ok) throw new Error('غير موجودة');
+            const inv = await res.json();
+            loadInvoiceData(inv._id); 
+        } catch(e) { alert('فاتورة غير موجودة أو خطأ في الاتصال'); }
+    }
+
+    // 🌟 المنطق الذكي: جلب القطع + التحقق من الرصيد السابق 🌟
+    async function loadInvoiceData(id) {
+        if(!id) return;
+        const warehouseId = document.getElementById('warehouseSelect').value;
+        if(!warehouseId) {
+            alert('🛑 يجب اختيار المخزن أولاً للتحقق من توفر الخامات!');
+            return;
+        }
+
+        try {
+            // 1. جلب الفاتورة
+            const res = await fetch(`${API}/sales/${id}`);
+            const inv = await res.json();
+            if (!inv) throw new Error('بيانات الفاتورة فارغة');
+            currentInvoiceId = inv.invoiceNumber; 
+            
+            // 2. جلب حركات الصرف السابقة لنفس الفاتورة (لمعرفة ما تم تنفيذه)
+            const stockRes = await fetch(`${API}/stock`);
+            const allStock = await stockRes.json();
+            const prevOuts = allStock.filter(t => t.jobOrder === inv.invoiceNumber && t.type === 'Outbound');
+            
+            // تجميع الكميات المصروفة سابقاً (بالمساحة سم2)
+            const consumedMap = {}; 
+            prevOuts.forEach(t => {
+                t.items.forEach(i => {
+                    const pid = i.product?._id || i.product;
+                    if(pid) {
+                        consumedMap[pid] = (consumedMap[pid] || 0) + (i.consumedArea || 0);
+                    }
+                });
+            });
+
+            const infoDiv = document.getElementById('invoiceInfo');
+            infoDiv.style.display = 'block';
+            infoDiv.innerHTML = `🔗 <strong>أمر شغل:</strong> ${inv.invoiceNumber} | <strong>العميل:</strong> ${inv.customer?.name||'-'} | <strong>السيارة:</strong> ${inv.carModel?.brand||''} ${inv.carModel?.model||''}`;
+            
+            piecesTemplate = [];
+            const neededMaterials = new Set();
+            const skippedMaterials = new Set();
+            let skippedCount = 0;
+
+            // 3. تحليل قطع الفاتورة
+            if (inv.items && Array.isArray(inv.items)) {
+                inv.items.forEach(item => {
+                    const lenM = (item.lengthCM || 0) / 100;
+                    const widM = (item.widthCM || 0) / 100;
+                    const itemAreaCM2 = (item.lengthCM || 0) * (item.widthCM || 0);
+                    
+                    if(lenM > 0 && widM > 0) {
+                        let prodName = 'خامة غير محددة';
+                        let prodId = null;
+
+                        if (item.product && typeof item.product === 'object') {
+                            prodName = item.product.name;
+                            prodId = item.product._id;
+                        } else if (item.product) {
+                            const p = allProducts.find(x => x._id === item.product);
+                            if(p) { prodName = p.name; prodId = p._id; }
+                        }
+
+                        if(prodId) {
+                             // فحص هل تم صرف هذه الخامة من قبل؟ (تسامح 100 سم2)
+                             if (consumedMap[prodId] && consumedMap[prodId] >= (itemAreaCM2 - 100)) {
+                                 consumedMap[prodId] -= itemAreaCM2;
+                                 skippedCount++;
+                                 return; 
+                             }
+
+                             piecesTemplate.push({
+                                L: lenM, W: widM, Q: 1, 
+                                desc: item.partName || 'قطعة',
+                                materialName: prodName,
+                                materialId: prodId
+                            });
+                            neededMaterials.add(prodId);
+                        }
+                    }
+                });
+            }
+
+            if(skippedCount > 0) {
+                alert(`ℹ️ تم استبعاد ${skippedCount} قطعة لأنه تم صرف خاماتها مسبقاً.`);
+            }
+
+            if(piecesTemplate.length === 0) {
+                alert('✅ تم تنفيذ هذا الأمر بالكامل مسبقاً!');
+                refreshPieceList();
+                return;
+            }
+
+            // 4. إحضار الرولات للخامات المتبقية فقط
+            rolls = []; 
+            const finalPieces = [];
+
+            for (const prodId of neededMaterials) {
+                try {
+                    const rollRes = await fetch(`${API}/stock/available-rolls?productId=${prodId}`);
+                    const rollCodes = await rollRes.json();
+                    const prodInfo = allProducts.find(p => p._id === prodId);
+                    
+                    if (rollCodes.length > 0) {
+                        const defaultW = prodInfo ? (prodInfo.dimensions?.width/100) : 1.52;
+                        const defaultL = prodInfo ? (prodInfo.dimensions?.length/100) : 15;
+
+                        rollCodes.forEach(code => {
+                            rolls.push({
+                                name: prodInfo?.name,
+                                id: prodId,
+                                code: code,
+                                L: defaultL, 
+                                W: defaultW,
+                                freeRects: [], cuts: []
+                            });
+                        });
+                        
+                        // إضافة القطع المرتبطة بهذه الخامة
+                        const relatedPieces = piecesTemplate.filter(p => p.materialId === prodId);
+                        finalPieces.push(...relatedPieces);
+
+                    } else {
+                        // خامة ناقصة
+                        skippedMaterials.add(prodInfo?.name || 'غير معروف');
+                    }
+                } catch(e) {}
+            }
+
+            // عرض القطع التي لها رولات فقط
+            piecesTemplate = finalPieces;
+            refreshPieceList();
+            refreshRollList();
+
+            if (skippedMaterials.size > 0) {
+                alert(`⚠️ تنبيه: الخامات التالية ليس لها رصيد (رولات) وتم استبعاد قطعها مؤقتاً:\n- ${Array.from(skippedMaterials).join('\n- ')}`);
+            }
+
+        } catch(e) { 
+            console.error(e);
+            alert('خطأ: ' + e.message); 
+        }
+    }
+
+    // 4. ربط الرولات بالمخزن والخامة (عند الإضافة اليدوية)
+    async function loadRollsForProduct() {
+        const prodId = document.getElementById('rollProduct').value;
+        const rollListSel = document.getElementById('availableRolls');
+        
+        rollListSel.innerHTML = '<option value="">-- اختر رول محدد --</option>';
+        if(!prodId) return;
+        
+        try {
+            const res = await fetch(`${API}/stock/available-rolls?productId=${prodId}`);
+            if(res.ok) {
+                const rollsData = await res.json();
+                rollsData.forEach(rObj => {
+                    rollListSel.innerHTML += `<option value="${rObj.rollCode}">${rObj.display}</option>`;
+                });
+            }
+        } catch(e) { console.error('Error fetching rolls:', e); }
+    }
+
+    function fillRollDims() { }
+
+    // --- إدارة القوائم ---
+    function refreshRollList(){
+        document.getElementById('rollList').innerHTML = rolls.map((r,i)=> 
+            `<div class="list-item">
+                <span><b>${r.name}</b> <span class="badge-roll">${r.code}</span></span> 
+                <span>${r.L}x${r.W}م</span> 
+                <button class="action-btn del-btn" onclick="removeRoll(${i})">x</button>
+            </div>`
+        ).join('');
+    }
+
+    function refreshPieceList(){
+        const tbody = document.getElementById('pieceListTable');
+        tbody.innerHTML = piecesTemplate.map((p,i)=> `
+            <tr>
+                <td>${p.desc}</td>
+                <td style="color:#0369a1; font-weight:bold">${p.materialName || '-'}</td>
+                <td dir="ltr" style="text-align:right">${p.L} x ${p.W}</td>
+                <td>${p.Q}</td>
+                <td><button class="action-btn del-btn" onclick="removePiece(${i})">X</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function addRoll(){
+        const sel = document.getElementById('rollProduct');
+        const rollCodeSel = document.getElementById('availableRolls');
+        
+        if(!sel.value) return alert('اختر الخامة');
+        
+        const name = sel.options[sel.selectedIndex].text;
+        const prodId = sel.value; 
+        const code = rollCodeSel.value || 'New'; 
+        const L = parseFloat(document.getElementById('rollL').value);
+        const W = parseFloat(document.getElementById('rollW').value);
+        
+        if(!L || !W) return alert('أدخل الأبعاد');
+        if(rolls.find(r => r.code === code)) return alert('هذا الرول مضاف بالفعل');
+
+        rolls.push({L, W, name, id: prodId, code: code, freeRects:[], cuts:[]});
+        refreshRollList();
+    }
+
+    function addPiece(){
+        const nameInput = document.getElementById('pieceName');
+        const matSel = document.getElementById('pieceMat');
+        const desc = nameInput.value || 'قطعة يدوية';
+        
+        const matId = matSel.value || null;
+        const matName = matSel.selectedIndex > 0 ? matSel.options[matSel.selectedIndex].text : 'يدوي';
+
+        const L = parseFloat(document.getElementById('pieceL').value);
+        const W = parseFloat(document.getElementById('pieceW').value);
+        const Q = parseInt(document.getElementById('pieceQ').value);
+        if(!L || !W) return alert('أدخل الأبعاد');
+        
+        piecesTemplate.push({L, W, Q, desc, materialName: matName, materialId: matId});
+        refreshPieceList();
+        
+        nameInput.value = '';
+        document.getElementById('pieceL').value = '';
+        document.getElementById('pieceW').value = '';
+    }
+
+    function removePiece(idx) { piecesTemplate.splice(idx, 1); refreshPieceList(); }
+    function removeRoll(idx) { rolls.splice(idx, 1); refreshRollList(); }
+    function clearRolls(){ rolls=[]; refreshRollList(); document.getElementById('visuals').innerHTML=''; }
+    function clearPieces(){ piecesTemplate=[]; refreshPieceList(); }
+
+    // --- الخوارزمية ---
+    function runPlanner(){
+        if(rolls.length===0) return alert('لا توجد رولات متاحة');
+        if(piecesTemplate.length===0) return alert('أضف قطع للقص');
+        
+        expandedPieces = [];
+        piecesTemplate.forEach(p => { 
+            for(let i=0; i<p.Q; i++) expandedPieces.push({...p, id: Math.random()}); 
+        });
+        expandedPieces.sort((a,b) => (b.L*b.W) - (a.L*a.W));
+
+        rolls.forEach(r => { r.freeRects = [{x:0, y:0, L:r.L, W:r.W}]; r.cuts = []; });
+        
+        const allowRotate = document.getElementById('allowRotate').checked;
+        let usedAreaTotal = 0, rollAreaTotal = 0;
+        let unplaced = [];
+
+        expandedPieces.forEach(piece => {
+            let best = null;
+            
+            for(let rIdx=0; rIdx<rolls.length; rIdx++) {
+                const roll = rolls[rIdx];
+                // 🛑 مطابقة الخامة
+                if(piece.materialId && roll.id && piece.materialId !== roll.id) {
+                    continue; 
+                }
+
+                for(let fIdx=0; fIdx<roll.freeRects.length; fIdx++) {
+                    const free = roll.freeRects[fIdx];
+                    if(piece.L <= free.L && piece.W <= free.W) {
+                        const waste = (free.L * free.W) - (piece.L * piece.W);
+                        if(!best || waste < best.waste) best = {rIdx, fIdx, L:piece.L, W:piece.W, waste, rot:false};
+                    }
+                    if(allowRotate && piece.W <= free.L && piece.L <= free.W) {
+                        const waste = (free.L * free.W) - (piece.L * piece.W);
+                        if(!best || waste < best.waste) best = {rIdx, fIdx, L:piece.W, W:piece.L, waste, rot:true};
+                    }
+                }
+            }
+
+            if(best) {
+                const R = rolls[best.rIdx];
+                const F = R.freeRects[best.fIdx];
+                R.cuts.push({x:F.x, y:F.y, L:best.L, W:best.W, desc:piece.desc, rot:best.rot});
+                usedAreaTotal += (best.L * best.W);
+                if(F.L - best.L > 0) R.freeRects.push({x: F.x + best.L, y: F.y, L: F.L - best.L, W: best.W});
+                if(F.W - best.W > 0) R.freeRects.push({x: F.x, y: F.y + best.W, L: F.L, W: F.W - best.W});
+                R.freeRects.splice(best.fIdx, 1);
+            } else {
+                unplaced.push(`${piece.desc} (${piece.materialName})`);
+            }
+        });
+
+        const container = document.getElementById('visuals');
+        container.innerHTML = '';
+        let usedRollsCount = 0;
+        rolls.forEach((r, idx) => {
+            if(r.cuts.length > 0) {
+                usedRollsCount++;
+                rollAreaTotal += (r.L * r.W);
+                renderCanvas(r, idx, container);
+            }
+        });
+
+        const usage = rollAreaTotal > 0 ? (usedAreaTotal / rollAreaTotal * 100).toFixed(1) : 0;
+        document.getElementById('usage').innerText = usage + '%';
+        document.getElementById('waste').innerText = (100 - usage).toFixed(1) + '%';
+        document.getElementById('usedRolls').innerText = usedRollsCount;
+
+        if(unplaced.length > 0) alert(`⚠️ قطع لم يتم وضعها:\n${unplaced.join('\n')}`);
+        
+        document.getElementById('saveBtn').style.display = 'block';
+    }
+
+    function renderCanvas(r, idx, container) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `<h4>رول ${idx+1}: ${r.name} (${r.code})</h4>`;
+        const canvas = document.createElement('canvas');
+        const scale = 40; 
+        canvas.width = r.L * scale; canvas.height = r.W * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        r.cuts.forEach((c, i) => {
+            const hue = (i * 137) % 360;
+            ctx.fillStyle = `hsl(${hue}, 70%, 60%)`;
+            ctx.fillRect(c.x*scale, c.y*scale, c.L*scale, c.W*scale);
+            ctx.strokeStyle = '#fff'; ctx.strokeRect(c.x*scale, c.y*scale, c.L*scale, c.W*scale);
+            ctx.fillStyle = '#000'; ctx.font = 'bold 12px Arial';
+            ctx.fillText(c.desc, c.x*scale+5, c.y*scale+15);
+            ctx.font = '10px Arial'; ctx.fillText(`${c.L}x${c.W}`, c.x*scale+5, c.y*scale+30);
+        });
+        wrap.appendChild(canvas);
+        container.appendChild(wrap);
+    }
+
+    async function createStockOut() {
+        const warehouseId = document.getElementById('warehouseSelect').value;
+        if(!warehouseId) return alert('الرجاء اختيار المخزن');
+
+        if(!confirm(`سيتم صرف الكميات المستخدمة.\nهل أنت متأكد؟`)) return;
+        
+        const items = [];
+        rolls.forEach(r => {
+            if(r.cuts.length > 0) {
+                let consumedArea = 0;
+                r.cuts.forEach(c => consumedArea += (c.L * c.W));
+                // consumedArea is in M2 (Meters * Meters)
+                // Inventory Service expects M2, so no conversion needed.
+                
+                items.push({
+                    product: r.id, 
+                    rollCode: r.code, 
+                    consumedArea: consumedArea, 
+                    partName: 'صرف تشغيل (مخطط تقطيع)'
+                });
+            }
+        });
+
+        const data = {
+            type: 'Outbound',
+            date: new Date(),
+            transactionReason: 'قص آلي',
+            notes: 'صرف بناءً على مخطط التقطيع',
+            jobOrder: currentInvoiceId, 
+            warehouse: warehouseId, 
+            items: items
+        };
+
+        try {
+            const res = await fetch(`${API}/stock`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+            const json = await res.json();
+            if(res.ok) alert('تم الصرف وتحديث المخزن بنجاح ✅');
+            else alert('فشل الصرف: ' + json.message);
+        } catch(e) { alert('خطأ اتصال'); }
+    }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

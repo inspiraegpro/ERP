@@ -1,0 +1,42 @@
+اسم الصنف	parts	Price [EGP]	Car Size
+Window Film	2 Doors	4,000	Sedan
+Window Film	4 Doors	8,000	Sedan
+Window Film	Front Windshield	4,000	Sedan
+Window Film	Rear Windshield	4,000	Sedan
+Window Film	Sunroof	4,000	Sedan
+Window Film	Full Glass Roof	6,000	Sedan
+Window Film	Half Package	7,000	Sedan
+Window Film	Full Package	14,000	Sedan
+Window Film	Full Package + Sunroof	16,000	Sedan
+Window Film	Full Package + Full Roof	18,000	Sedan
+Window Film	2 Doors	4,000	SUV/Large Sedan
+Window Film	4 Doors	8,000	SUV/Large Sedan
+Window Film	Front Windshield	5,000	SUV/Large Sedan
+Window Film	Rear Windshield	5,000	SUV/Large Sedan
+Window Film	Sunroof	5,000	SUV/Large Sedan
+Window Film	Full Glass Roof	7,000	SUV/Large Sedan
+Window Film	Half Package	8,000	SUV/Large Sedan
+Window Film	Full Package	16,000	SUV/Large Sedan
+Window Film	Full Package + Sunroof	19,000	SUV/Large Sedan
+Window Film	Full Package + Full Roof	21,000	SUV/Large Sedan
+Window Film	2 Doors	4,000	Large SUV
+Window Film	4 Doors	8,000	Large SUV
+Window Film	Front Windshield	5,000	Large SUV
+Window Film	Rear Windshield	5,000	Large SUV
+Window Film	Sunroof	6,000	Large SUV
+Window Film	Full Glass Roof	8,000	Large SUV
+Window Film	Half Package	8,000	Large SUV
+Window Film	Full Package	16,000	Large SUV
+Window Film	Full Package + Sunroof	20,000	Large SUV
+Window Film	Full Package + Full Roof	22,000	Large SUV
+Service		Price [EGP]	
+Small Screen		3,000	
+Large Screen		5,000	
+Service		Price [EGP]	Remarks
+Interior Leather Protection		9,000	Per Bottle
+Soft Top Leather Protection		10,000	Per Bottle
+Service		Price [EGP]	
+Plexi		5,000	
+Plexi Plus		14,000	
+ppf		0.31907	
+Matt		0.3828	

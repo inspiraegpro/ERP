@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Order Print</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; padding: 20px; background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .container { max-width: 800px; margin: 0 auto; border: 1px solid #000; min-height: 1000px; position: relative; }
+        
+        /* Header Logo Area */
+        .logo-area { background: #333; color: white; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; border-bottom: 2px solid #000; }
+        
+        /* Section Title */
+        .sec-title { background: #555; color: white; text-align: center; font-weight: bold; padding: 5px; text-transform: uppercase; border-top: 1px solid #000; border-bottom: 1px solid #000; font-size: 14px; }
+        
+        /* Table Grid */
+        .row { display: flex; border-bottom: 1px solid #ccc; }
+        .row:last-child { border-bottom: none; }
+        .label { background: #f0f0f0; width: 180px; padding: 5px 10px; font-weight: bold; border-right: 1px solid #ccc; font-size: 13px; display: flex; align-items: center; }
+        .val { flex: 1; padding: 5px 10px; font-size: 14px; display: flex; align-items: center; }
+        .val-half { width: 50%; display: flex; border-right: 1px solid #ccc; }
+        
+        /* Services Section */
+        .services-box { min-height: 200px; padding: 10px; font-size: 14px; }
+        .service-line { padding: 5px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
+        
+        /* Financials */
+        .money-row { display: flex; border-top: 1px solid #000; }
+        .money-lbl { width: 50%; padding: 5px; text-align: right; border-right: 1px solid #000; font-weight: bold; background: #f9f9f9; }
+        .money-val { width: 50%; padding: 5px; text-align: center; font-weight: bold; }
+
+        /* Remarks */
+        .remarks-box { height: 60px; padding: 10px; font-style: italic; border-bottom: 1px solid #000; }
+
+        /* Footer & Signatures */
+        .signatures { display: flex; border-top: 2px solid #000; margin-top: 0; }
+        .sig-box { flex: 1; text-align: center; height: 80px; border-right: 1px solid #000; }
+        .sig-box:last-child { border-right: none; }
+        .sig-title { background: #555; color: white; padding: 5px; font-weight: bold; font-size: 12px; }
+
+        .terms { font-size: 10px; padding: 10px; text-align: justify; color: #444; border-top: 1px solid #000; }
+        .bottom-strip { background: #333; color: white; padding: 5px 20px; display: flex; justify-content: space-between; font-size: 12px; position: absolute; bottom: 0; width: 100%; box-sizing: border-box; }
+
+        @media print {
+            .no-print { display: none; }
+            .container { border: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="text-align:center; margin-bottom:20px;">
+        <button onclick="window.print()" style="padding:10px 30px; background:#000; color:#fff; cursor:pointer;">🖨️ Print</button>
+    </div>
+
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo-area">WrapStyle Cairo – Empyrean Enterprises</div>
+
+        <!-- Header Info -->
+        <div class="sec-title">PAYMENT RECEIPT</div>
+        
+        <div class="row">
+            <div class="label">Receipt Number</div>
+            <div class="val" id="invNum" style="font-weight:bold; font-size:16px"></div>
+        </div>
+        <div class="row">
+            <div class="val-half" style="flex:1">
+                <div class="label" style="width:120px">Issuance Date</div>
+                <div class="val" id="date"></div>
+            </div>
+            <div class="val-half" style="flex:1">
+                <div class="label" style="width:80px; border-left:1px solid #ccc">Branch</div>
+                <div class="val">Cloud Nine Mall, Mohamed Naguib Axis, New Cairo</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="label">Customer Name</div>
+            <div class="val" id="custName"></div>
+        </div>
+        <div class="row">
+            <div class="label">Phone Number</div>
+            <div class="val" id="phone"></div>
+        </div>
+        <div class="row">
+            <div class="label">Car Make & Model</div>
+            <div class="val" id="carInfo"></div>
+        </div>
+        <div class="row">
+            <div class="label">Car Color</div>
+            <div class="val" id="carColor">-</div>
+        </div>
+        <div class="row">
+            <div class="label">VIN #</div>
+            <div class="val">-</div>
+        </div>
+
+        <!-- Services -->
+        <div class="sec-title">REQUESTED SERVICES</div>
+        <div class="services-box" id="servicesList">
+            <!-- Items will go here -->
+        </div>
+
+        <!-- Financials -->
+        <div class="row">
+            <div class="label">Date</div>
+            <div class="val" id="receiptDate"></div>
+        </div>
+        <div class="row">
+            <div class="label">وكيل البيع</div>
+            <div class="val" id="salesPersonName">-</div>
+        </div>
+        <div class="row">
+            <div class="label">Service Type</div>
+            <div class="val" id="serviceTypeVal">-</div>
+        </div>
+
+        <div class="money-row">
+            <div class="money-lbl">Subtotal</div>
+            <div class="money-val" id="total">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">VAT (14%)</div>
+            <div class="money-val" id="disc">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">Withholding Tax</div>
+            <div class="money-val" id="wht">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">Net Received</div>
+            <div class="money-val" id="net">0.00</div>
+        </div>
+
+        <!-- Remarks -->
+        <div class="sec-title">REMARKS</div>
+        <div class="remarks-box" id="notes"></div>
+
+        <!-- Signatures -->
+        <div class="signatures">
+            <div class="sig-box">
+                <div class="sig-title">إدارة المبيعات</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-title">توقيع العميل</div>
+            </div>
+        </div>
+
+        <!-- Terms -->
+        <div class="terms">
+            Terms & Conditions: All above prices are inclusive of 14% value added tax (VAT). By signing this form, the customer has agreed to the above price, understands the warranty extended to installed products and confirms that all belongings have been removed from the vehicle.
+        </div>
+
+        <!-- Footer -->
+        <div class="bottom-strip">
+            <span>📞 +2012 00 999 333</span>
+            <span>✉️ cairo@wrapstyle.com</span>
+            <span>🌐 wrapstyle.com</span>
+        </div>
+    </div>
+
+<script>
+    // 👇👇👇 التعديل الحاسم: استخدام الرابط الكامل لضمان جلب البيانات محلياً 👇👇👇
+    const API = '/api';
+    
+    window.onload = async () => {
+        const id = new URLSearchParams(window.location.search).get('id');
+        if(!id) return alert('No Invoice ID');
+
+        try {
+            const res = await fetch(`${API}/sales/${id}`);
+            if (!res.ok) throw new Error("فاتورة غير موجودة");
+            const inv = await res.json();
+
+            document.getElementById('invNum').innerText = inv.invoiceNumber;
+            document.getElementById('date').innerText = new Date(inv.date).toLocaleDateString('en-GB');
+            document.getElementById('custName').innerText = inv.customer?.name || inv.customerName || '-';
+            document.getElementById('phone').innerText = inv.customer?.phone || '-';
+            document.getElementById('receiptDate').innerText = new Date(inv.date).toLocaleDateString('en-GB');
+            document.getElementById('salesPersonName').innerText = inv.salesPerson?.name || inv.salesPerson || '-';
+            document.getElementById('serviceTypeVal').innerText = inv.serviceType || '-';
+            
+            // بيانات السيارة (معالجة ذكية لو البيانات ناقصة)
+            const brand = inv.carModel?.brand || inv.carModel?.brandName || '';
+            const model = inv.carModel?.model || inv.carModel?.name || '';
+            const year = inv.carModel?.year || '';
+            document.getElementById('carInfo').innerText = `${brand} ${model} ${year}`.trim() || '-';
+            
+            // Services
+            let html = '';
+            inv.items.forEach(item => {
+                const prodName = item.product?.name || item.partName || 'خدمة';
+                const price = item.price || 0;
+                html += `<div class="service-line"><span>${prodName}</span> <span>${parseFloat(price).toLocaleString()}</span></div>`;
+            });
+            document.getElementById('servicesList').innerHTML = html;
+
+            // Financials
+            const sub = parseFloat(inv.subtotal) || 0;
+            const extra = parseFloat(inv.totalExtraCosts) || 0;
+            const gross = sub + extra;
+            const vat = parseFloat(inv.totalTax) || 0;
+            const wht = parseFloat(inv.whtAmount) || 0;
+            const final = parseFloat(inv.finalTotal) || 0;
+
+            document.getElementById('total').innerText = gross.toLocaleString();
+            document.getElementById('disc').innerText = vat.toLocaleString();
+            document.getElementById('wht').innerText = wht.toLocaleString();
+            document.getElementById('net').innerText = final.toLocaleString();
+
+        } catch(e) { 
+            alert('خطأ في تحميل الفاتورة: ' + e.message); 
+        }
+    }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

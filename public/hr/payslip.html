@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فيشة راتب</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #555; }
+        .slip-container { background: white; max-width: 800px; margin: 0 auto; padding: 10px; border-radius: 5px; }
+        
+        /* تنسيق جزء البحث (يختفي عند الطباعة) */
+        .search-box { 
+            background: #e0f2fe; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
+            border: 1px solid #bae6fd; display: flex; gap: 10px; align-items: flex-end; justify-content: center;
+        }
+        .search-box label { font-weight: bold; color: #0369a1; font-size: 13px; display: block; margin-bottom: 5px; }
+        .search-box input { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .btn-search { background: #0369a1; color: white; border: none; padding: 8px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+        /* تنسيق الفيشة */
+        .slip { border: 2px solid #000; padding: 30px; position: relative; }
+        h2 { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 0; }
+        
+        .header-info { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-bottom: 1px dashed #000; padding-bottom: 15px; margin-bottom: 20px; }
+        .info-row { font-size: 14px; font-weight: bold; }
+        .info-row span { color: #333; font-weight: normal; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+        th { background: #eee; }
+        
+        .vac-box { background: #f9f9f9; border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; font-size: 13px; }
+        .net-box { text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #000; padding: 10px; margin: 20px 0; background: #eef; }
+        
+        @media print { 
+            body { background: white; padding: 0; } 
+            .no-print, .search-box { display: none !important; } 
+            .slip-container { box-shadow: none; margin: 0; max-width: 100%; }
+            .slip { border: 2px solid #000; width: 100%; box-sizing: border-box; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="slip-container">
+    <div class="search-box no-print">
+        <div>
+            <label>شهر الصرف</label>
+            <input type="month" id="searchMonth">
+        </div>
+        <div>
+            <label>كود الموظف</label>
+            <input type="text" id="searchCode" placeholder="مثال: 101">
+        </div>
+        <button class="btn-search" onclick="searchPayslip()">🔍 بحث واستعراض</button>
+    </div>
+
+    <div id="printableArea" class="slip">
+        <h2>بيان صرف راتب (Pay Slip)</h2>
+        
+        <div class="header-info">
+            <div class="info-row">الاسم: <span id="name"></span></div>
+            <div class="info-row">الكود: <span id="code"></span></div>
+            <div class="info-row">الوظيفة: <span id="job"></span></div>
+            <div class="info-row">القسم: <span id="dept"></span></div>
+            <div class="info-row">الشهر: <span id="month"></span></div>
+            <div class="info-row">تاريخ الطباعة: <span id="printDate"></span></div>
+        </div>
+
+        <div class="vac-box">
+            <strong>رصيد الإجازات (الافتتاحي):</strong> <span id="vb">0</span> يوم <br>
+            <strong>استهلاك (اعتيادي):</strong> - <span id="va" style="color:red; font-weight:bold;">0</span> يوم <br>
+            <span style="font-size:11px; color:#666;">(ملاحظة: مرضي: <span id="vs">0</span> | غياب: <span id="vabs">0</span>)</span> <br>
+            <hr style="margin:5px 0; border:0; border-top:1px dashed #ccc;">
+            <strong>المتبقي من الرصيد:</strong> <span id="vRem" style="color:green; font-weight:bold; font-size:14px;">0</span> يوم
+        </div>
+
+        <table>
+            <thead>
+                <tr><th colspan="2">الاستحقاقات (+)</th><th colspan="3">الاستقطاعات (-)</th></tr>
+                <tr><th>البند</th><th>القيمة</th><th>البند</th><th>أيام</th><th>قيمة</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>الراتب الشامل</td><td id="basic">0.00</td>
+                    <td>غياب (بدون أجر)</td><td id="absD">0</td><td id="absV">0.00</td>
+                </tr>
+                <tr>
+                    <td></td><td></td>
+                    <td>جزاءات</td><td id="penD">0</td><td id="penV">0.00</td>
+                </tr>
+                <tr>
+                    <td></td><td></td>
+                    <td>تأخيرات</td><td id="lateD">0</td><td id="lateV">0.00</td>
+                </tr>
+                <tr>
+                    <td></td><td></td>
+                    <td>سلف شهرية</td><td colspan="2" id="loanM">0.00</td>
+                </tr>
+                <tr>
+                    <td></td><td></td>
+                    <td>سلف مستديمة</td><td colspan="2" id="loanP">0.00</td>
+                </tr>
+                <tr style="background:#f9f9f9; font-weight:bold">
+                    <td>إجمالي المستحق</td><td id="totalA">0.00</td>
+                    <td colspan="2">إجمالي الخصم</td><td id="totalD">0.00</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="net-box">الصافي: <span id="net"></span> جنيه مصري</div>
+
+        <div style="display:flex; justify-content:space-between; margin-top:40px">
+            <div>مدير الحسابات</div>
+            <div>الموارد البشرية</div>
+            <div>توقيع المستلم</div>
+        </div>
+    </div>
+    
+    <div class="no-print" style="text-align:center; margin-top:20px">
+        <button class="btn-search" onclick="window.print()">🖨️ طباعة الفيشة</button>
+    </div>
+</div>
+
+<script>
+    const API = '/api/hr';
+
+    window.onload = function() {
+        document.getElementById('printDate').innerText = new Date().toLocaleDateString('ar-EG');
+        const p = new URLSearchParams(window.location.search);
+        
+        // لو جاي من صفحة الرواتب (الرابط فيه بيانات)
+        if (p.has('code')) {
+            fillData({
+                name: p.get('name'),
+                code: p.get('code'),
+                jobTitle: p.get('job') || '-', 
+                department: '-', // لو الرابط مفهوش قسم ممكن نجيبه من البحث لو حبيت
+                month: p.get('month'),
+                totalSalary: parseFloat(p.get('basic')),
+                netSalary: parseFloat(p.get('net')),
+                totalDeductions: parseFloat(p.get('deduct')),
+                absenceDays: p.get('absD'),
+                absenceValue: parseFloat(p.get('absV')),
+                penaltyDays: p.get('penD'),
+                penaltyValue: parseFloat(p.get('penV')),
+                latenessDays: p.get('lateD'),
+                latenessValue: parseFloat(p.get('lateV')),
+                monthlyLoan: parseFloat(p.get('loanM')),
+                permanentLoan: parseFloat(p.get('loanP')),
+                // هنا البيانات بتيجي من الرابط
+                vacationBalance: parseFloat(p.get('bal')), 
+                annualLeaveDays: parseFloat(p.get('ann')),
+                sickLeaveDays: parseFloat(p.get('sick'))
+            });
+            document.getElementById('searchMonth').value = p.get('month');
+            document.getElementById('searchCode').value = p.get('code');
+        } else {
+            const now = new Date();
+            document.getElementById('searchMonth').value = now.toISOString().slice(0, 7);
+        }
+    };
+
+    // دالة البحث المباشر
+    async function searchPayslip() {
+        const month = document.getElementById('searchMonth').value;
+        const code = document.getElementById('searchCode').value.trim();
+
+        if (!month || !code) { alert('أدخل الشهر وكود الموظف'); return; }
+
+        try {
+            const res = await fetch(`${API}/payroll?month=${month}`);
+            const data = await res.json();
+
+            if (data.length === 0) { alert('لا يوجد مسير رواتب لهذا الشهر'); return; }
+
+            const payroll = data[0];
+            // البحث عن الموظف داخل المسير
+            const empDetails = payroll.details.find(d => d.employeeCode === code);
+
+            if (!empDetails) { alert('لم يتم العثور على موظف بهذا الكود في مسير هذا الشهر'); return; }
+
+            // تعبئة البيانات
+            fillData({
+                ...empDetails,
+                month: month
+            });
+
+        } catch (e) { console.error(e); alert('خطأ في الاتصال'); }
+    }
+
+    function fillData(d) {
+        document.getElementById('name').innerText = d.employeeName || d.name;
+        document.getElementById('code').innerText = d.employeeCode || d.code;
+        document.getElementById('job').innerText = d.jobTitle || '-';
+        document.getElementById('dept').innerText = d.department || '-';
+        document.getElementById('month').innerText = d.month;
+
+        // الأرقام المالية
+        document.getElementById('basic').innerText = (d.totalSalary||0).toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('totalA').innerText = (d.totalSalary||0).toLocaleString('en-US', {minimumFractionDigits: 2});
+        
+        document.getElementById('net').innerText = (d.netSalary||0).toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('totalD').innerText = (d.totalDeductions||0).toLocaleString('en-US', {minimumFractionDigits: 2});
+
+        // الاستقطاعات
+        document.getElementById('absD').innerText = d.absenceDays || 0;
+        document.getElementById('absV').innerText = (d.absenceValue||0).toFixed(2);
+        
+        document.getElementById('penD').innerText = d.penaltyDays || 0;
+        document.getElementById('penV').innerText = (d.penaltyValue||0).toFixed(2);
+        
+        document.getElementById('lateD').innerText = d.latenessDays || 0;
+        document.getElementById('lateV').innerText = (d.latenessValue||0).toFixed(2);
+        
+        document.getElementById('loanM').innerText = (d.monthlyLoan||0).toFixed(2);
+        document.getElementById('loanP').innerText = (d.permanentLoan||0).toFixed(2);
+
+        // 🔥 المنطق المعدل للإجازات (Snapshot)
+        // بنعتمد على القيمة اللي جاية من الباك إند (اللي هي الرصيد التاريخي)
+        const openingBalance = parseFloat(d.vacationBalance) || 0; 
+        const usedAnnual = parseFloat(d.annualLeaveDays) || 0;
+        const sick = parseFloat(d.sickLeaveDays) || 0;
+        const absDays = parseFloat(d.absenceDays) || 0;
+
+        document.getElementById('vb').innerText = openingBalance; // الرصيد الافتتاحي
+        document.getElementById('va').innerText = usedAnnual;     // المستهلك
+        document.getElementById('vs').innerText = sick;
+        document.getElementById('vabs').innerText = absDays;
+        
+        // المتبقي = الافتتاحي - المستهلك
+        document.getElementById('vRem').innerText = (openingBalance - usedAnnual).toFixed(2);
+    }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

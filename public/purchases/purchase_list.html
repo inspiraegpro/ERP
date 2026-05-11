@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل المشتريات</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1200px; margin: 0 auto; }
+        
+        /* تنسيق مربع البحث الجديد */
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box; /* لضمان عدم خروج البادينج عن العرض */
+        }
+        .search-box:focus { border-color: #10b981; outline: none; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #d1fae5; color: #065f46; }
+        
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; margin: 0 2px; font-size: 12px; }
+        .btn-edit { background: #f59e0b; }
+        .btn-del { background: #ef4444; }
+        .btn-new { background: #10b981; padding: 10px 20px; text-decoration: none; display: inline-block; font-weight: bold; font-size: 14px; }
+        
+        .error-msg { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 5px; display: none; margin-bottom: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="errorMsg" class="error-msg"></div>
+
+<div class="card">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+        <span>📋 سجل فواتير المشتريات والمصروفات</span>
+        <div>
+            <button class="btn btn-del" onclick="deleteSelected()" style="padding:10px 15px; margin-left:10px; font-weight:bold;">🗑️ حذف المحدد</button>
+            <a href="/purchases/purchase_invoice.html" class="btn-new">+ شراء مخزني</a>
+            <a href="/purchases/general_purchase.html" class="btn-new" style="background:#8b5cf6">+ مصروف / خدمة</a>
+        </div>
+    </h2>
+
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 ابحث برقم الفاتورة أو اسم المورد..." onkeyup="filterData()">
+    
+    <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+        <label>من:</label> <input type="date" id="dateFrom" onchange="filterData()">
+        <label>إلى:</label> <input type="date" id="dateTo" onchange="filterData()">
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                <th>رقم الفاتورة</th>
+                <th>التاريخ</th>
+                <th>المورد / الجهة</th>
+                <th>النوع</th>
+                <th>الإجمالي</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+
+    function authHeaders() {
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    
+    // متغير لتخزين البيانات الأصلية
+    let allInvoices = [];
+
+    async function load() {
+        try {
+            // إضافة headers لتمرير التوكن للسيرفر والموافقة على جلب البيانات
+            const res = await fetch(`${API}/purchases`, { headers: authHeaders() });
+            if (!res.ok) throw new Error("فشل الاتصال");
+            
+            // نحفظ البيانات في المتغير العام
+            allInvoices = await res.json();
+            
+            // نعرض البيانات لأول مرة
+            renderTable(allInvoices);
+
+        } catch (e) {
+            const msg = document.getElementById('errorMsg');
+            msg.innerText = '❌ خطأ: ' + e.message;
+            msg.style.display = 'block';
+        }
+    }
+
+    // دالة رسم الجدول (فصلناها لتستخدم في البحث أيضاً)
+    function renderTable(dataList) {
+        const tbody = document.getElementById('tbody');
+        
+        if (!dataList || dataList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;color:#666;">لا توجد نتائج مطابقة</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = dataList.map(i => {
+            // Determine type and edit link
+            const isGeneral = i.items && i.items.length > 0 && !i.items.some(it => it.product);
+            const editUrl = isGeneral ? `/purchases/general_purchase.html?id=${i._id}` : `/purchases/purchase_invoice.html?id=${i._id}`;
+            const typeBadge = isGeneral 
+                ? '<span style="background:#ede9fe; color:#5b21b6; padding:3px 8px; border-radius:10px; font-size:11px;">🛠️ خدمات/مصروفات</span>'
+                : '<span style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:10px; font-size:11px;">🛒 مخزني</span>';
+
+            return `
+            <tr data-id="${i._id}">
+                <td><input type="checkbox" class="row-select" value="${i._id}"></td>
+                <td>${i.invoiceNumber}</td>
+                <td>${new Date(i.date).toLocaleDateString('ar-EG')}</td>
+                <td>${i.supplier ? i.supplier.name : '-'}</td>
+                <td>${typeBadge}</td>
+                <td style="font-weight:bold; color:green">${i.totalAmount || i.subtotal || 0}</td>
+                <td>
+                    ${isAdmin ? `<button class="btn btn-edit" onclick="location.href='${editUrl}'">✏️ تعديل</button>` : ''}
+                    <button class="btn" style="background:#d97706; color:white;" onclick="location.href='/purchases/purchase_invoice_details.html?id=${i._id}'">👁️</button>
+                    ${isAdmin ? `<button class="btn btn-del" onclick="del('${i._id}')">🗑️</button>` : ''}
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.row-select').forEach(cb => cb.checked = checked);
+    }
+
+    async function deleteSelected() {
+        if (!isAdmin) { alert('الحذف متاح للأدمن فقط'); return; }
+        const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+        if (selected.length === 0) { alert('لم يتم تحديد أي فاتورة للحذف'); return; }
+        
+        if (!confirm(`تحذير! ⚠️\n\nأنت على وشك حذف (${selected.length}) فاتورة.\nسيتم عكس جميع التأثيرات (مخزن / قيود).\n\nهل أنت متأكد؟`)) return;
+
+        let successCount = 0;
+        for (const id of selected) {
+            try {
+                const res = await fetch(`${API}/purchases/${id}`, { method: 'DELETE', headers: authHeaders() });
+                if(res.ok) successCount++;
+            } catch(e) { console.error(e); }
+        }
+        
+        alert(`تم حذف ${successCount} من أصل ${selected.length} بنجاح.`);
+        load();
+    }
+
+    // دالة البحث (تشتغل عند الكتابة)
+    function filterData() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const from = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
+        const to = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value) : null;
+        if(to) to.setHours(23,59,59);
+
+        const filtered = allInvoices.filter(item => {
+            // نأخذ رقم الفاتورة واسم المورد
+            const invNum = String(item.invoiceNumber).toLowerCase();
+            const suppName = item.supplier ? item.supplier.name.toLowerCase() : '';
+            const invDate = new Date(item.date);
+            
+            // Text Match
+            const matchText = invNum.includes(query) || suppName.includes(query);
+            
+            // Date Match
+            let matchDate = true;
+            if(from && invDate < from) matchDate = false;
+            if(to && invDate > to) matchDate = false;
+
+            return matchText && matchDate;
+        });
+
+        // إعادة رسم الجدول بالنتائج المصفاة فقط
+        renderTable(filtered);
+    }
+
+    async function del(id) {
+        if (!isAdmin) { alert('الحذف متاح للأدمن فقط'); return; }
+        if(!confirm('هل أنت متأكد من الحذف؟ سيتم خصم الكميات من المخزن وإلغاء القيد.')) return;
+        try {
+            const res = await fetch(`${API}/purchases/${id}`, { method: 'DELETE', headers: authHeaders() });
+            if(res.ok) { alert('تم الحذف وتصحيح المخزن'); load(); } 
+            else { alert('فشل الحذف'); }
+        } catch(e) { alert('خطأ اتصال'); }
+    }
+
+    async function deleteFiltered() {
+        const query = document.getElementById('searchInput').value;
+        if (!query) { alert('برجاء البحث أولاً لتحديد الفواتير المراد حذفها'); return; }
+        
+        // Get visible IDs from rendered table (or filtered list)
+        // Better to use current filtered list in memory (filtered variable scope issue? Let's use DOM for simplicity)
+        const rows = document.querySelectorAll('#tbody tr');
+        const ids = [];
+        rows.forEach(r => {
+             // We need to store ID in TR
+             if(r.dataset.id) ids.push(r.dataset.id);
+        });
+
+        if (ids.length === 0) { alert('لا توجد فواتير ظاهرة للحذف'); return; }
+        if (!confirm(`تحذير خطير! ⚠️\n\nأنت على وشك حذف (${ids.length}) فاتورة نهائياً.\nسيتم خصم الكميات من المخزن وإلغاء القيود المحاسبية.\n\nهل أنت متأكد تماماً؟`)) return;
+
+        let successCount = 0;
+        for (const id of ids) {
+            try {
+                // إضافة headers لتمرير التوكن والسماح للأدمن بالحذف
+                const res = await fetch(`${API}/purchases/${id}`, { method: 'DELETE', headers: authHeaders() });
+                if(res.ok) successCount++;
+            } catch(e) { console.error(e); }
+        }
+        
+        alert(`تم حذف ${successCount} من أصل ${ids.length} فاتورة بنجاح.`);
+        load();
+    }
+
+    load();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

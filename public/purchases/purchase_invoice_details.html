@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>?????? ?????? ?????????</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #8b3e1a 0%, #c85c1a 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 28px; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        
+        .content { padding: 30px; }
+        
+        .invoice-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .info-group h3 { 
+            color: #1e293b; 
+            margin-bottom: 12px; 
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .info-item { 
+            margin-bottom: 8px; 
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        
+        .info-label { 
+            color: #64748b; 
+            font-weight: 500;
+        }
+        
+        .info-value { 
+            color: #1e293b; 
+            font-weight: 600;
+            text-align: left;
+        }
+        
+        .items-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            background: #f1f5f9;
+            padding: 12px 20px;
+            border-right: 4px solid #b45309;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .items-table th {
+            background: #fed7aa;
+            color: #92400e;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 2px solid #b45309;
+        }
+        
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        
+        .items-table tr:hover { 
+            background: #f8fafc; 
+        }
+        
+        .item-no { color: #64748b; font-weight: 500; }
+        .item-name { text-align: right; color: #1e293b; font-weight: 500; }
+        .item-price { color: #b45309; font-weight: 600; }
+        .item-amount { color: #92400e; font-weight: 700; }
+        
+        .totals-section {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .total-row.grand-total {
+            border-top: 2px solid #e5e7eb;
+            padding-top: 15px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .total-label { color: #64748b; }
+        .total-value { color: #1e293b; font-weight: 600; }
+        .grand-total .total-value { 
+            color: #92400e; 
+            font-size: 20px;
+        }
+        
+        .journal-entry {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .journal-badge {
+            display: inline-block;
+            background: #166534;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .journal-details {
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        
+        .journal-line {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .journal-code { color: #64748b; font-size: 12px; }
+        .journal-account { color: #334155; font-weight: 500; }
+        .journal-debit { color: #166534; font-weight: 600; }
+        .journal-credit { color: #991b1b; font-weight: 600; }
+        
+        .supplier-section {
+            background: #fed7aa;
+            border: 1px solid #d97706;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .supplier-section h4 {
+            color: #92400e;
+            margin-bottom: 10px;
+        }
+        
+        .supplier-balance {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #fbbf24;
+            font-size: 14px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-print { 
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-edit { 
+            background: #d97706;
+            color: white;
+        }
+        
+        .btn-payment { 
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-delete { 
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-back { 
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-paid {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-unpaid {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        
+        .spinner {
+            border: 4px solid #f1f5f9;
+            border-top: 4px solid #b45309;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; }
+            .action-buttons { display: none; }
+            .header { background: white; color: #000; border-bottom: 2px solid #000; }
+            .header h1 { font-size: 20px; }
+            @page { margin: 10mm; }
+        }
+        
+        @media (max-width: 768px) {
+            .invoice-header {
+                grid-template-columns: 1fr;
+            }
+            
+            .journal-line {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>? ?????? ?????? ?????????</h1>
+        <p id="headerSubtitle">???? ????? ????????...</p>
+    </div>
+    
+    <div class="content">
+        <div id="loadingSpinner" class="loading">
+            <div class="spinner"></div>
+            <p>???? ????? ?????? ????????...</p>
+        </div>
+        
+        <div id="mainContent" style="display: none;">
+            
+            <div id="errorMsg"></div>
+            
+            <!-- ?????? ???????? ???????? -->
+            <div class="invoice-header">
+                <div class="info-group">
+                    <h3>? ?????? ????????</h3>
+                    <div class="info-item">
+                        <span class="info-label">??? ????????:</span>
+                        <span class="info-value" id="invNumber">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">???????:</span>
+                        <span class="info-value" id="invDate">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">??????:</span>
+                        <span class="info-value"><span id="invStatus"></span></span>
+                    </div>
+                </div>
+                
+                <div class="info-group">
+                    <h3>? ?????? ??????</h3>
+                    <div class="info-item">
+                        <span class="info-label">?????:</span>
+                        <span class="info-value" id="suppName">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">??????:</span>
+                        <span class="info-value" id="suppPhone">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">?????????:</span>
+                        <span class="info-value" id="suppNotes">???? ???????</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ???? ?????? -->
+            <div class="supplier-section" id="supplierSection">
+                <h4>? ???? ??????</h4>
+                <div id="supplierBalance"></div>
+            </div>
+            
+            <!-- ???? ??????? -->
+            <div class="items-section">
+                <div class="section-title">? ?????? ??????? ????????</div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th style="text-align: right;">??? ?????</th>
+                            <th>??????</th>
+                            <th>?????</th>
+                            <th>????????</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTable"></tbody>
+                </table>
+            </div>
+            
+            <!-- ?????????? ???????? -->
+            <div class="totals-section">
+                <div class="total-row">
+                    <span class="total-label">?????? ?????:</span>
+                    <span class="total-value" id="subtotal">0.00</span>
+                </div>
+                <div class="total-row" id="taxRow" style="display: none;">
+                    <span class="total-label">??????? (%):</span>
+                    <span class="total-value" id="taxAmount">0.00</span>
+                </div>
+                <div class="total-row" id="vategoryRow" style="display: none;">
+                    <span class="total-label">?????? ???????:</span>
+                    <span class="total-value" id="vatAmount">0.00</span>
+                </div>
+                <div class="total-row" id="discountRow" style="display: none;">
+                    <span class="total-label">?????:</span>
+                    <span class="total-value" id="discountAmount">0.00</span>
+                </div>
+                <div class="total-row" id="whtRow" style="display: none;">
+                    <span class="total-label">????? ?????:</span>
+                    <span class="total-value" id="whtAmount">0.00</span>
+                </div>
+                <div class="total-row" id="costRow" style="display: none;">
+                    <span class="total-label">?????? ??????:</span>
+                    <span class="total-value" id="costAmount">0.00</span>
+                </div>
+                <div class="total-row grand-total">
+                    <span class="total-label">???????? ???????:</span>
+                    <span class="total-value" id="finalTotal">0.00</span>
+                </div>
+            </div>
+            
+            <!-- ????? ???????? -->
+            <div class="items-section" id="journalSection" style="display: none;">
+                <div class="section-title">? ????? ???????? ???????</div>
+                <div class="journal-entry" id="journalEntry"></div>
+            </div>
+            
+            <!-- ??????? -->
+            <div class="action-buttons">
+                <button class="btn btn-back" onclick="goBack()">
+                    ? ????
+                </button>
+                <button class="btn btn-print" onclick="window.print()">
+                    ?? ?????
+                </button>
+                <button class="btn btn-edit" onclick="editInvoice()">
+                    ?? ?????
+                </button>
+                <button class="btn btn-payment" id="paymentBtn" style="display: none;" onclick="makePayment()">
+                    ? ???
+                </button>
+                <button class="btn btn-delete" onclick="deleteInvoice()">
+                    ?? ???
+                </button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let invoice = null;
+    
+    window.onload = async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const invoiceId = urlParams.get('id');
+        
+        if (!invoiceId) {
+            showError('???? ???????? ??? ????');
+            return;
+        }
+        
+        await loadInvoiceDetails(invoiceId);
+    };
+    
+    async function loadInvoiceDetails(id) {
+        try {
+            const res = await fetch(`${API}/purchase/${id}`);
+            if (!res.ok) throw new Error('??? ????? ????????');
+            
+            invoice = await res.json();
+            displayInvoice();
+        } catch (e) {
+            console.error(e);
+            showError('??? ?? ????? ?????? ????????: ' + e.message);
+        }
+    }
+    
+    function displayInvoice() {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        // ???????? ????????
+        document.getElementById('invNumber').innerText = invoice.invoiceNumber || '-';
+        document.getElementById('invDate').innerText = new Date(invoice.date).toLocaleDateString('ar-EG');
+        document.getElementById('headerSubtitle').innerText = `?????? ???: ${invoice.invoiceNumber}`;
+        
+        // ???? ?????
+        const isPaid = invoice.paymentStatus === 'Paid' || (invoice.paidAmount >= invoice.finalTotal);
+        const statusBadge = `<span class="status-badge ${isPaid ? 'status-paid' : 'status-unpaid'}">
+            ${isPaid ? '? ??????' : '? ??? ????????'}
+        </span>`;
+        document.getElementById('invStatus').innerHTML = statusBadge;
+        document.getElementById('paymentBtn').style.display = isPaid ? 'none' : 'block';
+        
+        // ?????? ??????
+        document.getElementById('suppName').innerText = invoice.supplier?.name || '-';
+        document.getElementById('suppPhone').innerText = invoice.supplier?.phone || '-';
+        document.getElementById('suppNotes').innerText = invoice.notes || '???? ???????';
+        
+        // ???????
+        displayItems();
+        
+        // ??????????
+        displayTotals();
+        
+        // ???? ??????
+        displaySupplierBalance();
+        
+        // ????? ????????
+        if (invoice.journalId) {
+            loadJournalEntry(invoice.journalId);
+        }
+    }
+    
+    function displayItems() {
+        const tbody = document.getElementById('itemsTable');
+        const items = invoice.items || [];
+        
+        tbody.innerHTML = items.map((item, idx) => `
+            <tr>
+                <td class="item-no">${idx + 1}</td>
+                <td class="item-name">${item.name}</td>
+                <td>${item.quantity}</td>
+                <td class="item-price">${parseFloat(item.price).toLocaleString()}</td>
+                <td class="item-amount">${(item.quantity * item.price).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    }
+    
+    function displayTotals() {
+        const subtotal = invoice.subtotal || 0;
+        document.getElementById('subtotal').innerText = parseFloat(subtotal).toLocaleString();
+        
+        if (invoice.tax && invoice.tax > 0) {
+            document.getElementById('taxRow').style.display = 'flex';
+            document.getElementById('taxAmount').innerText = parseFloat(invoice.tax).toLocaleString();
+        }
+        
+        if (invoice.vat && invoice.vat > 0) {
+            document.getElementById('vategoryRow').style.display = 'flex';
+            document.getElementById('vatAmount').innerText = parseFloat(invoice.vat).toLocaleString();
+        }
+        
+        if (invoice.discount && invoice.discount > 0) {
+            document.getElementById('discountRow').style.display = 'flex';
+            document.getElementById('discountAmount').innerText = parseFloat(invoice.discount).toLocaleString();
+        }
+        
+        if (invoice.wht && invoice.wht > 0) {
+            document.getElementById('whtRow').style.display = 'flex';
+            document.getElementById('whtAmount').innerText = parseFloat(invoice.wht).toLocaleString();
+        }
+        
+        if (invoice.extraCosts && invoice.extraCosts > 0) {
+            document.getElementById('costRow').style.display = 'flex';
+            document.getElementById('costAmount').innerText = parseFloat(invoice.extraCosts).toLocaleString();
+        }
+        
+        document.getElementById('finalTotal').innerText = parseFloat(invoice.finalTotal || 0).toLocaleString();
+    }
+    
+    async function displaySupplierBalance() {
+        try {
+            if (!invoice.supplier?.accountId) {
+                document.getElementById('supplierSection').style.display = 'none';
+                return;
+            }
+            
+            const res = await fetch(`${API}/accounts/${invoice.supplier.accountId}`);
+            const account = await res.json();
+            
+            const html = `
+                <div class="supplier-balance">
+                    <div>
+                        <strong>?????? ??????:</strong> <span>${parseFloat(account.openingBalance || 0).toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <strong>????? ??????:</strong> <span>${parseFloat(account.currentBalance || 0).toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('supplierBalance').innerHTML = html;
+        } catch (e) {
+            console.error('??? ?? ??? ???? ??????:', e);
+        }
+    }
+    
+    async function loadJournalEntry(journalId) {
+        try {
+            const res = await fetch(`${API}/journal/${journalId}`);
+            const journal = await res.json();
+            
+            document.getElementById('journalSection').style.display = 'block';
+            
+            const lines = (journal.details || journal.lines || []).map(line => `
+                <div class="journal-line">
+                    <div class="journal-code">${line.accountCode || '-'}</div>
+                    <div class="journal-account">${line.accountName || line.subAccountName || '-'}</div>
+                    <div class="journal-debit">${line.debit > 0 ? parseFloat(line.debit).toLocaleString() : '-'}</div>
+                    <div class="journal-credit">${line.credit > 0 ? parseFloat(line.credit).toLocaleString() : '-'}</div>
+                </div>
+            `).join('');
+            
+            const html = `
+                <span class="journal-badge">? ??? ?????? ?????</span>
+                <div class="journal-details">
+                    <div class="journal-line" style="font-weight: bold; margin-bottom: 10px;">
+                        <div class="journal-code">?????</div>
+                        <div class="journal-account">??? ??????</div>
+                        <div class="journal-debit">????</div>
+                        <div class="journal-credit">????</div>
+                    </div>
+                    ${lines}
+                </div>
+            `;
+            
+            document.getElementById('journalEntry').innerHTML = html;
+        } catch (e) {
+            console.error('??? ?? ??? ????? ????????:', e);
+        }
+    }
+    
+    function showError(msg) {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        const errorDiv = document.getElementById('errorMsg');
+        errorDiv.innerHTML = `<div class="error-message">${msg}</div>`;
+    }
+    
+    function goBack() {
+        window.location.href = '/purchases/purchase_list.html';
+    }
+    
+    function editInvoice() {
+        window.location.href = `/purchases/purchase_invoice.html?id=${invoice._id}`;
+    }
+    
+    function makePayment() {
+        const suppName = encodeURIComponent(invoice.supplier?.name || '-');
+        const suppId = invoice.supplier?.accountId || '';
+        
+        const payLink = `/financial/treasury.html?invoiceId=${invoice._id}&invNum=${invoice.invoiceNumber}&amount=${invoice.finalTotal}&type=Outbound&suppId=${suppId}&suppName=${suppName}`;
+        window.location.href = payLink;
+    }
+    
+    async function deleteInvoice() {
+        if (!confirm(`?? ?????!\n\n?? ??? ????? ?? ??? ?????? ????????? ???: ${invoice.invoiceNumber}?\n\n????? ??? ??????? ??? ?????? ??????? ?????????.`)) {
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${API}/purchase/${invoice._id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert('? ?? ??? ???????? ?????');
+                window.location.href = '/purchases/purchase_list.html';
+            } else {
+                alert('? ??? ??? ????????');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('? ???: ' + e.message);
+        }
+    }
+</script>
+
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

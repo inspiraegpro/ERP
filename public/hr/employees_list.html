@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دليل الموظفين - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left,rgba(185,137,24,.14),transparent 20rem),linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1380px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1,.head h2 { margin:0; }
+        .hero p { margin:.45rem 0 0; color:rgba(255,255,255,.85); line-height:1.85; max-width:56rem; }
+        .tags { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+        .tag { padding:.7rem .95rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); font-weight:700; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .toolbar,.action-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .toolbar input { min-width:280px; }
+        .toolbar input,.btn { box-sizing:border-box; }
+        .toolbar input { border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.96rem; }
+        .btn { border:none; border-radius:14px; padding:.9rem 1.1rem; font-size:.95rem; font-weight:800; cursor:pointer; box-shadow:0 10px 22px rgba(22,58,95,.12); text-decoration:none; }
+        .btn.primary { background:var(--p); color:#fff; } .btn.accent { background:var(--a); color:#fff; } .btn.success { background:var(--ok); color:#fff; } .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); } .btn.danger { background:rgba(159,58,56,.12); color:var(--er); box-shadow:none; }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:16px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        .status { display:inline-flex; padding:.35rem .7rem; border-radius:999px; font-weight:700; font-size:.82rem; }
+        .status.active { background:rgba(31,111,95,.1); color:var(--ok); }
+        .status.inactive { background:rgba(159,58,56,.1); color:var(--er); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>دليل الموظفين</h1>
+        <p>إدارة الموظفين، المتابعة السريعة للحالة الوظيفية، الرواتب الإجمالية، ورصيد الإجازات من نقطة مركزية واضحة.</p>
+        <div class="tags">
+            <span class="tag">الموظفون</span>
+            <span class="tag">الإجازات</span>
+            <span class="tag">الزيادة السنوية</span>
+            <span class="tag">إنهاء الخدمة</span>
+        </div>
+    </section>
+
+    <div id="messageBox" class="msg"></div>
+
+    <section class="card">
+        <div class="toolbar">
+            <input id="search" placeholder="ابحث بالاسم أو الكود">
+            <div class="toolbar">
+                <button class="btn accent" type="button" onclick="resetVacations()">تجديد رصيد الإجازات</button>
+                <button class="btn light" type="button" onclick="syncAllData()">إنعاش البيانات</button>
+                <a class="btn light" href="/hr/technicians.html">عرض الفنيين</a>
+                <a class="btn primary" href="/hr/employee_coding.html">إضافة موظف</a>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>الكود</th>
+                    <th>الاسم</th>
+                    <th>الوظيفة</th>
+                    <th>القسم</th>
+                    <th>إجمالي الراتب</th>
+                    <th>رصيد الإجازات</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </section>
+</div>
+<script>
+    const API = '/api/hr';
+    const token = localStorage.getItem('token') || '';
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    let employees = [];
+
+    function authHeaders(includeJson = false) {
+        const headers = {};
+        if (includeJson) headers['Content-Type'] = 'application/json';
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        document.getElementById('search').addEventListener('input', filterTable);
+        await load();
+    });
+
+    function setMessage(message, type = 'ok') {
+        const box = document.getElementById('messageBox');
+        box.className = `msg ${type === 'error' ? 'er' : 'ok'}`;
+        box.textContent = message;
+    }
+
+    async function load() {
+        try {
+            const res = await fetch(`${API}/employees`);
+            employees = await res.json();
+            render(employees);
+        } catch (e) {
+            setMessage('خطأ في الاتصال بالسيرفر.', 'error');
+        }
+    }
+
+    function render(list) {
+        const tbody = document.getElementById('tbody');
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="8">لا يوجد موظفون حتى الآن.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map((e) => `
+            <tr>
+                <td>${e.code || '-'}</td>
+                <td style="font-weight:700">${e.name || '-'}</td>
+                <td>${e.jobTitle || '-'}</td>
+                <td>${e.department || '-'}</td>
+                <td>${Number(e.totalSalary || 0).toFixed(2)}</td>
+                <td>${Number(e.vacationBalance || 0).toFixed(2)}</td>
+                <td><span class="status ${e.status === 'Active' ? 'active' : 'inactive'}">${e.status === 'Active' ? 'نشط' : 'غير نشط'}</span></td>
+                <td>
+                    <a class="btn accent" href="/hr/employee_coding.html?id=${e._id}">تعديل</a>
+                    ${(currentUser.role || '').toLowerCase() === 'admin' ? `<button class="btn danger" type="button" onclick="del('${e._id}')">حذف</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function filterTable() {
+        const term = document.getElementById('search').value.toLowerCase();
+        const filtered = employees.filter((e) => (e.name || '').toLowerCase().includes(term) || (e.code || '').toLowerCase().includes(term));
+        render(filtered);
+    }
+
+    async function del(id) {
+        if (!confirm('هل تريد حذف هذا الموظف نهائيًا؟')) return;
+        try {
+            const res = await fetch(`${API}/employees/${id}`, { method: 'DELETE', headers: authHeaders() });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل حذف الموظف.');
+            await load();
+            setMessage('تم حذف الموظف بنجاح.');
+        } catch (e) {
+            setMessage(e.message || 'تعذر حذف الموظف.', 'error');
+        }
+    }
+
+    async function resetVacations() {
+        if (!confirm('سيتم ضبط رصيد الإجازات للموظفين النشطين إلى 21 يومًا. هل أنت متأكد؟')) return;
+        try {
+            const res = await fetch(`${API}/employees/reset-vacations`, { method: 'POST', headers: authHeaders() });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل تجديد الرصيد.');
+            await load();
+            setMessage(json.message || 'تم تجديد الرصيد بنجاح.');
+        } catch (e) {
+            setMessage(e.message || 'تعذر تجديد الرصيد.', 'error');
+        }
+    }
+
+    async function syncAllData() {
+        if (!confirm('سيتم إعادة حساب وتحديث بيانات الموظفين. هل تريد المتابعة؟')) return;
+        try {
+            const res = await fetch(`${API}/employees/sync-all`, { method: 'POST', headers: authHeaders() });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل إنعاش البيانات.');
+            await load();
+            setMessage(json.message || 'تم إنعاش البيانات بنجاح.');
+        } catch (e) {
+            setMessage(e.message || 'تعذر إنعاش البيانات.', 'error');
+        }
+    }
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

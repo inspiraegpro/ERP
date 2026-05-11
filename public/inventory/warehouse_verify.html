@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فحص واستلام الشحنات الواردة - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+</head>
+<body>
+    <main class="main-content">
+        <section class="card verify-card">
+            <div class="card-header">
+                <h3>فحص واستلام الشحنات الواردة</h3>
+            </div>
+            <div class="card-body">
+                <p class="helper-text">استخدم هذه الصفحة لتأكيد استلام الشحنة بعد مراجعة عدد الرولات المطبوعة وبيانات الأصناف.</p>
+                <div id="pendingShipments">
+                    <div class="empty-state">لا توجد شحنات معلقة للعرض في هذه الصفحة حالياً.</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <style>
+        .verify-card {
+            max-width: 960px;
+            margin: 2rem auto;
+        }
+
+        .helper-text {
+            color: #526277;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state {
+            padding: 1rem 1.2rem;
+            border-radius: 14px;
+            background: rgba(22, 58, 95, 0.05);
+            border: 1px dashed rgba(22, 58, 95, 0.16);
+            color: #163a5f;
+            font-weight: 600;
+        }
+    </style>
+
+    <script>
+        const API = '/api';
+
+        async function confirmReceipt(id) {
+            if (!confirm('هل تأكدت من عدد الرولات وسلامة الشحنة؟')) {
+                return;
+            }
+
+            const response = await fetch(`${API}/import-shipments/${id}/receive`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+                }
+            });
+
+            if (response.ok) {
+                alert('تم الاستلام بنجاح ويمكن متابعة طباعة الأكواد الآن.');
+                window.location.reload();
+                return;
+            }
+
+            alert('تعذر تأكيد الاستلام. راجع الاتصال أو صلاحيات المستخدم.');
+        }
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

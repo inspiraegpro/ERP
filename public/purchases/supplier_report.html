@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>كشف حساب مورد</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #fff7ed; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ea580c; padding-bottom: 10px; margin-bottom: 20px; }
+        
+        .filters { display: flex; gap: 10px; background: #ffedd5; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        input, button { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #ea580c; color: white; border: none; font-weight: bold; cursor: pointer; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #fed7aa; padding: 10px; text-align: center; }
+        th { background: #fff7ed; color: #9a3412; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2 style="margin:0; color:#c2410c">📄 كشف حساب مورد: <span id="supName">...</span></h2>
+        <button onclick="window.history.back()" style="background:#57534e">🔙 عودة للميزان</button>
+    </div>
+
+    <div class="filters">
+        <label>من:</label> <input type="date" id="fromDate">
+        <label>إلى:</label> <input type="date" id="toDate">
+        <button onclick="loadReport()">تحديث</button>
+    </div>
+
+    <div style="margin-bottom:15px; font-size:16px;">
+        <strong>الرصيد الافتتاحي: </strong> <span id="openBal" style="color:#2563eb">0.00</span>
+    </div>
+
+    <table id="table">
+        <thead>
+            <tr><th>التاريخ</th><th>المستند</th><th>البيان</th><th>مدين (له)</th><th>دائن (عليه)</th><th>الرصيد</th></tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+            <tr style="background:#fff7ed; font-weight:bold"><td colspan="3">الرصيد الختامي</td><td id="tDeb">0</td><td id="tCred">0</td><td id="tEnd">0</td></tr>
+        </tfoot>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+    
+    // قراءة الـ ID من الرابط
+    const urlParams = new URLSearchParams(window.location.search);
+    const supId = urlParams.get('id');
+
+    const today = new Date();
+    document.getElementById('toDate').valueAsDate = today;
+    document.getElementById('fromDate').valueAsDate = new Date(today.getFullYear(), 0, 1);
+
+    if(!supId) { alert('خطأ: لم يتم تحديد مورد'); }
+    else { loadReport(); }
+
+    async function loadReport() {
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        const tbody = document.querySelector('#table tbody');
+        
+        tbody.innerHTML = '<tr><td colspan="6">جار التحميل...</td></tr>';
+
+        try {
+            const res = await fetch(`${API}/reports/supplier-statement?supplierId=${supId}&fromDate=${from}&toDate=${to}`);
+            const data = await res.json();
+
+            document.getElementById('supName').innerText = data.supplierName;
+            document.getElementById('openBal').innerText = fmt(data.openingBalance);
+            
+            tbody.innerHTML = '';
+            let tD=0, tC=0;
+
+            if(!data.transactions.length) { tbody.innerHTML = '<tr><td colspan="6">لا توجد حركات</td></tr>'; }
+
+            data.transactions.forEach(t => {
+                tD += t.debit; tC += t.credit;
+                const row = `<tr>
+                    <td>${t.date}</td>
+                    <td>${t.ref}</td>
+                    <td style="text-align:right">${t.desc}</td>
+                    <td style="color:red">${t.debit > 0 ? fmt(t.debit) : '-'}</td>
+                    <td style="color:green">${t.credit > 0 ? fmt(t.credit) : '-'}</td>
+                    <td style="font-weight:bold; direction:ltr">${fmt(t.balance)}</td>
+                </tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+
+            document.getElementById('tDeb').innerText = fmt(tD);
+            document.getElementById('tCred').innerText = fmt(tC);
+            document.getElementById('tEnd').innerText = fmt(data.endingBalance);
+
+        } catch (e) { alert('خطأ: ' + e.message); }
+    }
+
+    function fmt(n) { return n.toLocaleString('en-US', {minimumFractionDigits:2}); }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

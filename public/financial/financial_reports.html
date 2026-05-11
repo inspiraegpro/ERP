@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير الاحترافية - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --fin-primary: #163a5f;
+            --fin-secondary: #526277;
+            --fin-accent: #b98918;
+            --fin-success: #1f6f5f;
+            --fin-danger: #9f3a38;
+            --fin-soft: #f4f7fb;
+            --fin-border: rgba(22, 58, 95, 0.12);
+        }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185, 137, 24, 0.12), transparent 22rem),
+                linear-gradient(180deg, #eef3f8 0%, #fbfcfe 100%);
+            color: var(--fin-primary);
+        }
+        .page-shell {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+        .hero {
+            padding: 2rem;
+            border-radius: 28px;
+            background: linear-gradient(145deg, #163a5f 0%, #21486e 55%, #526277 100%);
+            color: #fff;
+            box-shadow: 0 24px 60px rgba(22, 58, 95, 0.18);
+            margin-bottom: 1.4rem;
+        }
+        .hero-top, .toolbar, .panel-head, .table-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .hero h1 {
+            margin: 0 0 0.8rem;
+            font-size: clamp(2rem, 3vw, 2.8rem);
+        }
+        .hero p {
+            margin: 0;
+            line-height: 1.9;
+            color: rgba(255, 255, 255, 0.84);
+            max-width: 58rem;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 0.95rem 1.15rem;
+            font-size: 0.96rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.16s ease;
+            text-decoration: none;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn.primary { background: #fff; color: var(--fin-primary); }
+        .btn.light {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.16);
+        }
+        .toolbar, .panel, .table-panel {
+            background: rgba(255,255,255,0.97);
+            border: 1px solid var(--fin-border);
+            border-radius: 24px;
+            box-shadow: 0 16px 36px rgba(22, 58, 95, 0.08);
+        }
+        .toolbar {
+            padding: 1rem 1.1rem;
+            margin-bottom: 1.25rem;
+        }
+        .toolbar .filters {
+            display: flex;
+            gap: 0.9rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            min-width: 180px;
+        }
+        .field label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--fin-secondary);
+        }
+        .field input, .field select {
+            border: 1px solid rgba(82, 98, 119, 0.2);
+            border-radius: 12px;
+            padding: 0.8rem 0.9rem;
+            font-size: 0.95rem;
+        }
+        .kpi-grid, .chart-grid, .table-grid {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        .chart-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+        .table-grid { grid-template-columns: 1.1fr 0.9fr; }
+        .panel, .table-panel { padding: 1.2rem; }
+        .kpi-card {
+            background: rgba(255,255,255,0.97);
+            border: 1px solid var(--fin-border);
+            border-radius: 22px;
+            padding: 1.2rem;
+            box-shadow: 0 16px 36px rgba(22, 58, 95, 0.08);
+        }
+        .kpi-card span {
+            display: block;
+            color: var(--fin-secondary);
+            margin-bottom: 0.45rem;
+            font-weight: 700;
+        }
+        .kpi-card strong {
+            display: block;
+            font-size: 1.65rem;
+            color: var(--fin-primary);
+            margin-bottom: 0.3rem;
+        }
+        .kpi-card small { color: #708197; }
+        .panel-head h2, .table-panel h2 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        .panel-head p, .table-panel p {
+            margin: 0.35rem 0 0;
+            color: #708197;
+        }
+        canvas {
+            width: 100%;
+            height: 260px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(244, 247, 251, 0.75), rgba(255,255,255,0.95));
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead th {
+            background: #eef2f7;
+            color: var(--fin-primary);
+            padding: 0.9rem 0.8rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--fin-border);
+        }
+        tbody td {
+            padding: 0.8rem 0.7rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(82, 98, 119, 0.12);
+        }
+        tbody tr:hover { background: #fafcff; }
+        .tabs {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .tab-btn {
+            border: 1px solid var(--fin-border);
+            background: #fff;
+            color: var(--fin-secondary);
+            border-radius: 999px;
+            padding: 0.7rem 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            background: var(--fin-primary);
+            color: #fff;
+            border-color: var(--fin-primary);
+        }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .message {
+            display: none;
+            margin-bottom: 1rem;
+            padding: 0.95rem 1rem;
+            border-radius: 14px;
+            font-weight: 700;
+        }
+        .message.show { display: block; }
+        .message.error {
+            background: rgba(159, 58, 56, 0.1);
+            color: var(--fin-danger);
+            border: 1px solid rgba(159, 58, 56, 0.2);
+        }
+        .message.success {
+            background: rgba(31, 111, 95, 0.1);
+            color: var(--fin-success);
+            border: 1px solid rgba(31, 111, 95, 0.18);
+        }
+        @media (max-width: 1080px) {
+            .table-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <section class="hero">
+            <div class="hero-top">
+                <div>
+                    <h1>التقارير الاحترافية والدفاتر</h1>
+                    <p>مركز مالي موحد يجمع مؤشرات الإدارة العليا، ميزان المراجعة، قائمة الدخل، المركز المالي، ودفتر الأستاذ ضمن واجهة إنتاجية واحدة.</p>
+                </div>
+                <div class="hero-actions">
+                    <a class="btn primary" href="/index.html">العودة إلى لوحة القيادة</a>
+                    <a class="btn light" href="/financial/journal.html">الذهاب إلى قيود اليومية</a>
+                </div>
+            </div>
+        </section>
+
+        <div id="messageBox" class="message"></div>
+
+        <section class="toolbar">
+            <div class="filters">
+                <div class="field">
+                    <label for="fromDate">من تاريخ</label>
+                    <input type="date" id="fromDate" onchange="handleDateChange()">
+                </div>
+                <div class="field">
+                    <label for="toDate">إلى تاريخ</label>
+                    <input type="date" id="toDate" onchange="handleDateChange()">
+                </div>
+                <div class="field">
+                    <label for="quickPeriod">فترة سريعة</label>
+                    <select id="quickPeriod" onchange="setQuickPeriod()">
+                        <option value="">اختر فترة</option>
+                        <option value="current-month">الشهر الحالي</option>
+                        <option value="last-month">الشهر الماضي</option>
+                        <option value="current-quarter">الربع الحالي</option>
+                        <option value="current-year">السنة الحالية</option>
+                        <option value="last-year">السنة الماضية</option>
+                        <option value="all">كل البيانات</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="ledgerAccount">حساب الأستاذ</label>
+                    <select id="ledgerAccount">
+                        <option value="">اختر حسابًا</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <button class="btn primary" type="button" onclick="loadAllReports()">تحديث المركز المالي</button>
+                <button class="btn light" type="button" onclick="exportReports()">تصدير الكل</button>
+                <button class="btn light" type="button" onclick="window.print()">طباعة</button>
+            </div>
+        </section>
+
+        <section class="kpi-grid">
+            <div class="kpi-card"><span>إجمالي الإيراد</span><strong id="kpiRevenue">0</strong><small>إيرادات الفترة المحددة</small></div>
+            <div class="kpi-card"><span>إجمالي التكلفة</span><strong id="kpiCost">0</strong><small>تكلفة المبيعات المباشرة</small></div>
+            <div class="kpi-card"><span>مجمل الربح</span><strong id="kpiProfit">0</strong><small>إيراد ناقص تكلفة</small></div>
+            <div class="kpi-card"><span>قيمة المخزون</span><strong id="kpiStock">0</strong><small>قيمة الرصيد الحالي</small></div>
+            <div class="kpi-card"><span>الموقف النقدي</span><strong id="kpiCash">0</strong><small>الرصيد النقدي من القيود</small></div>
+            <div class="kpi-card"><span>متوسط الفاتورة</span><strong id="kpiAverage">0</strong><small>متوسط قيمة مستند البيع</small></div>
+        </section>
+
+        <section class="chart-grid">
+            <div class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>التدفق النقدي</h2>
+                        <p>صافي التدفق عبر الشهور اعتمادًا على القيود والمبيعات الفعلية.</p>
+                    </div>
+                </div>
+                <canvas id="cashFlowChart" width="720" height="320"></canvas>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>الربحية حسب المنتج</h2>
+                        <p>أعلى المنتجات مساهمة في الربحية داخل الفترة المختارة.</p>
+                    </div>
+                </div>
+                <canvas id="profitabilityChart" width="720" height="320"></canvas>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <div>
+                        <h2>دوران المخزون</h2>
+                        <p>قياس تقريبي لدوران الأصناف النشطة مقابل الرصيد المتبقي.</p>
+                    </div>
+                </div>
+                <canvas id="turnoverChart" width="720" height="320"></canvas>
+            </div>
+        </section>
+
+        <section class="table-grid">
+            <div class="table-panel">
+                <div class="table-tools">
+                    <div>
+                        <h2>أفضل منتجات الربحية</h2>
+                        <p>ترتيب تحليلي حسب الربح الصافي للفترة.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المنتج</th>
+                            <th>الإيراد</th>
+                            <th>التكلفة</th>
+                            <th>الربح</th>
+                        </tr>
+                    </thead>
+                    <tbody id="profitabilityBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-panel">
+                <div class="table-tools">
+                    <div>
+                        <h2>منتجات دوران المخزون</h2>
+                        <p>مقارنة بين الرصيد الحالي وسرعة الحركة التقديرية.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الرصيد</th>
+                            <th>مؤشر الدوران</th>
+                        </tr>
+                    </thead>
+                    <tbody id="turnoverBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="table-panel">
+            <div class="tabs">
+                <button class="tab-btn active" type="button" data-tab="trialPane" onclick="switchTab(event)">ميزان المراجعة</button>
+                <button class="tab-btn" type="button" data-tab="incomePane" onclick="switchTab(event)">قائمة الدخل</button>
+                <button class="tab-btn" type="button" data-tab="balancePane" onclick="switchTab(event)">المركز المالي</button>
+                <button class="tab-btn" type="button" data-tab="ledgerPane" onclick="switchTab(event)">دفتر الأستاذ</button>
+            </div>
+
+            <div id="trialPane" class="tab-pane active">
+                <div class="table-tools">
+                    <div>
+                        <h2>ميزان المراجعة</h2>
+                        <p>يعرض أرصدة الفترة الافتتاحية والحركة والأرصدة الختامية.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الكود</th>
+                            <th>الحساب</th>
+                            <th>مدين الفترة</th>
+                            <th>دائن الفترة</th>
+                            <th>مدين ختامي</th>
+                            <th>دائن ختامي</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trialBalanceBody"></tbody>
+                </table>
+            </div>
+
+            <div id="incomePane" class="tab-pane">
+                <div class="table-tools">
+                    <div>
+                        <h2>قائمة الدخل</h2>
+                        <p>ملخص الإيرادات والمصروفات وصافي الربح.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>البند</th>
+                            <th>القيمة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incomeBody"></tbody>
+                </table>
+            </div>
+
+            <div id="balancePane" class="tab-pane">
+                <div class="table-tools">
+                    <div>
+                        <h2>المركز المالي</h2>
+                        <p>الأصول والخصوم وحقوق الملكية حتى نهاية الفترة.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>القطاع</th>
+                            <th>الحساب</th>
+                            <th>الرصيد</th>
+                        </tr>
+                    </thead>
+                    <tbody id="balanceBody"></tbody>
+                </table>
+            </div>
+
+            <div id="ledgerPane" class="tab-pane">
+                <div class="table-tools">
+                    <div>
+                        <h2>دفتر الأستاذ</h2>
+                        <p>يعرض حركة الحساب المختار ضمن الفترة المحددة.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>المرجع</th>
+                            <th>البيان</th>
+                            <th>مدين</th>
+                            <th>دائن</th>
+                            <th>الرصيد</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API = '/api';
+
+        function money(value) {
+            return Number(value || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function showMessage(message, type = 'error') {
+            const box = document.getElementById('messageBox');
+            box.className = `message show ${type}`;
+            box.textContent = message;
+        }
+
+        function clearMessage() {
+            const box = document.getElementById('messageBox');
+            box.className = 'message';
+            box.textContent = '';
+        }
+
+        function defaultDates() {
+            const today = new Date();
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('fromDate').value = monthStart.toISOString().split('T')[0];
+            document.getElementById('toDate').value = today.toISOString().split('T')[0];
+        }
+
+        function handleDateChange() {
+            // Clear quick period when manual dates are changed
+            document.getElementById('quickPeriod').value = '';
+        }
+
+        function setQuickPeriod() {
+            const period = document.getElementById('quickPeriod').value;
+            const today = new Date();
+            let fromDate, toDate;
+
+            switch (period) {
+                case 'current-month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    break;
+                case 'last-month':
+                    fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'current-quarter':
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    fromDate = new Date(today.getFullYear(), quarter * 3, 1);
+                    toDate = new Date(today.getFullYear(), quarter * 3 + 3, 0);
+                    break;
+                case 'current-year':
+                    fromDate = new Date(today.getFullYear(), 0, 1);
+                    toDate = new Date(today.getFullYear(), 11, 31);
+                    break;
+                case 'last-year':
+                    fromDate = new Date(today.getFullYear() - 1, 0, 1);
+                    toDate = new Date(today.getFullYear() - 1, 11, 31);
+                    break;
+                case 'all':
+                    fromDate = new Date('2020-01-01');
+                    toDate = today;
+                    break;
+                default:
+                    return;
+            }
+
+            document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
+            document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
+            
+            // Auto refresh reports
+            loadAllReports();
+        }
+
+        function exportReports() {
+            const { from, to } = getPeriod();
+            
+            // Create a comprehensive report
+            const reportData = {
+                period: getPeriod(),
+                generatedAt: new Date().toISOString(),
+                kpis: {
+                    revenue: document.getElementById('kpiRevenue').textContent,
+                    cost: document.getElementById('kpiCost').textContent,
+                    profit: document.getElementById('kpiProfit').textContent,
+                    stock: document.getElementById('kpiStock').textContent,
+                    cash: document.getElementById('kpiCash').textContent,
+                    average: document.getElementById('kpiAverage').textContent
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `financial-reports-${from}-to-${to}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showMessage('تم تصدير التقارير بنجاح', 'success');
+        }
+
+        function getPeriod() {
+            return {
+                from: document.getElementById('fromDate').value,
+                to: document.getElementById('toDate').value
+            };
+        }
+
+        function switchTab(event) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.getElementById(event.currentTarget.dataset.tab).classList.add('active');
+        }
+
+        function drawBarChart(canvasId, items, valueKey, color, formatter) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
+
+            const safeItems = items && items.length ? items : [{ label: 'لا توجد بيانات', [valueKey]: 0 }];
+            const maxValue = Math.max(...safeItems.map(item => Number(item[valueKey] || 0)), 1);
+            const chartTop = 26;
+            const chartBottom = height - 52;
+            const chartHeight = chartBottom - chartTop;
+            const padding = 44;
+            const barGap = 18;
+            const barWidth = Math.max(34, (width - padding * 2 - barGap * (safeItems.length - 1)) / safeItems.length);
+
+            ctx.font = '12px Segoe UI';
+            ctx.fillStyle = '#526277';
+            ctx.textAlign = 'center';
+
+            safeItems.forEach((item, index) => {
+                const x = padding + index * (barWidth + barGap);
+                const value = Number(item[valueKey] || 0);
+                const barHeight = (value / maxValue) * chartHeight;
+                const y = chartBottom - barHeight;
+
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, barWidth, barHeight);
+
+                ctx.fillStyle = '#163a5f';
+                ctx.fillText(formatter(value), x + (barWidth / 2), Math.max(16, y - 8));
+
+                const label = String(item.label || '').slice(0, 14);
+                ctx.fillStyle = '#526277';
+                ctx.fillText(label, x + (barWidth / 2), height - 20);
+            });
+        }
+
+        async function loadAccounts() {
+            const response = await fetch(`${API}/accounts`);
+            const accounts = await response.json();
+            const select = document.getElementById('ledgerAccount');
+            select.innerHTML = '<option value="">اختر حسابًا</option>';
+            (accounts || []).filter(account => account.isTransactional).forEach(account => {
+                const option = document.createElement('option');
+                option.value = account._id;
+                option.textContent = `${account.code} - ${account.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        async function loadCfoDashboard() {
+            const { from, to } = getPeriod();
+            showMessage('جاري تحميل لوحة المدير المالي...', 'info');
+            
+            try {
+                const response = await fetch(`${API}/reports/cfo-dashboard?from=${from}&to=${to}`);
+                const data = await response.json();
+
+                // Update KPIs with animation
+                updateKPIWithAnimation('kpiRevenue', data.kpis.totalRevenue);
+                updateKPIWithAnimation('kpiCost', data.kpis.totalCost);
+                updateKPIWithAnimation('kpiProfit', data.kpis.grossProfit);
+                updateKPIWithAnimation('kpiStock', data.kpis.stockValue);
+                updateKPIWithAnimation('kpiCash', data.kpis.cashPosition);
+                updateKPIWithAnimation('kpiAverage', data.kpis.averageInvoice);
+
+                const profitability = data.charts.profitability || [];
+                const turnover = data.charts.turnover || [];
+                const cashFlow = data.charts.cashFlow || [];
+
+                document.getElementById('profitabilityBody').innerHTML = profitability.length > 0 ? 
+                    profitability.map(item => `
+                        <tr>
+                            <td>${item.label}</td>
+                            <td>${money(item.revenue)}</td>
+                            <td>${money(item.cost)}</td>
+                            <td>${money(item.profit)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="4">لا توجد بيانات متاحة للفترة المحددة</td></tr>';
+
+                document.getElementById('turnoverBody').innerHTML = turnover.length > 0 ?
+                    turnover.map(item => `
+                        <tr>
+                            <td>${item.label}</td>
+                            <td>${money(item.stock)}</td>
+                            <td>${money(item.turnover)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="3">لا توجد بيانات متاحة للفترة المحددة</td></tr>';
+
+                drawBarChart('cashFlowChart', cashFlow, 'net', '#163a5f', money);
+                drawBarChart('profitabilityChart', profitability, 'profit', '#1f6f5f', money);
+                drawBarChart('turnoverChart', turnover, 'turnover', '#b98918', money);
+                
+                showMessage('تم تحميل لوحة المدير المالي بنجاح', 'success');
+                
+            } catch (error) {
+                console.error('Error loading CFO dashboard:', error);
+                showMessage('فشل تحميل لوحة المدير المالي: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+
+        function updateKPIWithAnimation(elementId, value) {
+            const element = document.getElementById(elementId);
+            const targetValue = parseFloat(value) || 0;
+            const startValue = parseFloat(element.textContent.replace(/,/g, '')) || 0;
+            const duration = 1000;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const currentValue = startValue + (targetValue - startValue) * progress;
+                element.textContent = money(currentValue);
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        async function loadTrialBalance() {
+            const { from, to } = getPeriod();
+            showMessage('جاري تحميل ميزان المراجعة...', 'info');
+            
+            try {
+                const response = await fetch(`${API}/reports/trial-balance?from=${from}&to=${to}&level=detailed`);
+                const rows = await response.json();
+                
+                document.getElementById('trialBalanceBody').innerHTML = (rows || []).length > 0 ? 
+                    rows.map(row => `
+                        <tr>
+                            <td>${row.code || ''}</td>
+                            <td>${row.name || ''}</td>
+                            <td>${money(row.periodDebit)}</td>
+                            <td>${money(row.periodCredit)}</td>
+                            <td>${money(row.closeDebit)}</td>
+                            <td>${money(row.closeCredit)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="6">لا توجد بيانات متاحة للفترة المحددة</td></tr>';
+                    
+            } catch (error) {
+                console.error('Error loading trial balance:', error);
+                showMessage('فشل تحميل ميزان المراجعة: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+
+        async function loadIncomeStatement() {
+            const { from, to } = getPeriod();
+            showMessage('جاري تحميل قائمة الدخل...', 'info');
+            
+            try {
+                const response = await fetch(`${API}/reports/financial-statement?type=income_statement&from=${from}&to=${to}`);
+                const data = await response.json();
+                const rows = [];
+
+                (data.revenues || []).forEach(item => rows.push({ label: `إيراد - ${item.name}`, value: item.amount }));
+                rows.push({ label: 'إجمالي الإيرادات', value: data.totalRevenue });
+                (data.expenses || []).forEach(item => rows.push({ label: `مصروف - ${item.name}`, value: item.amount }));
+                rows.push({ label: 'إجمالي المصروفات', value: data.totalExpense });
+                rows.push({ label: 'صافي الربح', value: data.netIncome });
+
+                document.getElementById('incomeBody').innerHTML = rows.map(row => `
+                    <tr>
+                        <td>${row.label}</td>
+                        <td>${money(row.value)}</td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading income statement:', error);
+                showMessage('فشل تحميل قائمة الدخل: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+
+        async function loadBalanceSheet() {
+            const { to } = getPeriod();
+            showMessage('جاري تحميل المركز المالي...', 'info');
+            
+            try {
+                const response = await fetch(`${API}/reports/financial-statement?type=balance_sheet&date=${to}`);
+                const data = await response.json();
+                const rows = [];
+
+                (data.assets || []).forEach(item => rows.push({ section: 'أصول', name: item.name, value: item.balance }));
+                (data.liabilities || []).forEach(item => rows.push({ section: 'خصوم', name: item.name, value: item.balance }));
+                (data.equity || []).forEach(item => rows.push({ section: 'حقوق ملكية', name: item.name, value: item.balance }));
+
+                document.getElementById('balanceBody').innerHTML = rows.length > 0 ?
+                    rows.map(row => `
+                        <tr>
+                            <td>${row.section}</td>
+                            <td>${row.name}</td>
+                            <td>${money(row.value)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="3">لا توجد بيانات متاحة للفترة المحددة</td></tr>';
+                    
+            } catch (error) {
+                console.error('Error loading balance sheet:', error);
+                showMessage('فشل تحميل المركز المالي: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+
+        async function loadLedger() {
+            const { from, to } = getPeriod();
+            const accountId = document.getElementById('ledgerAccount').value;
+            const tbody = document.getElementById('ledgerBody');
+
+            if (!accountId) {
+                tbody.innerHTML = '<tr><td colspan="6">اختر حسابًا لعرض دفتر الأستاذ</td></tr>';
+                return;
+            }
+
+            showMessage('جاري تحميل دفتر الأستاذ...', 'info');
+
+            try {
+                const response = await fetch(`${API}/reports/general-ledger?accountId=${accountId}&from=${from}&to=${to}`);
+                const data = await response.json();
+                
+                tbody.innerHTML = (data.transactions || []).length > 0 ?
+                    data.transactions.map(item => `
+                        <tr>
+                            <td>${item.date || ''}</td>
+                            <td>${item.ref || ''}</td>
+                            <td>${item.desc || ''}</td>
+                            <td>${money(item.debit)}</td>
+                            <td>${money(item.credit)}</td>
+                            <td>${money(item.balance)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="6">لا توجد حركة على الحساب المختار في الفترة المحددة</td></tr>';
+                    
+            } catch (error) {
+                console.error('Error loading ledger:', error);
+                tbody.innerHTML = '<tr><td colspan="6">فشل تحميل دفتر الأستاذ</td></tr>';
+                showMessage('فشل تحميل دفتر الأستاذ: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+
+        async function loadAllReports() {
+            clearMessage();
+            showMessage('جاري تحديث جميع التقارير...', 'info');
+            
+            try {
+                await Promise.all([
+                    loadCfoDashboard(),
+                    loadTrialBalance(),
+                    loadIncomeStatement(),
+                    loadBalanceSheet(),
+                    loadLedger()
+                ]);
+                showMessage('تم تحديث المركز المالي والدفاتر بنجاح', 'success');
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                showMessage('فشل تحميل بعض التقارير: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            defaultDates();
+            await loadAccounts();
+            await loadAllReports();
+            document.getElementById('ledgerAccount').addEventListener('change', loadLedger);
+        });
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

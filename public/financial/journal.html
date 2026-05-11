@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قيود اليومية - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root {
+            --p: #163a5f;
+            --s: #526277;
+            --a: #b98918;
+            --ok: #1f6f5f;
+            --danger: #9f3a38;
+            --bd: rgba(22,58,95,.12);
+            --sf: rgba(255,255,255,.97);
+        }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(185,137,24,.14), transparent 20rem),
+                linear-gradient(180deg, #eef3f8 0%, #f8fafc 100%);
+            color: var(--p);
+        }
+        .shell { max-width: 1440px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .filters, .table-panel, .modal-content {
+            border-radius: 24px;
+            box-shadow: 0 18px 38px rgba(22,58,95,.08);
+        }
+        .hero {
+            background: linear-gradient(135deg, var(--p), #244c73);
+            color: #fff;
+            padding: 2rem;
+            margin-bottom: 1.25rem;
+        }
+        .hero h1 { margin: 0 0 .75rem; font-size: clamp(1.9rem, 2.4vw, 2.6rem); }
+        .hero p { margin: 0; color: rgba(255,255,255,.84); line-height: 1.85; max-width: 58rem; }
+        .hero-tags { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+        .hero-tag {
+            padding: .7rem .95rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            border: 1px solid rgba(255,255,255,.18);
+            font-weight: 700;
+        }
+        .filters, .table-panel {
+            background: var(--sf);
+            border: 1px solid var(--bd);
+        }
+        .filters {
+            padding: 1rem 1.1rem;
+            margin-bottom: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+        .field { display: flex; flex-direction: column; gap: .4rem; }
+        .field label { font-weight: 700; color: var(--s); }
+        .field input, .field select {
+            border: 1px solid rgba(82,98,119,.2);
+            border-radius: 12px;
+            padding: .8rem .9rem;
+            font-size: .95rem;
+        }
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: .92rem 1.15rem;
+            font-size: .95rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .18s ease;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn.primary { background: var(--p); color: #fff; }
+        .btn.light { background: #fff; color: var(--p); border: 1px solid var(--bd); }
+        .btn.secondary { background: var(--a); color: #fff; }
+        .table-panel { padding: 1.1rem; overflow-x: auto; }
+        .section-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #eef2f7;
+            color: var(--p);
+            padding: .95rem .8rem;
+            border-bottom: 1px solid var(--bd);
+            font-size: .9rem;
+        }
+        tbody td {
+            padding: .85rem .7rem;
+            border-bottom: 1px solid rgba(82,98,119,.12);
+            text-align: center;
+            vertical-align: middle;
+        }
+        tbody tr:hover { background: #fbfcfe; }
+        .badge-source {
+            padding: .4rem .7rem;
+            border-radius: 999px;
+            font-size: .84rem;
+            font-weight: 800;
+            display: inline-block;
+        }
+        .message {
+            display: none;
+            margin-bottom: 1rem;
+            padding: .95rem 1rem;
+            border-radius: 14px;
+            font-weight: 700;
+        }
+        .message.show { display: block; }
+        .message.error { background: rgba(159,58,56,.1); color: var(--danger); border: 1px solid rgba(159,58,56,.2); }
+        .message.success { background: rgba(31,111,95,.1); color: var(--ok); border: 1px solid rgba(31,111,95,.18); }
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 1300;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal-content {
+            background: #fff;
+            width: min(980px, 100%);
+            border: 1px solid var(--bd);
+            padding: 1.5rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        @media print {
+            .filters, .btn, .global-nav-shell { display: none !important; }
+            .modal { position: absolute; display: block !important; background: #fff; }
+            .modal-content { width: 100%; max-width: 100%; box-shadow: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <h1>دفتر قيود اليومية</h1>
+            <p>عرض ومراجعة كافة القيود المحاسبية المولدة من المبيعات والمشتريات والمخزون والخزينة والقيود اليدوية، مع إمكانية فتح سند القيد وطباعته.</p>
+            <div class="hero-tags">
+                <span class="hero-tag">قيود يومية</span>
+                <span class="hero-tag">عرض سند القيد</span>
+                <span class="hero-tag">فلترة حسب المصدر</span>
+            </div>
+        </section>
+
+        <div id="messageBox" class="message"></div>
+
+        <section class="filters">
+            <div class="field">
+                <label for="dateFrom">من تاريخ</label>
+                <input type="date" id="dateFrom">
+            </div>
+            <div class="field">
+                <label for="dateTo">إلى تاريخ</label>
+                <input type="date" id="dateTo">
+            </div>
+            <div class="field">
+                <label for="refSearch">رقم القيد / المرجع</label>
+                <input type="text" id="refSearch" placeholder="بحث...">
+            </div>
+            <div class="field">
+                <label for="journalType">المصدر</label>
+                <select id="journalType">
+                    <option value="ALL">كل المصادر</option>
+                    <option value="PUR">المشتريات</option>
+                    <option value="INV">المبيعات</option>
+                    <option value="TRX">المخازن</option>
+                    <option value="PAY">الصرف</option>
+                    <option value="RCT">القبض</option>
+                    <option value="MAN">قيد يدوي</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
+                <button class="btn primary" type="button" onclick="applyFilters()">بحث</button>
+                <button class="btn light" type="button" onclick="resetFilters()">الكل</button>
+            </div>
+        </section>
+
+        <section class="table-panel">
+            <div class="section-head">
+                <div>
+                    <h2 style="margin:0;">قائمة القيود</h2>
+                    <p style="margin:.3rem 0 0; color:#738396;">مراجعة القيد، مصدره، وإجمالياته المدينة والدائنة.</p>
+                </div>
+                <span id="recordCount" class="badge-source" style="background:#163a5f;color:#fff;">0 قيد</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم القيد</th>
+                        <th>التاريخ</th>
+                        <th>المصدر</th>
+                        <th>البيان</th>
+                        <th>مدين</th>
+                        <th>دائن</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="journalTableBody"></tbody>
+            </table>
+        </section>
+    </div>
+
+    <div id="entryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-head">
+                <div>
+                    <h3 style="margin:0; color:#163a5f;">سند قيد يومية</h3>
+                    <p style="margin:.35rem 0 0; color:#738396;">Journal Voucher</p>
+                </div>
+                <button class="btn light" type="button" onclick="closeModal()">إغلاق</button>
+            </div>
+
+            <div id="printableArea">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem; padding:1rem; border:1px solid rgba(22,58,95,.12); border-radius:16px;">
+                    <div><strong>رقم القيد:</strong> <span id="mRef" style="color:#163a5f"></span></div>
+                    <div><strong>التاريخ:</strong> <span id="mDate"></span></div>
+                    <div style="grid-column:span 2;"><strong>البيان:</strong> <span id="mDesc"></span></div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الحساب</th>
+                            <th>البيان التفصيلي</th>
+                            <th>مدين</th>
+                            <th>دائن</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mDetails"></tbody>
+                    <tfoot>
+                        <tr style="font-weight:800; background:#eef2f7;">
+                            <td colspan="2" style="text-align:left;">الإجمالي</td>
+                            <td id="mTotalDebit" style="color:#1f6f5f;"></td>
+                            <td id="mTotalCredit" style="color:#9f3a38;"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div style="margin-top:3rem; display:flex; justify-content:space-around; text-align:center; font-weight:600; color:#738396;">
+                    <div>توقيع المحاسب<br><br>_________</div>
+                    <div>المراجعة<br><br>_________</div>
+                    <div>المدير المالي<br><br>_________</div>
+                </div>
+            </div>
+
+            <div style="margin-top:1.5rem; text-align:center;">
+                <button class="btn primary" type="button" onclick="window.print()">طباعة سند القيد</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        let allJournals = [];
+
+        function authHeaders() {
+            const token = localStorage.getItem('token');
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
+        }
+
+        function money(value) {
+            return Number(value || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function showMessage(message, type = 'error') {
+            const box = document.getElementById('messageBox');
+            box.className = `message show ${type}`;
+            box.textContent = message;
+        }
+
+        function clearMessage() {
+            const box = document.getElementById('messageBox');
+            box.className = 'message';
+            box.textContent = '';
+        }
+
+        async function loadJournals() {
+            try {
+                clearMessage();
+                const response = await fetch(`${API}/journal`, { headers: authHeaders() });
+                if (!response.ok) throw new Error('تعذر جلب البيانات من الخادم');
+                const data = await response.json();
+                allJournals = Array.isArray(data) ? data : [];
+                applyFilters();
+            } catch (error) {
+                console.error(error);
+                showMessage(error.message || 'فشل تحميل القيود', 'error');
+            }
+        }
+
+        function getFriendlySource(ref) {
+            if (ref.startsWith('PUR')) return { label: 'مشتريات', color: 'background:#dbeafe;color:#1e40af;' };
+            if (ref.startsWith('INV')) return { label: 'مبيعات', color: 'background:#fce7f3;color:#9d174d;' };
+            if (ref.startsWith('TRX') || ref.startsWith('TRF')) return { label: 'مخازن', color: 'background:#ffedd5;color:#9a3412;' };
+            if (ref.startsWith('PAY')) return { label: 'صرف', color: 'background:#ecfccb;color:#3f6212;' };
+            if (ref.startsWith('RCT')) return { label: 'قبض', color: 'background:#dcfce7;color:#166534;' };
+            if (ref.startsWith('MAN')) return { label: 'قيد يدوي', color: 'background:#e0e7ff;color:#3730a3;' };
+            return { label: 'أخرى', color: 'background:#eef2f7;color:#163a5f;' };
+        }
+
+        function applyFilters() {
+            const fromDate = document.getElementById('dateFrom').value;
+            const toDate = document.getElementById('dateTo').value;
+            const type = document.getElementById('journalType').value;
+            const refSearch = document.getElementById('refSearch').value.toLowerCase().trim();
+
+            const filtered = allJournals.filter(entry => {
+                const dateRaw = entry.date || entry.entryDate || entry.createdAt;
+                if (!dateRaw) return true;
+                const entryDate = new Date(dateRaw).toISOString().split('T')[0];
+                const ref = String(entry.referenceNumber || entry.reference || '').toUpperCase();
+                const desc = String(entry.description || '').toLowerCase();
+
+                if (fromDate && entryDate < fromDate) return false;
+                if (toDate && entryDate > toDate) return false;
+                if (refSearch && !ref.toLowerCase().includes(refSearch) && !desc.includes(refSearch)) return false;
+
+                if (type !== 'ALL') {
+                    if (type === 'PUR' && !ref.startsWith('PUR')) return false;
+                    if (type === 'INV' && !ref.startsWith('INV')) return false;
+                    if (type === 'TRX' && !ref.startsWith('TRX') && !ref.startsWith('TRF')) return false;
+                    if (type === 'PAY' && !ref.startsWith('PAY')) return false;
+                    if (type === 'RCT' && !ref.startsWith('RCT')) return false;
+                    if (type === 'MAN' && !ref.startsWith('MAN')) return false;
+                }
+                return true;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('journalTableBody');
+            document.getElementById('recordCount').textContent = `${data.length} قيد`;
+
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="padding:2rem; color:#738396; font-weight:700;">لا توجد قيود مطابقة للفلاتر الحالية.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(entry => {
+                const ref = String(entry.referenceNumber || entry.reference || '').toUpperCase();
+                const source = getFriendlySource(ref);
+                return `
+                    <tr>
+                        <td style="font-weight:700;">${entry.referenceNumber || '-'}</td>
+                        <td>${entry.date ? new Date(entry.date).toLocaleDateString('ar-EG') : '-'}</td>
+                        <td><span class="badge-source" style="${source.color}">${source.label}</span></td>
+                        <td style="font-size:.9rem;">${entry.description || ''}</td>
+                        <td style="font-weight:700; color:#1f6f5f;">${money(entry.totalDebit || 0)}</td>
+                        <td style="font-weight:700; color:#9f3a38;">${money(entry.totalCredit || 0)}</td>
+                        <td><button class="btn light" type="button" onclick="showDetails('${entry._id}')">عرض</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function showDetails(id) {
+            try {
+                const response = await fetch(`${API}/journal/${id}`, { headers: authHeaders() });
+                if (!response.ok) throw new Error('فشل جلب تفاصيل القيد');
+                const entry = await response.json();
+                
+                document.getElementById('mRef').textContent = entry.referenceNumber || '-';
+                document.getElementById('mDate').textContent = entry.date ? new Date(entry.date).toLocaleDateString('ar-EG') : '-';
+                document.getElementById('mDesc').textContent = entry.description || '';
+                document.getElementById('mTotalDebit').textContent = money(entry.totalDebit || 0);
+                document.getElementById('mTotalCredit').textContent = money(entry.totalCredit || 0);
+
+                const details = entry.details || entry.lines || [];
+                document.getElementById('mDetails').innerHTML = details.map(line => `
+                    <tr>
+                        <td style="font-weight:600;">${line.mainAccountName || ''} <small style="color:#666;">${line.subAccountName || line.accountName || 'غير معروف'}</small></td>
+                        <td style="font-size:.85rem;">${line.description || ''}</td>
+                        <td style="font-weight:700;">${line.debit > 0 ? money(line.debit) : '-'}</td>
+                        <td style="font-weight:700;">${line.credit > 0 ? money(line.credit) : '-'}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('entryModal').style.display = 'flex';
+            } catch (error) {
+                console.error(error);
+                showMessage(error.message || 'فشل تحميل تفاصيل القيد', 'error');
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('journalType').value = 'ALL';
+            document.getElementById('refSearch').value = '';
+            applyFilters();
+        }
+
+        function closeModal() {
+            document.getElementById('entryModal').style.display = 'none';
+        }
+
+        window.addEventListener('click', (event) => {
+            if (event.target.id === 'entryModal') closeModal();
+        });
+
+        document.addEventListener('DOMContentLoaded', loadJournals);
+    </script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

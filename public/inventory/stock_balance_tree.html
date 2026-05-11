@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>Ø´Ø¬Ø±Ø© Ø£Ø±ØµØ¯Ø© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;background:#f1f5f9;padding:20px}
+    .card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:20px;max-width:1100px;margin:0 auto}
+    h2{margin:0 0 10px;color:#334155}
+    .controls{display:flex;gap:10px;margin:10px 0 20px}
+    select,input{padding:8px;border:1px solid #cbd5e1;border-radius:6px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:center}
+    th{background:#0f172a;color:#fff}
+    .group{display:flex;flex-direction:column}
+    .num{font-family:Consolas,monospace;direction:ltr}
+    .lvl1{background:#f8fafc;font-weight:bold}
+    .lvl2{background:#f0f9ff}
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>ðŸ“¦ Ø´Ø¬Ø±Ø© Ø£Ø±ØµØ¯Ø© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†</h2>
+  <div class="controls">
+    <div class="group"><label>Ø§Ù„Ù…Ø®Ø²Ù†</label><select id="warehouse"><option value="">Ø§Ù„ÙƒÙ„</option></select></div>
+  </div>
+  <table>
+    <thead><tr><th>Ø§Ù„ÙƒÙˆØ¯</th><th>Ø§Ù„Ø§Ø³Ù…</th><th>Ø§Ù„Ø±ØµÙŠØ¯ (Ù…Â²)</th><th>Ù…ØªÙˆØ³Ø· Ø§Ù„ØªÙƒÙ„ÙØ©</th><th>Ø§Ù„Ù‚ÙŠÙ…Ø©</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<script>
+  const API = '/api';
+  async function init(){
+    try{ const w = await (await fetch(`/api/warehouses`)).json(); const sel=document.getElementById('warehouse'); w.forEach(x=> sel.innerHTML += `<option value="${x.path}">${x.path}</option>`); }catch(e){}
+    load();
+    document.getElementById('warehouse').onchange = load;
+  }
+  async function load(){
+    const wh = document.getElementById('warehouse').value;
+    const res = await fetch(`${API}/reports/stock-current`);
+    const data = await res.json();
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    // Group by first 2 digits of code as a simple tree (main group)
+    const groups = {};
+    data.forEach(p=>{
+      const g = (p.code||'-').slice(0,2);
+      if(!groups[g]) groups[g] = { code:g, name:`Ù…Ø¬Ù…ÙˆØ¹Ø© ${g}`, qty:0, val:0, items:[] };
+      const qty = p.qty||0, val = qty*(p.avgCost||0);
+      groups[g].qty += qty; groups[g].val += val; groups[g].items.push(p);
+    });
+    Object.values(groups).sort((a,b)=> (a.code||'').localeCompare(b.code||'')).forEach(g=>{
+      tbody.insertAdjacentHTML('beforeend', `<tr class="lvl1"><td>${g.code}</td><td style="text-align:right">${g.name}</td><td class="num">${g.qty.toFixed(2)}</td><td>-</td><td class="num">${g.val.toFixed(2)}</td></tr>`);
+      g.items.forEach(p=>{
+        const qty = p.qty||0, avg = p.avgCost||0, val = qty*avg;
+        tbody.insertAdjacentHTML('beforeend', `<tr class="lvl2"><td>${p.code}</td><td style="text-align:right">${p.name}</td><td class="num">${qty.toFixed(2)}</td><td class="num">${avg.toFixed(4)}</td><td class="num">${val.toFixed(2)}</td></tr>`);
+      });
+    });
+  }
+  init();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+

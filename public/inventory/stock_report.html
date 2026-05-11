@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل حركات المخزن</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1300px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        /* شريط الفلاتر */
+        .filter-box { background: #e0f2fe; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bae6fd; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; }
+        label { font-size: 12px; font-weight: bold; color: #0369a1; margin-bottom: 4px; }
+        select, input { padding: 8px; border: 1px solid #ccc; border-radius: 5px; min-width: 150px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size:13px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #1e293b; color: white; }
+        
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .in { background: #dcfce7; color: #166534; }
+        .out { background: #fee2e2; color: #991b1b; }
+        
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; color: white; margin: 0 2px; }
+        .btn-edit { background: #f59e0b; } .btn-del { background: #ef4444; } .btn-print { background: #333; }
+        .btn-new { background: #10b981; padding: 8px 15px; font-size: 14px; font-weight: bold; text-decoration:none; margin-left:5px; }
+        .btn-search { background: #0284c7; font-weight: bold; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="display:flex; justify-content:space-between; align-items:center; margin-top:0; color:#333; border-bottom:1px solid #eee; padding-bottom:15px;">
+        📜 سجل حركات المخزن (وارد / صادر)
+        <div>
+            <a href="/inventory/stock_in.html" class="btn-new">📥 استلام جديد</a>
+            <a href="/inventory/stock_out.html" class="btn-new" style="background:#ef4444">✂️ صرف جديد</a>
+        </div>
+    </h2>
+    
+    <!-- الفلاتر -->
+    <div class="filter-box">
+        <div class="filter-group">
+            <label>نوع الحركة</label>
+            <select id="fType" onchange="applyFilter()">
+                <option value="">الكل</option>
+                <option value="Inbound">وارد (استلام)</option>
+                <option value="Outbound">صادر (صرف)</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>المخزن</label>
+            <select id="fWarehouse" onchange="applyFilter()">
+                <option value="">الكل</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>من تاريخ</label>
+            <input type="date" id="fDateFrom" onchange="applyFilter()">
+        </div>
+        <div class="filter-group">
+            <label>إلى تاريخ</label>
+            <input type="date" id="fDateTo" onchange="applyFilter()">
+        </div>
+        <div class="filter-group">
+            <label>بحث (رقم الإذن / المرجع)</label>
+            <input id="fSearch" placeholder="TRX... / INV..." onkeyup="applyFilter()">
+        </div>
+        <div class="filter-group">
+            <button class="btn btn-search" onclick="applyFilter()">🔍 تحديث</button>
+            <button class="btn btn-del" onclick="deleteSelected()" style="margin-right:10px; background:#dc2626; font-weight:bold;">🗑️ حذف المحدد</button>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:30px"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                <th>رقم الإذن</th>
+                <th>التاريخ</th>
+                <th>النوع</th>
+                <th>المخزن</th>
+                <th>المرجع / الفاتورة</th>
+                <th>عدد الأصناف</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    const API = '/api';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+    const canEdit = true; // Allow edit button for all users on stock report
+
+    function authHeaders() {
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    let allTransactions = [];
+    
+    window.onload = async () => {
+        try {
+            const whRes = await fetch(`${API}/warehouses`, { headers: authHeaders() });
+            const warehouses = await whRes.json();
+            const sel = document.getElementById('fWarehouse');
+            warehouses.forEach(w => {
+                sel.innerHTML += `<option value="${w.path}">${w.path}</option>`;
+            });
+        } catch(e) {}
+
+        // 2. تحميل الحركات
+        try {
+            const res = await fetch(`${API}/stock`, { headers: authHeaders() });
+            allTransactions = await res.json();
+            applyFilter();
+        } catch(e) { alert('خطأ في تحميل البيانات'); }
+    };
+
+    function applyFilter() {
+        const type = document.getElementById('fType').value;
+        const wh = document.getElementById('fWarehouse').value;
+        const search = document.getElementById('fSearch').value.toLowerCase();
+        const from = document.getElementById('fDateFrom').value ? new Date(document.getElementById('fDateFrom').value) : null;
+        const to = document.getElementById('fDateTo').value ? new Date(document.getElementById('fDateTo').value) : null;
+        if(to) to.setHours(23,59,59);
+
+        const filtered = allTransactions.filter(t => {
+            if (type && t.type !== type) return false;
+            if (wh && (!t.warehouse || !t.warehouse.includes(wh))) return false;
+            if (search && !String(t.serialNumber || '').toLowerCase().includes(search) && 
+                !String(t.supplierDoc||'').toLowerCase().includes(search) && 
+                !String(t.reference||'').toLowerCase().includes(search) && 
+                !String(t._id||'').toLowerCase().includes(search) && 
+                !String(t.carName||'').toLowerCase().includes(search)) return false;
+            
+            const d = new Date(t.date);
+            if(from && d < from) return false;
+            if(to && d > to) return false;
+
+            return true;
+        });
+
+        renderTable(filtered);
+    }
+
+    function renderTable(list) {
+        const tbody = document.getElementById('tbody');
+        if(list.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="padding:20px; color:#666">لا توجد حركات مطابقة</td></tr>'; return; }
+
+        tbody.innerHTML = list.map(t => {
+            const editPage = t.type === 'Inbound' ? '/inventory/stock_in.html' : '/inventory/stock_out.html';
+            return `
+            <tr>
+                <td><input type="checkbox" class="row-select" value="${t._id}"></td>
+                <td style="font-weight:bold">${t.serialNumber || t.reference || t._id}</td>
+                <td>${new Date(t.date).toLocaleDateString('ar-EG')}</td>
+                <td><span class="badge ${t.type==='Inbound'?'in':'out'}">${t.type==='Inbound'?'استلام':'صرف'}</span></td>
+                <td>${t.warehouse || 'الرئيسي'}</td>
+                <td>${t.supplierDoc || t.carName || '-'}</td>
+                <td>${(t.items && Array.isArray(t.items)) ? t.items.length : 0}</td>
+                <td>
+                    <button class="btn btn-print" onclick="window.open('/inventory/stock_print.html?id=${t._id}','_blank','width=800,height=600')">🖨️</button>
+                    ${canEdit ? `<button class="btn btn-edit" onclick="location.href='${editPage}?id=${t._id}'">✏️</button>` : ''}
+                    ${isAdmin ? `<button class="btn btn-del" onclick="del('${t._id}', '${t.type}')">🗑️</button>` : ''}
+                </td>
+            </tr>
+        `}).join('');
+    }
+
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.row-select').forEach(cb => cb.checked = checked);
+    }
+
+    async function deleteSelected() {
+        if (!isAdmin) { alert('الحذف متاح للأدمن فقط'); return; }
+        const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+        if (selected.length === 0) { alert('لم يتم تحديد أي حركة للحذف'); return; }
+        
+        if (!confirm(`تحذير! ⚠️\n\nأنت على وشك حذف (${selected.length}) حركة مخزنية.\nسيتم عكس الكميات وإلغاء القيود.\n\nهل أنت متأكد؟`)) return;
+
+        let successCount = 0;
+        for (const id of selected) {
+            try {
+                const res = await fetch(`${API}/stock/${id}`, { method: 'DELETE', headers: authHeaders() });
+                if(res.ok) successCount++;
+            } catch(e) { console.error(e); }
+        }
+        
+        alert(`تم حذف ${successCount} من أصل ${selected.length} حركة بنجاح.`);
+        location.reload();
+    }
+
+    async function del(id, type) {
+        if (!isAdmin) { alert('الحذف متاح للأدمن فقط'); return; }
+        const msg = type === 'Inbound' ? 'سحب الكميات من الرصيد' : 'إرجاع الكميات للرصيد';
+        if(!confirm(`تحذير: سيتم ${msg} وإلغاء القيد!`)) return;
+        
+        try {
+            const res = await fetch(`${API}/stock/${id}`, { method: 'DELETE', headers: authHeaders() });
+            if(res.ok) { alert('تم الحذف والتصحيح ✅'); window.location.reload(); }
+        } catch(e) { alert('خطأ اتصال'); }
+    }
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>

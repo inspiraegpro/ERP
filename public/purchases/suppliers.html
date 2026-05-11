@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الموردون - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left,rgba(185,137,24,.14),transparent 20rem),linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1380px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1,.head h2 { margin:0; }
+        .hero p { margin:.45rem 0 0; color:rgba(255,255,255,.85); line-height:1.85; max-width:56rem; }
+        .tags { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+        .tag { padding:.7rem .95rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); font-weight:700; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .head,.toolbar,.action-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .toolbar { margin-bottom:1rem; }
+        .toolbar input,.field input,.field select,.field textarea { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.96rem; }
+        .toolbar .search { min-width:280px; }
+        .btn { border:none; border-radius:14px; padding:.9rem 1.1rem; font-size:.95rem; font-weight:800; cursor:pointer; box-shadow:0 10px 22px rgba(22,58,95,.12); }
+        .btn.primary { background:var(--p); color:#fff; } .btn.accent { background:var(--a); color:#fff; } .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); } .btn.danger { background:rgba(159,58,56,.12); color:var(--er); box-shadow:none; }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:16px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        .badge { display:inline-flex; padding:.35rem .7rem; border-radius:999px; font-weight:700; font-size:.82rem; }
+        .badge.zero { background:rgba(31,111,95,.1); color:var(--ok); }
+        .badge.open { background:rgba(185,137,24,.14); color:#8b6505; }
+        .modal { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:1300; }
+        .modal.open { display:flex; }
+        .modal-card { width:min(620px,92vw); background:#fff; border-radius:24px; border:1px solid var(--bd); box-shadow:0 18px 38px rgba(22,58,95,.18); }
+        .modal-header,.modal-footer { padding:1rem 1.25rem; border-bottom:1px solid rgba(82,98,119,.12); }
+        .modal-footer { border-bottom:none; border-top:1px solid rgba(82,98,119,.12); }
+        .modal-body { padding:1.25rem; }
+        .form-grid { display:grid; grid-template-columns:repeat(2,minmax(180px,1fr)); gap:1rem; }
+        .field { display:flex; flex-direction:column; gap:.45rem; }
+        .field label { font-weight:700; color:var(--s); font-size:.92rem; }
+        .span2 { grid-column:span 2; }
+        @media (max-width:980px) { .form-grid { grid-template-columns:1fr; } .span2 { grid-column:auto; } .card { overflow-x:auto; } }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>إدارة الموردين</h1>
+        <p>متابعة الموردين، بيانات التواصل، الحسابات المرتبطة، والأرصدة المفتوحة داخل Wrapstyle ERP بواجهة حديثة موحدة.</p>
+        <div class="tags">
+            <span class="tag">قائمة الموردين</span>
+            <span class="tag">إضافة وتعديل</span>
+            <span class="tag">ربط حسابات</span>
+            <span class="tag">كشف حساب</span>
+        </div>
+    </section>
+
+    <div id="messageBox" class="msg"></div>
+
+    <section class="card">
+        <div class="toolbar">
+            <div class="head">
+                <h2>سجل الموردين</h2>
+            </div>
+            <div class="toolbar">
+                <input class="search" id="searchInput" placeholder="ابحث بالكود أو الاسم أو اسم الشركة أو الهاتف أو البريد">
+                <button class="btn primary" type="button" onclick="openSupplierModal()">إضافة مورد</button>
+                <button class="btn light" type="button" onclick="loadSuppliers()">تحديث</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>الكود</th>
+                    <th>الاسم</th>
+                    <th>اسم الشركة</th>
+                    <th>الهاتف</th>
+                    <th>البريد</th>
+                    <th>العنوان</th>
+                    <th>الرصيد</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="suppliersBody"></tbody>
+        </table>
+    </section>
+</div>
+
+<div id="supplierModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header"><strong id="modalTitle">إضافة مورد</strong></div>
+        <div class="modal-body">
+            <input type="hidden" id="supplierId">
+            <div class="form-grid">
+                <div class="field"><label for="supplierCode">كود المورد</label><input id="supplierCode"></div>
+                <div class="field"><label for="supplierName">اسم المورد</label><input id="supplierName"></div>
+                <div class="field"><label for="supplierCompany">اسم الشركة</label><input id="supplierCompany"></div>
+                <div class="field"><label for="supplierPhone">الهاتف</label><input id="supplierPhone"></div>
+                <div class="field"><label for="supplierEmail">البريد الإلكتروني</label><input id="supplierEmail"></div>
+                <div class="field"><label for="supplierTaxId">الرقم الضريبي</label><input id="supplierTaxId"></div>
+                <div class="field"><label for="supplierBalance">الرصيد الافتتاحي</label><input type="number" id="supplierBalance" value="0"></div>
+                <div class="field span2"><label for="supplierAddress">العنوان</label><textarea id="supplierAddress" rows="3"></textarea></div>
+                <div class="field span2"><label for="supplierAccount">الحساب المرتبط</label><select id="supplierAccount"><option value="">بدون ربط</option></select></div>
+            </div>
+        </div>
+        <div class="modal-footer action-row">
+            <button class="btn light" type="button" onclick="closeSupplierModal()">إلغاء</button>
+            <button class="btn primary" type="button" onclick="saveSupplier()">حفظ المورد</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let suppliers = [];
+    let accounts = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        document.getElementById('searchInput').addEventListener('input', renderSuppliers);
+        await loadAccounts();
+        await loadSuppliers();
+    });
+
+    function setMessage(message, type = 'ok') {
+        const box = document.getElementById('messageBox');
+        box.className = `msg ${type === 'error' ? 'er' : 'ok'}`;
+        box.textContent = message;
+    }
+
+    async function loadAccounts() {
+        try {
+            const response = await fetch(`${API}/accounts`);
+            accounts = response.ok ? await response.json() : [];
+            document.getElementById('supplierAccount').innerHTML = '<option value="">بدون ربط</option>' + accounts.map((account) => `<option value="${account._id}">${account.code || ''} - ${account.name || 'حساب'}</option>`).join('');
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async function loadSuppliers() {
+        try {
+            const response = await fetch(`${API}/suppliers`);
+            suppliers = response.ok ? await response.json() : [];
+            renderSuppliers();
+        } catch (error) {
+            console.error(error);
+            setMessage('تعذر تحميل الموردين.', 'error');
+        }
+    }
+
+    function renderSuppliers() {
+        const term = document.getElementById('searchInput').value.trim().toLowerCase();
+        const rows = suppliers.filter((supplier) => {
+            const haystack = [supplier.code, supplier.name, supplier.companyName, supplier.phone, supplier.email].join(' ').toLowerCase();
+            return haystack.includes(term);
+        });
+        document.getElementById('suppliersBody').innerHTML = rows.map((supplier) => {
+            const balance = Number(supplier.balance || 0);
+            return `
+                <tr>
+                    <td>${supplier.code || ''}</td>
+                    <td>${supplier.name || ''}</td>
+                    <td>${supplier.companyName || ''}</td>
+                    <td>${supplier.phone || ''}</td>
+                    <td>${supplier.email || ''}</td>
+                    <td>${supplier.address || ''}</td>
+                    <td>${balance.toFixed(2)}</td>
+                    <td><span class="badge ${balance === 0 ? 'zero' : 'open'}">${balance === 0 ? 'مغلق' : 'رصيد مفتوح'}</span></td>
+                    <td>
+                        <button class="btn light" type="button" onclick="viewStatement('${supplier.accountId || ''}')">كشف</button>
+                        <button class="btn accent" type="button" onclick="editSupplier('${supplier._id}')">تعديل</button>
+                        <button class="btn danger" type="button" onclick="deleteSupplier('${supplier._id}')">حذف</button>
+                    </td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="9">لا يوجد موردون حتى الآن.</td></tr>';
+    }
+
+    function openSupplierModal() {
+        document.getElementById('supplierId').value = '';
+        document.getElementById('modalTitle').textContent = 'إضافة مورد';
+        document.getElementById('supplierCode').value = '';
+        document.getElementById('supplierName').value = '';
+        document.getElementById('supplierCompany').value = '';
+        document.getElementById('supplierPhone').value = '';
+        document.getElementById('supplierEmail').value = '';
+        document.getElementById('supplierTaxId').value = '';
+        document.getElementById('supplierAddress').value = '';
+        document.getElementById('supplierBalance').value = '0';
+        document.getElementById('supplierAccount').value = '';
+        document.getElementById('supplierModal').classList.add('open');
+    }
+
+    function closeSupplierModal() {
+        document.getElementById('supplierModal').classList.remove('open');
+    }
+
+    function editSupplier(id) {
+        const supplier = suppliers.find((item) => item._id === id);
+        if (!supplier) return;
+        document.getElementById('supplierId').value = supplier._id;
+        document.getElementById('modalTitle').textContent = 'تعديل مورد';
+        document.getElementById('supplierCode').value = supplier.code || '';
+        document.getElementById('supplierName').value = supplier.name || '';
+        document.getElementById('supplierCompany').value = supplier.companyName || '';
+        document.getElementById('supplierPhone').value = supplier.phone || '';
+        document.getElementById('supplierEmail').value = supplier.email || '';
+        document.getElementById('supplierTaxId').value = supplier.taxId || '';
+        document.getElementById('supplierAddress').value = supplier.address || '';
+        document.getElementById('supplierBalance').value = Number(supplier.balance || 0);
+        document.getElementById('supplierAccount').value = supplier.accountId || '';
+        document.getElementById('supplierModal').classList.add('open');
+    }
+
+    async function saveSupplier() {
+        const id = document.getElementById('supplierId').value;
+        const payload = {
+            code: document.getElementById('supplierCode').value.trim(),
+            name: document.getElementById('supplierName').value.trim(),
+            companyName: document.getElementById('supplierCompany').value.trim(),
+            phone: document.getElementById('supplierPhone').value.trim(),
+            email: document.getElementById('supplierEmail').value.trim(),
+            taxId: document.getElementById('supplierTaxId').value.trim(),
+            address: document.getElementById('supplierAddress').value.trim(),
+            balance: Number(document.getElementById('supplierBalance').value || 0),
+            accountId: document.getElementById('supplierAccount').value || null
+        };
+        if (!payload.name) {
+            setMessage('اسم المورد مطلوب.', 'error');
+            return;
+        }
+        if (!payload.code) {
+            setMessage('كود المورد مطلوب.', 'error');
+            return;
+        }
+        try {
+            const response = await fetch(id ? `${API}/suppliers/${id}` : `${API}/suppliers`, {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'فشل حفظ المورد.');
+            closeSupplierModal();
+            await loadSuppliers();
+            setMessage(id ? 'تم تحديث المورد بنجاح.' : 'تم إنشاء المورد بنجاح.');
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر حفظ المورد.', 'error');
+        }
+    }
+
+    async function deleteSupplier(id) {
+        if (!confirm('هل أنت متأكد من حذف هذا المورد؟')) return;
+        try {
+            const response = await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'فشل حذف المورد.');
+            await loadSuppliers();
+            setMessage('تم حذف المورد بنجاح.');
+        } catch (error) {
+            console.error(error);
+            setMessage(error.message || 'تعذر حذف المورد.', 'error');
+        }
+    }
+
+    function viewStatement(accountId) {
+        if (!accountId) {
+            setMessage('هذا المورد غير مرتبط بحساب محاسبي.', 'error');
+            return;
+        }
+        window.location.href = `/financial/financial_reports.html?accountId=${accountId}&report=accountStatement`;
+    }
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>
