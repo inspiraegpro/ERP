@@ -20,7 +20,7 @@
         .toolbar input { min-width:280px; }
         .field input { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.96rem; }
         .btn { border:none; border-radius:14px; padding:.95rem 1.15rem; font-size:.95rem; font-weight:800; cursor:pointer; box-shadow:0 10px 22px rgba(22,58,95,.12); text-decoration:none; }
-        .btn.primary { background:var(--p); color:#fff; } .btn.accent { background:var(--a); color:#fff; } .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); }
+        .btn.primary { background:var(--p); color:#fff; } .btn.accent { background:var(--a); color:#fff; } .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); } .btn.success { background:var(--ok); color:#fff; }
         table { width:100%; border-collapse:collapse; }
         thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
         tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
@@ -28,31 +28,74 @@
         .status.active { background:rgba(31,111,95,.1); color:var(--ok); }
         .status.inactive { background:rgba(159,58,56,.1); color:var(--er); }
         .empty-state { padding:2rem; text-align:center; color:#738396; }
+        .checkbox-col { width:40px; text-align:center; }
+        .emp-checkbox { width:18px; height:18px; cursor:pointer; }
+        .batch-bar { background:var(--soft); padding:12px 16px; border-radius:16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; }
+        .progress-bar { width:100%; height:8px; background:#e2e8f0; border-radius:4px; margin:10px 0; overflow:hidden; display:none; }
+        .progress-bar.show { display:block; }
+        .progress-fill { height:100%; background:var(--ok); width:0%; transition:width 0.3s; }
+
+        /* Modal Styles */
+        .modal { display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:1300; align-items:center; justify-content:center; }
+        .modal.open { display:flex; }
+        .modal-card { width:min(900px,92vw); background:#fff; border-radius:24px; border:1px solid var(--bd); box-shadow:0 18px 38px rgba(22,58,95,.18); max-height:85vh; display:flex; flex-direction:column; }
+        .modal-header { padding:1rem 1.25rem; border-bottom:1px solid rgba(82,98,119,.12); display:flex; justify-content:space-between; align-items:center; }
+        .modal-body { padding:1.25rem; overflow-y:auto; flex:1; }
+        .modal-footer { padding:1rem 1.25rem; border-top:1px solid rgba(82,98,119,.12); display:flex; justify-content:flex-end; gap:1rem; }
+        .close-btn { background:none; border:none; font-size:24px; cursor:pointer; color:var(--s); }
+        .search-box { margin-bottom:1rem; }
+        .search-box input { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:14px; padding:.85rem .95rem; background:#fff; color:var(--p); font-size:.96rem; }
+        .modal-table { width:100%; border-collapse:collapse; font-size:.9rem; }
+        .modal-table th { background:#eef2f7; color:var(--p); padding:.75rem .5rem; border-bottom:1px solid var(--bd); text-align:center; }
+        .modal-table td { padding:.6rem .5rem; border-bottom:1px solid rgba(82,98,119,.08); text-align:center; }
+        .modal-table tr:hover { background:rgba(22,58,95,.03); }
+        .selected-count { color:var(--a); font-weight:700; }
+        .msg-box { display:none; padding:1rem 1.1rem; border-radius:16px; font-weight:700; margin-bottom:1rem; }
+        .msg-box.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg-box.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
     </style>
+<base target="_blank">
 </head>
 <body>
 <div class="shell">
     <section class="hero">
         <h1>دليل الفنيين</h1>
-        <p>قائمة الفنيين النشطين فقط، مع إمكانية إضافة فني جديد بسرعة وتنقل مباشر إلى شاشة التكويد.</p>
+        <p>قائمة الفنيين النشطين، مع إمكانية اختيار موظفين من دليل الموظفين وتحويلهم لفنيين بسرعة.</p>
         <div class="tags">
             <span class="tag">فنيين</span>
             <span class="tag">تقييم الأداء</span>
             <span class="tag">ربط أوامر التشغيل</span>
         </div>
     </section>
-    <div id="messageBox" class="status-box"></div>
+
+    <div id="messageBox" class="msg-box"></div>
+
     <section class="card">
         <div class="toolbar">
             <input id="search" placeholder="ابحث بالاسم أو الكود" oninput="filterTable()">
             <div>
                 <a class="btn light" href="/hr/employees_list.html">العودة إلى الموظفين</a>
-                <a class="btn primary" href="/hr/employee_coding.html?jobTitle=فني&department=ورشة">إضافة فني</a>
+                <a class="btn primary" href="/hr/tech_performance.html">📊 أداء الفنيين</a>
+                <button class="btn success" onclick="openSelectModal()">➕ اختيار فني من الموظفين</button>
             </div>
         </div>
+
+        <div id="batchBar" class="batch-bar" style="display:none;">
+            <span>✅ تم اختيار <span id="batchCount" class="selected-count">0</span> فني</span>
+            <div>
+                <button class="btn" style="background:rgba(159,58,56,.12); color:var(--er); box-shadow:none;" onclick="removeSelected()">🗑️ حذف المحدد</button>
+                <button class="btn light" onclick="clearSelection()">إلغاء التحديد</button>
+            </div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
         <table>
             <thead>
                 <tr>
+                    <th class="checkbox-col"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
                     <th>الكود</th>
                     <th>الاسم</th>
                     <th>الوظيفة</th>
@@ -67,17 +110,84 @@
         </table>
     </section>
 </div>
+
+<!-- Select Employees Modal -->
+<div id="selectModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>👷 اختيار فنيين من الموظفين</h3>
+            <button class="close-btn" onclick="closeSelectModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="search-box">
+                <input type="text" id="modalSearch" placeholder="🔍 ابحث بالاسم أو الكود أو القسم..." oninput="filterModalEmployees()">
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="modal-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col"><input type="checkbox" id="modalSelectAll" onchange="toggleModalSelectAll(this)"></th>
+                            <th>الكود</th>
+                            <th>الاسم</th>
+                            <th>الوظيفة</th>
+                            <th>القسم</th>
+                            <th>الراتب</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalTbody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:1rem; text-align:center;">
+                <span class="selected-count">تم اختيار <span id="modalSelectedCount">0</span> موظف</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn light" onclick="closeSelectModal()">إلغاء</button>
+            <button class="btn success" onclick="confirmAddTechnicians()">✅ إضافة كفنيين</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const API = '/api/hr';
-    const token = localStorage.getItem('token') || '';
     let technicians = [];
+    let allEmployees = [];
+    let modalSelected = new Set();
+    let listSelected = new Set();
+
+    function getToken() {
+        return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    }
+
     function authHeaders(includeJson = false) {
         const headers = {};
         if (includeJson) headers['Content-Type'] = 'application/json';
+        const token = getToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
     }
+
+    function setMessage(message, type = 'ok') {
+        const box = document.getElementById('messageBox');
+        box.style.display = 'block';
+        box.className = `msg-box ${type === 'error' ? 'er' : 'ok'}`;
+        box.style.background = type === 'error' ? 'rgba(159,58,56,.1)' : 'rgba(31,111,95,.1)';
+        box.style.color = type === 'error' ? 'var(--er)' : 'var(--ok)';
+        box.style.border = type === 'error' ? '1px solid rgba(159,58,56,.18)' : '1px solid rgba(31,111,95,.18)';
+        box.textContent = message;
+        setTimeout(() => { box.style.display = 'none'; }, 5000);
+    }
+
+    function showProgress(percent) {
+        const bar = document.getElementById('progressBar');
+        const fill = document.getElementById('progressFill');
+        bar.classList.add('show');
+        fill.style.width = percent + '%';
+        if (percent >= 100) setTimeout(() => bar.classList.remove('show'), 1000);
+    }
+
     document.addEventListener('DOMContentLoaded', load);
+
     async function load() {
         try {
             const res = await fetch(`${API}/employees?activeOnly=true&technicianOnly=true`, { headers: authHeaders() });
@@ -87,19 +197,17 @@
             setMessage('خطأ في الاتصال بالسيرفر.', 'error');
         }
     }
-    function setMessage(message, type = 'ok') {
-        const box = document.getElementById('messageBox');
-        box.className = `status-box ${type === 'error' ? 'error' : 'success'}`;
-        box.textContent = message;
-    }
+
     function render(list) {
         const tbody = document.getElementById('tbody');
         if (!list.length) {
-            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">لا يوجد فنيين نشطين حتى الآن.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-state">لا يوجد فنيين نشطين حتى الآن. اختر من الموظفين لإضافتهم.</td></tr>';
+            updateBatchBar();
             return;
         }
         tbody.innerHTML = list.map((e) => `
-            <tr>
+            <tr data-id="${e._id}">
+                <td class="checkbox-col"><input type="checkbox" class="emp-checkbox" value="${e._id}" onchange="toggleSelect('${e._id}', this)" ${listSelected.has(e._id) ? 'checked' : ''}></td>
                 <td>${e.code || '-'}</td>
                 <td style="font-weight:700">${e.name || '-'}</td>
                 <td>${e.jobTitle || '-'}</td>
@@ -107,14 +215,187 @@
                 <td>${Number(e.totalSalary || 0).toFixed(2)}</td>
                 <td>${Number(e.vacationBalance || 0).toFixed(2)}</td>
                 <td><span class="status ${e.status === 'Active' ? 'active' : 'inactive'}">${e.status === 'Active' ? 'نشط' : 'غير نشط'}</span></td>
-                <td><a class="btn accent" href="/hr/employee_coding.html?id=${e._id}">تعديل</a></td>
+                <td><a class="btn accent" href="/hr/employee_coding.html?id=${e._id}" style="padding:6px 12px; font-size:13px;">✏️ تعديل</a></td>
             </tr>
         `).join('');
+        updateBatchBar();
     }
+
     function filterTable() {
         const term = document.getElementById('search').value.toLowerCase();
         const filtered = technicians.filter((e) => (e.name || '').toLowerCase().includes(term) || (e.code || '').toLowerCase().includes(term));
         render(filtered);
+    }
+
+    // ========== Batch Selection ==========
+    function toggleSelectAll(checkbox) {
+        const allBoxes = document.querySelectorAll('.emp-checkbox');
+        allBoxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            if (checkbox.checked) listSelected.add(cb.value);
+            else listSelected.delete(cb.value);
+        });
+        updateBatchBar();
+    }
+
+    function toggleSelect(empId, checkbox) {
+        if (checkbox.checked) listSelected.add(empId);
+        else listSelected.delete(empId);
+        updateBatchBar();
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+            const allBoxes = document.querySelectorAll('.emp-checkbox');
+            selectAll.checked = allBoxes.length > 0 && Array.from(allBoxes).every(cb => cb.checked);
+        }
+    }
+
+    function updateBatchBar() {
+        const count = listSelected.size;
+        const bar = document.getElementById('batchBar');
+        const countSpan = document.getElementById('batchCount');
+        if (countSpan) countSpan.textContent = count;
+        if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    function clearSelection() {
+        listSelected.clear();
+        document.querySelectorAll('.emp-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('selectAll').checked = false;
+        updateBatchBar();
+    }
+
+    async function removeSelected() {
+        if (listSelected.size === 0) return;
+        if (!confirm(`⚠️ هل أنت متأكد من حذف ${listSelected.size} فني من قائمة الفنيين؟ الموظفين سيظلون موجودين في دليل الموظفين.`)) return;
+
+        try {
+            const res = await fetch(`${API}/technicians/batch-remove`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({ ids: Array.from(listSelected) })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message);
+            setMessage(`✅ ${json.message || 'تم الحذف بنجاح'}`);
+            listSelected.clear();
+            await load();
+        } catch (e) {
+            setMessage(e.message || 'فشل الحذف.', 'error');
+        }
+    }
+
+    // ========== Modal: Select from Employees ==========
+    async function openSelectModal() {
+        document.getElementById('selectModal').classList.add('open');
+        modalSelected.clear();
+        document.getElementById('modalSearch').value = '';
+
+        try {
+            // Load all active employees who are NOT technicians
+            const res = await fetch(`${API}/employees?activeOnly=true`, { headers: authHeaders() });
+            allEmployees = await res.json();
+
+            // Filter out existing technicians (isTechnician: true)
+            allEmployees = allEmployees.filter(e => !e.isTechnician);
+
+            renderModalEmployees(allEmployees);
+        } catch (e) {
+            setMessage('خطأ في تحميل الموظفين.', 'error');
+        }
+    }
+
+    function closeSelectModal() {
+        document.getElementById('selectModal').classList.remove('open');
+        modalSelected.clear();
+    }
+
+    function renderModalEmployees(list) {
+        const tbody = document.getElementById('modalTbody');
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem;">لا يوجد موظفين متاحين. جميع الموظفين النشطين مسجلين كفنيين بالفعل.</td></tr>';
+            updateModalCount();
+            return;
+        }
+        tbody.innerHTML = list.map((e) => `
+            <tr>
+                <td class="checkbox-col"><input type="checkbox" class="modal-checkbox" value="${e._id}" onchange="toggleModalSelect('${e._id}', this)" ${modalSelected.has(e._id) ? 'checked' : ''}></td>
+                <td>${e.code || '-'}</td>
+                <td style="font-weight:700">${e.name || '-'}</td>
+                <td>${e.jobTitle || '-'}</td>
+                <td>${e.department || '-'}</td>
+                <td>${Number(e.totalSalary || 0).toFixed(2)}</td>
+            </tr>
+        `).join('');
+        updateModalCount();
+    }
+
+    function filterModalEmployees() {
+        const term = document.getElementById('modalSearch').value.toLowerCase();
+        const filtered = allEmployees.filter((e) => 
+            (e.name || '').toLowerCase().includes(term) || 
+            (e.code || '').toLowerCase().includes(term) ||
+            (e.department || '').toLowerCase().includes(term)
+        );
+        renderModalEmployees(filtered);
+    }
+
+    function toggleModalSelectAll(checkbox) {
+        const visibleBoxes = document.querySelectorAll('.modal-checkbox');
+        visibleBoxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            if (checkbox.checked) modalSelected.add(cb.value);
+            else modalSelected.delete(cb.value);
+        });
+        updateModalCount();
+    }
+
+    function toggleModalSelect(empId, checkbox) {
+        if (checkbox.checked) modalSelected.add(empId);
+        else modalSelected.delete(empId);
+        updateModalCount();
+
+        const selectAll = document.getElementById('modalSelectAll');
+        if (selectAll) {
+            const allBoxes = document.querySelectorAll('.modal-checkbox');
+            selectAll.checked = allBoxes.length > 0 && Array.from(allBoxes).every(cb => cb.checked);
+        }
+    }
+
+    function updateModalCount() {
+        const count = modalSelected.size;
+        const countSpan = document.getElementById('modalSelectedCount');
+        if (countSpan) countSpan.textContent = count;
+    }
+
+    async function confirmAddTechnicians() {
+        if (modalSelected.size === 0) {
+            setMessage('لم تختر أي موظف.', 'error');
+            return;
+        }
+
+        const selectedEmployees = allEmployees.filter(e => modalSelected.has(e._id));
+
+        if (!confirm(`هل تريد إضافة ${modalSelected.size} موظف كفنيين؟
+
+${selectedEmployees.map(e => `• ${e.name} (${e.code})`).join('\n')}`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/technicians/batch-add`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({ employeeIds: Array.from(modalSelected) })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message);
+
+            setMessage(`✅ ${json.message || `تم إضافة ${modalSelected.size} فني بنجاح`}`);
+            closeSelectModal();
+            await load();
+        } catch (e) {
+            setMessage(e.message || 'فشل الإضافة.', 'error');
+        }
     }
 </script>
 <script src="/global-navigation.js"></script>

@@ -442,6 +442,10 @@
             <div class="action-row">
                 <span class="hint">إذا كنت تعدل إذنًا موجودًا فسيتم حفظه عبر `PUT` على نفس السجل الأصلي.</span>
                 <button class="btn primary" id="saveButton" type="button" onclick="save()">حفظ إذن الصرف</button>
+                <button class="btn" id="reverseButton" type="button" onclick="reverseTransaction()"
+                        style="background:#dc2626; color:#fff; display:none; margin-right:8px;">
+                    ↩️ إلغاء هذا الإذن
+                </button>
             </div>
         </section>
     </div>
@@ -450,11 +454,16 @@
         const API = '/api';
         let productsList = [];
         let currentJobId = null;
-        const token = localStorage.getItem('token') || '';
+        function safeGetToken() {
+            if (typeof getToken === 'function') return getToken() || '';
+            if (window.Auth && typeof window.Auth.getToken === 'function') return window.Auth.getToken() || '';
+            return localStorage.getItem('token') || '';
+        }
 
         function authHeaders(includeJson = false) {
             const headers = {};
             if (includeJson) headers['Content-Type'] = 'application/json';
+            const token = safeGetToken();
             if (token) headers['Authorization'] = `Bearer ${token}`;
             return headers;
         }
@@ -515,6 +524,7 @@
             document.getElementById('screenTitle').textContent = 'تحديث إذن صرف مخزني';
             document.getElementById('modeTag').textContent = 'وضع تعديل';
             document.getElementById('saveButton').textContent = 'تحديث إذن الصرف';
+            document.getElementById('reverseButton').style.display = 'inline-block';
 
             try {
                 const response = await fetch(`${API}/stock/${id}`, { headers: authHeaders() });
@@ -675,15 +685,41 @@
                         return String(aCat).localeCompare(String(bCat));
                     });
 
+                    // ── فحص حالة الصرف الكلية أولاً ──────────────────────────────
+                    const totalItems = sortedItems.length;
+                    let fullyIssuedCount = 0;
+                    const itemsWithRemaining = [];
+
                     for (const item of sortedItems) {
                         const originalLength = Number(item.lengthCM || item.length || 0);
-                        const originalWidth = Number(item.widthCM || item.width || 0);
-                        // إذا كانت المساحة أكبر من 100، يبقى بالتأكيد بالسنتيمتر (أكبر من 1 م² × 100)
+                        const originalWidth  = Number(item.widthCM  || item.width  || 0);
                         let rawArea = Number(item.area || 0);
                         const originalArea = rawArea > 100 ? (rawArea / 10000) : (rawArea || ((originalLength * originalWidth) / 10000));
                         const partName = item.partName || 'قطعة';
+                        const consumedArea = consumedPerPart[partName]?.area || 0;
+                        const remainingArea = originalArea - consumedArea;
+                        const isCompleted = remainingArea <= 0.001;
+                        if (isCompleted) fullyIssuedCount++;
+                        else itemsWithRemaining.push({ item, originalLength, originalWidth, originalArea, partName, remainingArea });
+                    }
 
-                        // Create visual divider if category changes
+                    // ── لو كل البنود اتصرفت → ارفض ──────────────────────────────
+                    if (fullyIssuedCount === totalItems) {
+                        const saveBtn = document.getElementById('saveButton');
+                        saveBtn.disabled = true;
+                        saveBtn.style.opacity = '0.5';
+                        saveBtn.style.cursor = 'not-allowed';
+                        setMessage(`🚫 تم صرف جميع بنود هذه الفاتورة (${totalItems}/${totalItems}) مسبقاً. لا يمكن إنشاء إذن صرف جديد لها.`, 'error');
+                        return;
+                    }
+
+                    // ── لو فيه صرف جزئي → أخبر المستخدم ──────────────────────────
+                    if (fullyIssuedCount > 0) {
+                        setMessage(`ℹ️ تم صرف ${fullyIssuedCount} من أصل ${totalItems} بنود مسبقاً. سيتم عرض ${itemsWithRemaining.length} بند متبقي فقط.`, 'info');
+                    }
+
+                    // ── عرض البنود المتبقية فقط ──────────────────────────────────
+                    for (const { item, originalLength, originalWidth, originalArea, partName, remainingArea } of itemsWithRemaining) {
                         const currentCat = item.selectedMaterialCategory || item.materialCategory || resolveProductName(String(item.product?._id || item.product));
                         if(currentCat !== lastCategory) {
                              const divider = document.createElement('tr');
@@ -692,38 +728,24 @@
                              lastCategory = currentCat;
                         }
 
-                        const consumedArea = consumedPerPart[partName]?.area || 0;
-                        const remainingArea = originalArea - consumedArea;
-                        const isCompleted = remainingArea <= 0.001;
-                        
-                        // عرض جميع البنود، حتى المكتملة للصرف الإضافي
-                        const suggestedArea = isCompleted ? 0 : remainingArea;
-                        
-                        // إضافة نوع الصنف المختار من المخزون للملاحظات
-                        let note = isCompleted ? 'مكتمل - صرف إضافي' : '';
-                        if (item.selectedMaterialType) {
-                            note = note ? `${note} | نوع: ${item.selectedMaterialType}` : `نوع: ${item.selectedMaterialType}`;
-                        }
-
-                        // عرض الصنف المخزني المختار من شاشة أوامر التشغيل
+                        let note = '';
+                        if (item.selectedMaterialType) note = `نوع: ${item.selectedMaterialType}`;
                         const selectedProductName = item.productData?.name || item.product?.name || item.productName || resolveProductName(String(item.product?._id || item.product));
                         const selectedProductCode = item.productData?.code || item.product?.code || item.product?.inventorySlug || '';
                         if (selectedProductName) {
                             note = note ? `${note} | الصنف: ${selectedProductName}` : `الصنف: ${selectedProductName}`;
-                            if (selectedProductCode) {
-                                note = `${note} (${selectedProductCode})`;
-                            }
+                            if (selectedProductCode) note = `${note} (${selectedProductCode})`;
                         }
 
                         await addRow({
                             partName,
                             productId: String(item.product?._id || item.product),
                             productName: selectedProductName,
-                            lengthCm: originalWidth > 0 ? (suggestedArea * 10000) / originalWidth : originalLength,
+                            lengthCm: originalWidth > 0 ? (remainingArea * 10000) / originalWidth : originalLength,
                             widthCm: originalWidth,
-                            area: suggestedArea,
+                            area: remainingArea,
                             preferredRollCode: item.selectedMaterialType || '',
-                            note: note,
+                            note,
                             originalLengthCm: originalLength,
                             originalWidthCm: originalWidth,
                             originalArea: originalArea
@@ -740,7 +762,10 @@
                         saveBtn.disabled = false;
                         saveBtn.style.opacity = '1';
                         saveBtn.style.cursor = 'pointer';
-                        setMessage('تم تحميل بنود أمر التشغيل. ' + (body.innerHTML === '' ? 'جميع البنود صُرفت مسبقاً.' : ''), 'success');
+                        if (fullyIssuedCount === 0) {
+                            setMessage(`✅ تم تحميل ${itemsWithRemaining.length} بند جاهز للصرف.`, 'success');
+                        }
+                        // لو فيه صرف جزئي، الرسالة اتعرضت فوق بالفعل
                     }
                     return;
                 }
@@ -802,7 +827,41 @@
                     return String(aCat).localeCompare(String(bCat));
                 });
 
+                // ── فحص حالة الصرف الكلية أولاً ──────────────────────────────
+                const totalInvItems = sortedInvoiceItems.length;
+                let fullyIssuedInvCount = 0;
+                const invItemsWithRemaining = [];
+
                 for (const item of sortedInvoiceItems) {
+                    const originalLength = Number(item.lengthCM || item.length || 0);
+                    const originalWidth  = Number(item.widthCM  || item.width  || 0);
+                    let rawArea = Number(item.area || 0);
+                    const originalArea = rawArea > 100 ? (rawArea / 10000) : (rawArea || ((originalLength * originalWidth) / 10000));
+                    const partName = item.partName || 'قطعة';
+                    const consumedArea = consumedPerPart[partName]?.area || 0;
+                    const remainingArea = originalArea - consumedArea;
+                    const isCompleted = remainingArea <= 0.001;
+                    if (isCompleted) fullyIssuedInvCount++;
+                    else invItemsWithRemaining.push({ item, originalLength, originalWidth, originalArea, partName, remainingArea });
+                }
+
+                // ── لو كل البنود اتصرفت → ارفض ──────────────────────────────
+                if (fullyIssuedInvCount === totalInvItems) {
+                    const saveBtn = document.getElementById('saveButton');
+                    saveBtn.disabled = true;
+                    saveBtn.style.opacity = '0.5';
+                    saveBtn.style.cursor = 'not-allowed';
+                    setMessage(`🚫 تم صرف جميع بنود هذه الفاتورة (${totalInvItems}/${totalInvItems}) مسبقاً. لا يمكن إنشاء إذن صرف جديد لها.`, 'error');
+                    return;
+                }
+
+                // ── لو فيه صرف جزئي → أخبر المستخدم ──────────────────────────
+                if (fullyIssuedInvCount > 0) {
+                    setMessage(`ℹ️ تم صرف ${fullyIssuedInvCount} من أصل ${totalInvItems} بنود مسبقاً. سيتم عرض ${invItemsWithRemaining.length} بند متبقي فقط.`, 'info');
+                }
+
+                // ── عرض البنود المتبقية فقط ──────────────────────────────────
+                for (const { item, originalLength, originalWidth, originalArea, partName, remainingArea } of invItemsWithRemaining) {
                     const currentCat = item.selectedMaterialCategory || item.materialCategory || resolveProductName(String(item.product?._id || item.product));
                     if(currentCat !== lastCategory) {
                          const divider = document.createElement('tr');
@@ -811,21 +870,7 @@
                          lastCategory = currentCat;
                     }
 
-                    const originalLength = Number(item.lengthCM || item.length || 0);
-                    const originalWidth = Number(item.widthCM || item.width || 0);
-                    // إذا كانت المساحة أكبر من 100، يبقى بالتأكيد بالسنتيمتر
-                    let rawArea = Number(item.area || 0);
-                    const originalArea = rawArea > 100 ? (rawArea / 10000) : (rawArea || ((originalLength * originalWidth) / 10000));
-                    const partName = item.partName || 'قطعة';
-
-                    const consumedArea = consumedPerPart[partName]?.area || 0;
-                    const remainingArea = originalArea - consumedArea;
-                    const isCompleted = remainingArea <= 0.001;
-                    const suggestedArea = isCompleted ? 0 : remainingArea;
-
-                    const lengthToUse = isCompleted ? originalLength : (originalWidth > 0 ? (remainingArea * 10000) / originalWidth : originalLength);
-                    const areaToUse = isCompleted ? 0 : remainingArea;
-
+                    const lengthToUse = originalWidth > 0 ? (remainingArea * 10000) / originalWidth : originalLength;
                     const productId = String(item.product?._id || item.product);
 
                     await addRow({
@@ -834,10 +879,8 @@
                         productName: item.product?.name || resolveProductName(productId),
                         lengthCm: lengthToUse,
                         widthCm: originalWidth,
-                        area: areaToUse,
+                        area: remainingArea,
                         preferredRollCode: '',
-                        suggestedArea,
-                        isCompleted,
                         originalLengthCm: originalLength,
                         originalWidthCm: originalWidth,
                         originalArea: originalArea
@@ -849,7 +892,9 @@
                 saveBtn.style.opacity = '1';
                 saveBtn.style.cursor = 'pointer';
 
-                setMessage('تم تحميل بنود الفاتورة بنجاح.', 'success');
+                if (fullyIssuedInvCount === 0) {
+                    setMessage(`✅ تم تحميل ${invItemsWithRemaining.length} بند جاهز للصرف.`, 'success');
+                }
             } catch (error) {
                 console.error(error);
                 setMessage(error.message || 'تعذر تحميل بنود الصرف.', 'error');
@@ -907,9 +952,16 @@
                 </td>
                 <td><input class="table-input readonly" value="${originalDimsText}" readonly style="text-align:center;"></td>
                 <td><input class="table-input readonly" value="${originalAreaText}" readonly style="text-align:center;"></td>
-                <td><input class="table-input len-input" type="number" min="0" step="0.1" value="${Number(lengthCm || 0).toFixed(2)}"></td>
-                <td><input class="table-input wid-input" type="number" min="0" step="0.1" value="${Number(widthCm || 0).toFixed(2)}"></td>
-                <td><input class="table-input area-output readonly" type="number" value="${Number(area || 0).toFixed(2)}" readonly></td>
+                <td><input class="table-input len-input" type="number" min="0" step="0.1"
+                    value="${Number(originalLengthCm || lengthCm || 0).toFixed(2)}"
+                    title="المساحة الأصلية المطلوبة — يمكن تعديلها"></td>
+                <td><input class="table-input wid-input" type="number" min="0" step="0.1"
+                    value="${Number(originalWidthCm || widthCm || 0).toFixed(2)}"
+                    title="العرض الأصلي — يمكن تعديله"></td>
+                <td><input class="table-input area-output" type="number"
+                    value="${Number(originalArea || area || 0).toFixed(4)}"
+                    title="المساحة المصروفة — تُحسب تلقائياً أو يمكن تعديلها يدوياً"
+                    oninput="updateSummary()"></td>
                 <td><button type="button" class="remove-btn">حذف</button></td>
             `;
 
@@ -1182,15 +1234,19 @@
 
         function calcArea(row) {
             if (!row) return;
-            const lenInput = row.querySelector('.len-input');
-            const widInput = row.querySelector('.wid-input');
+            const lenInput  = row.querySelector('.len-input');
+            const widInput  = row.querySelector('.wid-input');
             const areaOutput = row.querySelector('.area-output');
             
             if (lenInput && widInput && areaOutput) {
                 const len = Number(lenInput.value || 0);
                 const wid = Number(widInput.value || 0);
-                const area = (len * wid) / 10000;
-                areaOutput.value = area.toFixed(2);
+                // احسب المساحة فقط لو الطول والعرض موجودان
+                if (len > 0 && wid > 0) {
+                    const area = (len * wid) / 10000;
+                    areaOutput.value = area.toFixed(4);
+                }
+                // لو الطول أو العرض = 0 لكن المساحة مدخلة يدوياً → لا تمسحها
             }
             updateSummary();
         }
@@ -1216,43 +1272,45 @@
         }
 
         async function save() {
-            console.log('=== بدء عملية الحفظ ===');
-            alert('تم الضغط على زر الحفظ - بدء التحقق من البيانات');
             clearMessage();
             const warehouse = document.getElementById('outWarehouse').value;
             const jobOrder = document.getElementById('outJobOrderRef').value.trim();
             const rows = Array.from(document.querySelectorAll('#itemsBody tr.item-row'));
 
-            console.log('بيانات الإدخال:', { warehouse, jobOrder, rowsCount: rows.length });
-            alert(`بيانات الإدخال: warehouse=${warehouse}, jobOrder=${jobOrder}, rows=${rows.length}`);
-
             if (!warehouse || !jobOrder) {
                 setMessage('أكمل بيانات المخزن وأمر الشغل قبل الحفظ.', 'error');
-                console.error('بيانات ناقصة:', { warehouse, jobOrder });
-                alert('بيانات ناقصة!');
                 return;
             }
 
             if (!rows.length) {
                 setMessage('لا توجد بنود جاهزة للصرف.', 'error');
-                console.error('لا توجد بنود');
-                alert('لا توجد بنود!');
                 return;
             }
-
-            alert('التحقق من البيانات - نجاح');
 
             // توليد رقم السند تلقائياً إذا لم يكن موجود
             let serialNumber = document.getElementById('outSerial').value.trim();
             if (!serialNumber) {
-                alert('توليد رقم السند...');
                 serialNumber = await generateNextSerialNumber();
                 document.getElementById('outSerial').value = serialNumber;
-                console.log('رقم السند المولد:', serialNumber);
-                alert(`رقم السند المولد: ${serialNumber}`);
+            } else {
+                // التحقق من التكرار
+                try {
+                    const existingRes = await fetch(`${API}/stock`, { headers: authHeaders() });
+                    if (existingRes.ok) {
+                        const existingTxns = await existingRes.json();
+                        const isDuplicateSerial = existingTxns.some(txn =>
+                            txn.serialNumber === serialNumber &&
+                            String(txn._id) !== String(document.getElementById('editId').value)
+                        );
+                        if (isDuplicateSerial) {
+                            setMessage(`❌ رقم الإذن "${serialNumber}" مكرر. يرجى إدخال رقم مختلف أو تركه فارغاً.`, 'error');
+                            return;
+                        }
+                    }
+                } catch(e) {
+                    console.warn('تعذر التحقق من تكرار رقم الإذن:', e.message);
+                }
             }
-
-            alert('بدء تجهيز البنود...');
 
             const items = rows.map((row, rowIndex) => {
                 const areaOutput = row.querySelector('.area-output');
@@ -1261,17 +1319,6 @@
                 const selectedOption = rollSelect?.options[rollSelect.selectedIndex];
                 const scannedBarcode = (row.querySelector('.barcode-scan')?.value || '').trim();
                 const productInput = row.querySelector('.prod-id');
-
-                if (!areaOutput) {
-                    console.warn('Missing .area-output element in stock row', row);
-                }
-                if (!rollSelect) {
-                    console.warn('Missing .roll-select element in stock row', row);
-                }
-                if (!productInput) {
-                    console.warn('Missing .prod-id element in stock row', row);
-                }
-
                 const partNameInput = row.querySelector('.part-name');
                 const lenInput = row.querySelector('.len-input');
                 const widInput = row.querySelector('.wid-input');
@@ -1279,27 +1326,14 @@
                 const selectedSourceInput = row.querySelector('.selected-source');
                 const parentRollInput = row.querySelector('.parent-roll');
 
-                if (!partNameInput) {
-                    console.warn('Missing .part-name element in stock row', row);
-                }
-                if (!lenInput) {
-                    console.warn('Missing .len-input element in stock row', row);
-                }
-                if (!widInput) {
-                    console.warn('Missing .wid-input element in stock row', row);
-                }
-
                 const selectedType = selectedOption?.dataset?.type || 'full_roll';
                 const selectedCode = rollSelect?.value?.trim() || '';
                 const isPieceOrRemnant = selectedType === 'piece' || selectedType === 'remnant';
                 const canUseCode = Boolean(selectedCode && selectedOption && selectedOption.value && !selectedOption.disabled);
                 const itemPartName = partNameInput?.value?.trim() || `سطر ${rowIndex + 1}`;
-                const itemLabel = itemPartName || `السطر ${rowIndex + 1}`;
 
                 if (!canUseCode) {
                     row.classList.add('missing-selection');
-                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    console.warn('Missing selected roll/piece code on row', rowIndex + 1, itemLabel, 'selectedValue=', rollSelect?.value, 'optionValue=', selectedOption?.value, 'optionDisabled=', selectedOption?.disabled);
                 } else {
                     row.classList.remove('missing-selection');
                 }
@@ -1309,12 +1343,11 @@
                     product: productInput?.value || '',
                     rollCode: isPieceOrRemnant ? '' : selectedCode,
                     pieceCode: isPieceOrRemnant ? selectedCode : null,
-                    partName: itemLabel,
+                    partName: itemPartName,
                     consumedLength: Number(lenInput?.value || 0),
                     consumedWidth: Number(widInput?.value || 0),
                     consumedArea,
                     area: consumedArea,
-                    // بيانات إضافية للتتبع
                     selectedType: selectedTypeInput?.value || selectedType,
                     selectedSource: selectedSourceInput?.value || selectedOption?.dataset?.source || 'roll',
                     parentRoll: parentRollInput?.value || selectedOption?.dataset?.parentRoll || '',
@@ -1323,51 +1356,27 @@
                 };
             });
 
-            items.forEach((item, index) => {
-                console.log('Stock item debug:', {
-                    index,
-                    row: item.rowIndex,
-                    partName: item.partName,
-                    productId: item.product,
-                    rollCode: item.rollCode,
-                    pieceCode: item.pieceCode,
-                    expectedBarcode: item.expectedBarcode,
-                    scannedBarcode: item.scannedBarcode,
-                    selectedType: item.selectedType,
-                    selectedSource: item.selectedSource,
-                    parentRoll: item.parentRoll
-                });
-            });
-            console.log('البنود المعدة للصرف:', items);
-            alert(`تم تجهيز ${items.length} بند`);
-
+            // التحقق من اختيار الرول
             const missingItem = items.find((item) => !item.rollCode && !item.pieceCode);
             if (missingItem) {
                 const label = missingItem.partName ? `الجزء '${missingItem.partName}'` : `السطر ${missingItem.rowIndex}`;
-                const message = `يجب اختيار كود رول أو كود قطعة للبند ${label} قبل الحفظ.`;
-                setMessage(message, 'error');
-                console.error('بند بدون كود رول أو قطعة:', missingItem);
-                alert(message);
+                setMessage(`يجب اختيار كود رول أو كود قطعة للبند ${label} قبل الحفظ.`, 'error');
                 const firstInvalidRow = document.querySelector('#itemsBody tr.item-row.missing-selection');
-                if (firstInvalidRow) {
-                    firstInvalidRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+                if (firstInvalidRow) firstInvalidRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
 
-            alert('التحقق من كود الرول - نجاح');
-
-            // التحقق من الباركود - اختياري للتجربة
-            const missingScan = items.find((item) => item.scannedBarcode && item.scannedBarcode !== item.expectedBarcode);
+            // التحقق من الباركود — إلزامي إذا تم إدخال باركود
+            const missingScan = items.find(item =>
+                item.scannedBarcode && item.scannedBarcode !== item.expectedBarcode
+            );
             if (missingScan) {
-                console.warn('Mismatched barcode for item:', missingScan);
-                alert('تحذير: الباركود المدخل لا يطابق الكود المتوقع. تأكد من المسح الصحيح أو اتركه فارغاً.');
-                // إذا أردنا أن نجعل الفشل إلزامياً، نفعّل السطرين التاليين:
-                // setMessage(`لا يمكن الصرف قبل مسح الباركود الصحيح للبند: ${missingScan.partName || missingScan.expectedBarcode}`, 'error');
-                // return;
+                setMessage(
+                    `❌ الباركود المدخل "${missingScan.scannedBarcode}" لا يطابق الكود المتوقع "${missingScan.expectedBarcode}" للبند: ${missingScan.partName || '-'}. تأكد من المسح الصحيح أو اتركه فارغاً.`,
+                    'error'
+                );
+                return;
             }
-
-            alert('بدء إرسال الطلب للسيرفر...');
 
             const payload = {
                 type: 'Outbound',
@@ -1384,15 +1393,9 @@
                 notes: document.getElementById('outManualRef')?.value || ''
             };
 
-            console.log('Payload المرسل:', payload);
-
             const editId = document.getElementById('editId').value;
-            // استخدام الـ API الجديد للصرف مع القطع
             const method = editId ? 'PUT' : 'POST';
-            const endpoint = editId ? `${API}/stock/${editId}` : `${API}/inventory/stock-out`;
-
-            console.log('طلب API:', { method, endpoint, editId });
-            alert(`إرسال طلب ${method} إلى ${endpoint}`);
+            const endpoint = editId ? `${API}/stock/${editId}` : `${API}/stock`;
 
             try {
                 const response = await fetch(endpoint, {
@@ -1401,37 +1404,26 @@
                     body: JSON.stringify(payload)
                 });
 
-                console.log('استجابة API:', response.status, response.statusText);
-                alert(`استجابة API: ${response.status} ${response.statusText}`);
-
                 const result = await response.json();
-                console.log('نتيجة API:', result);
-                alert('تم استلام النتيجة من السيرفر');
 
                 if (!response.ok) {
                     throw new Error(result.message || 'تعذر حفظ إذن الصرف.');
                 }
 
-                alert('بدء مزامنة أمر التشغيل...');
                 await syncServiceJobAfterIssue(jobOrder, items);
-                alert('تمت المزامنة');
 
                 const successMessage = editId
-                    ? `تم تحديث إذن الصرف رقم ${serialNumber} بنجاح. عدد البنود: ${items.length}`
-                    : `تم حفظ إذن الصرف رقم ${serialNumber} بنجاح. عدد البنود: ${items.length}`;
+                    ? `✅ تم تحديث إذن الصرف رقم ${serialNumber} بنجاح. عدد البنود: ${items.length}`
+                    : `✅ تم حفظ إذن الصرف رقم ${serialNumber} بنجاح. عدد البنود: ${items.length}`;
                 setMessage(successMessage, 'success');
-                console.log('تم الحفظ بنجاح:', successMessage);
-                alert(successMessage);
 
-                // تصفير الشاشة بعد الحفظ
                 setTimeout(() => {
                     clearForm();
                     setMessage(successMessage, 'success');
                 }, 2000);
             } catch (error) {
                 console.error('خطأ في الحفظ:', error);
-                setMessage(`فشل الحفظ: ${error.message}`, 'error');
-                alert(`خطأ: ${error.message}`);
+                setMessage(`❌ فشل الحفظ: ${error.message}`, 'error');
             }
         }
 
@@ -1449,6 +1441,28 @@
             updateSummary();
         }
 
+        async function reverseTransaction() {
+            const editId = document.getElementById('editId').value;
+            if (!editId) { setMessage('لا يوجد إذن محدد للإلغاء.', 'error'); return; }
+
+            const reason = prompt('سبب الإلغاء (اختياري):') || '';
+            if (!confirm(`هل تريد إلغاء هذا الإذن وإعادة الأرصدة للمخزون؟`)) return;
+
+            try {
+                const res = await fetch(`${API}/stock/${editId}/reverse`, {
+                    method: 'POST',
+                    headers: authHeaders(true),
+                    body: JSON.stringify({ reason })
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'فشل الإلغاء');
+                setMessage(`✅ ${result.message}`, 'success');
+                setTimeout(() => clearForm(), 2000);
+            } catch (err) {
+                setMessage('❌ فشل الإلغاء: ' + err.message, 'error');
+            }
+        }
+
         async function syncServiceJobAfterIssue(jobOrder, issuedItems) {
             try {
                 const response = await fetch(`${API}/service-jobs/by-order/${encodeURIComponent(jobOrder)}`, {
@@ -1457,25 +1471,64 @@
                 if (!response.ok) return;
 
                 const job = await response.json();
-                const updatedItems = (job.items || []).map((jobItem) => {
-                    const matchingIssue = (issuedItems || []).find((row) =>
-                        String(row.product) === String(jobItem.product?._id || jobItem.product) &&
-                        String(row.partName || '') === String(jobItem.partName || '')
-                    );
 
-                    return {
-                        ...jobItem,
-                        issueStatus: matchingIssue ? 'Issued' : (jobItem.issueStatus || 'Pending')
-                    };
+                // بناء map من البنود المصروفة: key = itemId أو (partName+product)
+                const issuedMap = {};
+                (issuedItems || []).forEach(row => {
+                    // المفتاح الأول: itemId الفريد
+                    if (row.itemId) {
+                        issuedMap[String(row.itemId)] = row;
+                    }
+                    // المفتاح الثاني: partName + productId (fallback)
+                    const fallbackKey = `${String(row.partName || '').trim()}__${String(row.product || '').trim()}`;
+                    issuedMap[fallbackKey] = row;
                 });
+
+                // حدّث issueStatus لكل بند
+                const updatedItems = (job.items || []).map((jobItem, idx) => {
+                    // محاولة 1: تطابق بالـ itemId الفريد
+                    let matchingIssue = jobItem.itemId ? issuedMap[String(jobItem.itemId)] : null;
+
+                    // محاولة 2: تطابق بالـ partName + productId
+                    if (!matchingIssue) {
+                        const fallbackKey = `${String(jobItem.partName || '').trim()}__${String(jobItem.product?._id || jobItem.product || '').trim()}`;
+                        matchingIssue = issuedMap[fallbackKey];
+                    }
+
+                    // محاولة 3: تطابق بالـ index (آخر fallback)
+                    if (!matchingIssue && issuedItems && issuedItems[idx]) {
+                        matchingIssue = issuedItems[idx];
+                    }
+
+                    if (matchingIssue) {
+                        const issuedQty  = Number(matchingIssue.consumedArea || matchingIssue.area || 0);
+                        const requiredQty = Number(jobItem.area || jobItem.quantity || 0);
+                        const newIssueStatus = issuedQty >= requiredQty - 0.001
+                            ? 'Issued'
+                            : (issuedQty > 0 ? 'PartiallyIssued' : (jobItem.issueStatus || 'Pending'));
+                        return {
+                            ...jobItem,
+                            issueStatus:    newIssueStatus,
+                            issuedQuantity: issuedQty,
+                            issuedAt:       new Date().toISOString()
+                        };
+                    }
+                    return jobItem;
+                });
+
+                // حالة الـ Job: كل البنود صُرفت → IN_PROGRESS، بعضها → PENDING_WAREHOUSE
+                const allIssued     = updatedItems.every(i => i.issueStatus === 'Issued' || i.isCancelled);
+                const anyIssued     = updatedItems.some(i => i.issueStatus === 'Issued' || i.issueStatus === 'PartiallyIssued');
+                const newStatus         = allIssued ? 'IN_PROGRESS'        : (anyIssued ? 'PENDING_WAREHOUSE' : 'PENDING_OPS');
+                const newWorkflowStatus = allIssued ? 'IssuedToTechnician' : (anyIssued ? 'AwaitingWarehouseIssue' : 'AwaitingTechnician');
 
                 await fetch(`${API}/service-jobs/${job._id}`, {
                     method: 'PUT',
                     headers: authHeaders(true),
                     body: JSON.stringify({
-                        status: 'IN_PROGRESS',
-                        workflowStatus: 'IssuedToTechnician',
-                        items: updatedItems,
+                        status:            newStatus,
+                        workflowStatus:    newWorkflowStatus,
+                        items:             updatedItems,
                         warehouseIssuedAt: new Date().toISOString()
                     })
                 });
