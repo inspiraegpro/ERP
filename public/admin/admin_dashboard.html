@@ -375,8 +375,8 @@
 
     <script>
         const API = '/api/admin';
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = getToken();
+        const user = getUser();
 
         if (!token) {
             window.location.href = '/login.html';

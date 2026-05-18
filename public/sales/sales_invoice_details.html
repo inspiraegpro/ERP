@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>تفاصيل فاتورة المبيعات</title>
+    <title>تفاصيل وتعديل فاتورة المبيعات</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -264,15 +264,45 @@
             font-weight: 600;
         }
         
-        .status-paid {
-            background: #dcfce7;
-            color: #166534;
+        .status-paid    { background:#dcfce7; color:#166534; }
+        .status-unpaid  { background:#fee2e2; color:#991b1b; }
+
+        /* ── حالة الفاتورة ── */
+        .inv-status { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:bold; }
+        .inv-status-draft          { background:#f1f5f9; color:#475569; }
+        .inv-status-confirmed      { background:#d1fae5; color:#065f46; }
+        .inv-status-amended        { background:#fef3c7; color:#92400e; }
+        .inv-status-add_request    { background:#dbeafe; color:#1e40af; }
+        .inv-status-cancel_request { background:#fee2e2; color:#991b1b; }
+        .inv-status-cancelled      { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
+
+        /* ── بنود الخدمات ── */
+        .item-row-cancelled { opacity:.45; text-decoration:line-through; background:#fef2f2; }
+        .item-row-added     { background:#f0fdf4; }
+        .item-actions       { display:flex; gap:6px; justify-content:center; }
+        .btn-cancel-item    { background:#ef4444; color:#fff; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px; }
+        .btn-add-item       { background:#10b981; color:#fff; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px; }
+        .issued-badge       { background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:10px; font-size:11px; }
+        .pending-badge      { background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:11px; }
+
+        /* ── نافذة إضافة خدمة ── */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
+        .modal-overlay.open { display:flex; }
+        .modal-box { background:#fff; border-radius:12px; padding:24px; width:90%; max-width:520px; box-shadow:0 20px 40px rgba(0,0,0,.2); }
+        .modal-box h3 { margin:0 0 16px; color:#1e293b; }
+        .modal-box label { display:block; font-size:13px; font-weight:600; color:#475569; margin-bottom:4px; margin-top:12px; }
+        .modal-box input, .modal-box select, .modal-box textarea {
+            width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px;
+            font-size:14px; box-sizing:border-box;
         }
-        
-        .status-unpaid {
-            background: #fee2e2;
-            color: #991b1b;
-        }
+        .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+        /* ── سجل التعديلات ── */
+        .adj-log { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-top:16px; }
+        .adj-entry { border-bottom:1px solid #e2e8f0; padding:8px 0; font-size:13px; }
+        .adj-entry:last-child { border-bottom:none; }
+        .adj-mode-add    { color:#059669; font-weight:700; }
+        .adj-mode-cancel { color:#dc2626; font-weight:700; }
         
         .loading {
             text-align: center;
@@ -332,6 +362,7 @@
             }
         }
     </style>
+    <script src="/common-functions.js"></script>
 </head>
 <body>
 
@@ -394,15 +425,26 @@
             
             <!-- جدول العناصر -->
             <div class="items-section">
-                <div class="section-title">📦 تفاصيل العناصر والخدمات</div>
+                <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>📦 تفاصيل الخدمات المطلوبة</span>
+                    <button class="btn btn-payment" id="btnAddService" onclick="openAddModal()"
+                            style="padding:6px 14px;font-size:13px;display:none;">
+                        ➕ إضافة خدمة
+                    </button>
+                </div>
                 <table class="items-table">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th style="text-align: right;">اسم الصنف</th>
-                            <th>الكمية</th>
+                            <th style="text-align:right;">القطعة / الخدمة</th>
+                            <th>الخامة</th>
+                            <th>الطول (سم)</th>
+                            <th>العرض (سم)</th>
+                            <th>المساحة (م²)</th>
                             <th>السعر</th>
                             <th>الإجمالي</th>
+                            <th>حالة الصرف</th>
+                            <th id="actionsHeader" style="display:none;">إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="itemsTable"></tbody>
@@ -441,6 +483,12 @@
                 </div>
             </div>
             
+            <!-- سجل التعديلات -->
+            <div class="items-section" id="adjSection" style="display:none;">
+                <div class="section-title">📝 سجل تعديلات الخدمات</div>
+                <div class="adj-log" id="adjLog"></div>
+            </div>
+
             <!-- القيد المحاسبي -->
             <div class="items-section" id="journalSection" style="display: none;">
                 <div class="section-title">📊 القيد المحاسبي المرتبط</div>
@@ -470,9 +518,35 @@
     </div>
 </div>
 
+<!-- نافذة إضافة خدمة جديدة -->
+<div id="addModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>➕ إضافة خدمة للفاتورة</h3>
+        <label>الخدمة / المنتج</label>
+        <select id="addProductSel"></select>
+        <label>اسم القطعة / الوصف</label>
+        <input id="addPartName" placeholder="مثال: PPF - Hood">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div><label>الطول (سم)</label><input id="addLength" type="number" value="0" min="0"></div>
+            <div><label>العرض (سم)</label><input id="addWidth"  type="number" value="0" min="0"></div>
+            <div><label>المساحة (م²)</label><input id="addArea" type="number" value="1" min="0" step="0.01"></div>
+        </div>
+        <label>السعر (ج.م)</label>
+        <input id="addPrice" type="number" value="0" min="0" step="0.01">
+        <label>ملاحظات</label>
+        <textarea id="addNotes" rows="2" placeholder="سبب الإضافة..."></textarea>
+        <div class="modal-footer">
+            <button class="btn btn-back"    onclick="closeAddModal()">إلغاء</button>
+            <button class="btn btn-payment" onclick="submitAddService()">✅ حفظ الإضافة</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const API = '/api';
     let invoice = null;
+    let allProducts = [];
+    let stockTransactions = [];   // إذونات الصرف المرتبطة بالفاتورة
     
     window.onload = async () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -485,13 +559,50 @@
         
         await loadInvoiceDetails(invoiceId);
     };
+
+    function authHeaders(json = false) {
+        const h = {};
+        if (json) h['Content-Type'] = 'application/json';
+        const t = localStorage.getItem('token');
+        if (t) h['Authorization'] = `Bearer ${t}`;
+        return h;
+    }
+
+    function isAdmin() {
+        try { return String(JSON.parse(localStorage.getItem('user') || '{}').role || '').toLowerCase() === 'admin'; }
+        catch { return false; }
+    }
     
     async function loadInvoiceDetails(id) {
         try {
-            const res = await fetch(`${API}/sales/${id}`);
-            if (!res.ok) throw new Error('فشل تحميل الفاتورة');
-            
-            invoice = await res.json();
+            // جلب الفاتورة والمنتجات وإذونات الصرف وحالة الصرف بالتوازي
+            const [invRes, prodRes, stockRes, issueStatusRes] = await Promise.all([
+                fetch(`${API}/sales/${id}`, { headers: authHeaders() }),
+                fetch(`${API}/products`,    { headers: authHeaders() }),
+                fetch(`${API}/stock?jobOrder=${encodeURIComponent(id)}`, { headers: authHeaders() }),
+                fetch(`${API}/sales/${id}/stock-issue-status`, { headers: authHeaders() })
+            ]);
+
+            if (!invRes.ok) throw new Error('فشل تحميل الفاتورة');
+            invoice          = await invRes.json();
+            allProducts      = prodRes.ok ? await prodRes.json() : [];
+            stockTransactions = stockRes.ok ? await stockRes.json() : [];
+            // حالة الصرف التفصيلية لكل بند
+            window.issueStatus = issueStatusRes.ok ? await issueStatusRes.json() : null;
+
+            // جلب إذونات الصرف بالـ invoiceNumber أيضاً
+            if (invoice.invoiceNumber) {
+                const stockRes2 = await fetch(
+                    `${API}/stock?jobOrder=${encodeURIComponent(invoice.invoiceNumber)}`,
+                    { headers: authHeaders() }
+                );
+                if (stockRes2.ok) {
+                    const extra = await stockRes2.json();
+                    const existingIds = new Set(stockTransactions.map(t => t._id));
+                    extra.forEach(t => { if (!existingIds.has(t._id)) stockTransactions.push(t); });
+                }
+            }
+
             displayInvoice();
         } catch (e) {
             console.error(e);
@@ -505,57 +616,109 @@
         
         // البيانات الأساسية
         document.getElementById('invNumber').innerText = invoice.invoiceNumber || '-';
-        document.getElementById('invDate').innerText = new Date(invoice.date).toLocaleDateString('ar-EG');
+        document.getElementById('invDate').innerText   = new Date(invoice.date).toLocaleDateString('ar-EG');
         document.getElementById('headerSubtitle').innerText = `فاتورة رقم: ${invoice.invoiceNumber}`;
         
+        // حالة الفاتورة
+        const invStatus = invoice.invoiceStatus || 'confirmed';
+        const STATUS_MAP = {
+            draft:          { ar:'📝 مسودة',           cls:'inv-status-draft'          },
+            confirmed:      { ar:'✅ مؤكدة',            cls:'inv-status-confirmed'      },
+            amended:        { ar:'✏️ معدّلة',           cls:'inv-status-amended'        },
+            add_request:    { ar:'➕ طلب إضافة خدمة',  cls:'inv-status-add_request'    },
+            cancel_request: { ar:'➖ طلب إلغاء خدمة',  cls:'inv-status-cancel_request' },
+            cancelled:      { ar:'🚫 ملغاة',            cls:'inv-status-cancelled'      }
+        };
+        const s = STATUS_MAP[invStatus] || STATUS_MAP.confirmed;
+        document.getElementById('invStatus').innerHTML =
+            `<span class="inv-status ${s.cls}">${s.ar}</span>`;
+
         // حالة الدفع
         const isPaid = invoice.paymentStatus === 'Paid' || (invoice.paidAmount >= invoice.finalTotal);
-        const statusBadge = `<span class="status-badge ${isPaid ? 'status-paid' : 'status-unpaid'}">
-            ${isPaid ? '✅ مدفوعة' : '⏳ قيد الانتظار'}
-        </span>`;
-        document.getElementById('invStatus').innerHTML = statusBadge;
         document.getElementById('paymentBtn').style.display = isPaid ? 'none' : 'block';
         
         // بيانات العميل
-        document.getElementById('custName').innerText = invoice.customer?.name || '-';
-        document.getElementById('carModel').innerText = invoice.carModel ? 
-            `${invoice.carModel.brand || ''} ${invoice.carModel.model || ''}` : '-';
+        document.getElementById('custName').innerText  = invoice.customer?.name || '-';
+        document.getElementById('carModel').innerText  = invoice.carModel
+            ? `${invoice.carModel.brand || ''} ${invoice.carModel.model || ''}`.trim()
+            : '-';
         document.getElementById('custNotes').innerText = invoice.notes || 'بدون ملاحظات';
         
-        // العناصر
-        displayItems();
-        
-        // الإجماليات
-        displayTotals();
-        
-        // حساب العميل
-        displayCustomerBalance();
-        
-        // القيد المحاسبي
-        if (invoice.journalId) {
-            loadJournalEntry(invoice.journalId);
+        // إظهار أزرار التعديل للأدمن فقط
+        if (isAdmin()) {
+            document.getElementById('btnAddService').style.display = 'inline-flex';
+            document.getElementById('actionsHeader').style.display = '';
         }
+
+        displayItems();
+        displayTotals();
+        displayCustomerBalance();
+        displayAdjustmentLog();
+
+        if (invoice.journalId) loadJournalEntry(invoice.journalId);
     }
     
+    // بناء map: productId → كمية مصروفة فعلياً من إذونات الصرف
+    function buildIssuedMap() {
+        const map = {};   // key: partName أو productId
+        stockTransactions.forEach(tx => {
+            if (tx.type !== 'Outbound') return;
+            (tx.items || []).forEach(item => {
+                const key = item.partName || String(item.product || '');
+                map[key] = (map[key] || 0) + (Number(item.consumedArea || item.area || item.quantity) || 0);
+            });
+        });
+        return map;
+    }
+
     function displayItems() {
-        const tbody = document.getElementById('itemsTable');
-        const items = invoice.items || [];
-        
+        const tbody    = document.getElementById('itemsTable');
+        const items    = invoice.items || [];
+        const issuedMap = buildIssuedMap();
+        const canEdit  = isAdmin();
+
         tbody.innerHTML = items.map((item, idx) => {
-            const prodName = item.product?.name || item.partName || 'منتج';
-            const qty = item.area || item.quantity || 1;
-            const price = parseFloat(item.price) || 0;
-            const total = qty * price;
-            
+            const prodName  = item.product?.name || item.partName || 'خدمة';
+            const matName   = item.materialCategory || item.product?.type || '-';
+            const lengthVal = Number(item.lengthCM || 0).toFixed(1);
+            const widthVal  = Number(item.widthCM  || 0).toFixed(1);
+            const areaVal   = Number(item.area     || 0).toFixed(2);
+            const price     = Number(item.price    || 0);
+            const qty       = Number(item.area || item.quantity || 1);
+            const total     = Number(item.total || (price * qty) || price).toFixed(2);
+
+            // حالة الصرف من إذونات الصرف الفعلية
+            const issuedQty = issuedMap[item.partName || ''] || issuedMap[String(item.product?._id || item.product || '')] || 0;
+            const issuedBadge = issuedQty > 0
+                ? `<span class="issued-badge">✅ صُرف ${issuedQty.toFixed(2)}</span>`
+                : `<span class="pending-badge">⏳ لم يُصرف</span>`;
+
+            const isCancelled = item.isCancelled;
+            const rowClass    = isCancelled ? 'item-row-cancelled' : (item.addedByAdjustment ? 'item-row-added' : '');
+
+            // زر الإلغاء — يظهر فقط لو لم يُصرف ولم يُلغَ
+            const cancelBtn = canEdit && !isCancelled
+                ? `<button class="btn-cancel-item" onclick="confirmCancelItem(${idx})"
+                        title="${issuedQty > 0 ? 'تحذير: تم الصرف جزئياً' : 'إلغاء هذه الخدمة'}">
+                        ${issuedQty > 0 ? '⚠️ إلغاء جزئي' : '❌ إلغاء'}
+                   </button>`
+                : (isCancelled ? '<span style="color:#dc2626;font-size:12px;">ملغاة</span>' : '');
+
+            const actionCell = canEdit ? `<td class="item-actions">${cancelBtn}</td>` : '';
+
             return `
-            <tr>
+            <tr class="${rowClass}">
                 <td class="item-no">${idx + 1}</td>
-                <td class="item-name">${prodName}</td>
-                <td>${qty}</td>
+                <td class="item-name">${prodName}${item.cancelReason ? `<br><small style="color:#dc2626">${item.cancelReason}</small>` : ''}</td>
+                <td>${matName}</td>
+                <td>${lengthVal}</td>
+                <td>${widthVal}</td>
+                <td>${areaVal}</td>
                 <td class="item-price">${price.toLocaleString()}</td>
-                <td class="item-amount">${total.toLocaleString()}</td>
-            </tr>
-        `;
+                <td class="item-amount">${Number(total).toLocaleString()}</td>
+                <td>${issuedBadge}</td>
+                ${actionCell}
+            </tr>`;
         }).join('');
     }
     
@@ -604,7 +767,7 @@
             }
             
             // Try to fetch customer details
-            const res = await fetch(`${API}/customers/${customerId}`);
+            const res = await fetch(`${API}/customers/${customerId}`, { headers: authHeaders() });
             if (!res.ok) {
                 document.getElementById('customerSection').style.display = 'none';
                 return;
@@ -631,7 +794,7 @@
     
     async function loadJournalEntry(journalId) {
         try {
-            const res = await fetch(`${API}/journal/${journalId}`);
+            const res = await fetch(`${API}/journal/${journalId}`, { headers: authHeaders() });
             const journal = await res.json();
             
             document.getElementById('journalSection').style.display = 'block';
@@ -664,6 +827,136 @@
         }
     }
     
+    // ── إلغاء خدمة ──────────────────────────────────────────────────
+    async function confirmCancelItem(idx) {
+        const item      = (invoice.items || [])[idx];
+        if (!item) return;
+
+        const issuedMap = buildIssuedMap();
+        const issuedQty = issuedMap[item.partName || ''] || issuedMap[String(item.product?._id || item.product || '')] || 0;
+        const itemQty   = Number(item.area || item.quantity || 1);
+
+        // تحقق: لو الكمية المصروفة = الكمية الكاملة → لا يمكن الإلغاء
+        if (issuedQty >= itemQty - 0.001) {
+            alert(
+                `⛔ لا يمكن إلغاء هذه الخدمة\n\n` +
+                `الخدمة: ${item.partName}\n` +
+                `الكمية المطلوبة: ${itemQty.toFixed(2)}\n` +
+                `المصروف فعلياً من المخزن: ${issuedQty.toFixed(2)}\n\n` +
+                `لإلغاء هذه الخدمة يجب أن يقوم المخزن بعمل مرتجع أولاً.`
+            );
+            return;
+        }
+
+        let msg = `هل تريد إلغاء الخدمة: "${item.partName}"؟`;
+        if (issuedQty > 0) {
+            msg += `\n\nتحذير: تم صرف ${issuedQty.toFixed(2)} من المخزن لهذه الخدمة.\n` +
+                   `سيتم إلغاء الكمية المتبقية فقط (${(itemQty - issuedQty).toFixed(2)}).`;
+        }
+        const reason = prompt(msg + '\n\nأدخل سبب الإلغاء (اختياري):');
+        if (reason === null) return;   // ضغط إلغاء
+
+        try {
+            const res = await fetch(`${API}/sales/${invoice._id}/service-adjustments`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    mode: 'cancel',
+                    notes: reason,
+                    items: [{ lineIndex: idx, reason }]
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'فشل الإلغاء');
+            alert(`✅ ${data.message}`);
+            await loadInvoiceDetails(invoice._id);
+        } catch (e) {
+            alert('❌ ' + e.message);
+        }
+    }
+
+    // ── إضافة خدمة ──────────────────────────────────────────────────
+    function openAddModal() {
+        // بناء قائمة المنتجات
+        const sel = document.getElementById('addProductSel');
+        if (sel) {
+            sel.innerHTML = '<option value="">-- اختر الخدمة --</option>' +
+                allProducts.map(p => `<option value="${p._id}">${p.name}</option>`).join('');
+        }
+        document.getElementById('addModal').classList.add('open');
+    }
+
+    function closeAddModal() {
+        document.getElementById('addModal').classList.remove('open');
+    }
+
+    async function submitAddService() {
+        const productId = document.getElementById('addProductSel').value;
+        const partName  = document.getElementById('addPartName').value.trim();
+        const lengthCM  = parseFloat(document.getElementById('addLength').value) || 0;
+        const widthCM   = parseFloat(document.getElementById('addWidth').value)  || 0;
+        const area      = parseFloat(document.getElementById('addArea').value)   || (lengthCM && widthCM ? (lengthCM * widthCM) / 10000 : 1);
+        const price     = parseFloat(document.getElementById('addPrice').value)  || 0;
+        const notes     = document.getElementById('addNotes').value.trim();
+
+        if (!partName && !productId) { alert('أدخل اسم الخدمة أو اختر منتجاً'); return; }
+        if (price <= 0)              { alert('أدخل السعر'); return; }
+
+        try {
+            const res = await fetch(`${API}/sales/${invoice._id}/service-adjustments`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    mode: 'add',
+                    notes,
+                    items: [{
+                        product:  productId || undefined,
+                        partName: partName  || undefined,
+                        lengthCM, widthCM, area,
+                        price,
+                        quantity: area || 1,
+                        total:    price * (area || 1)
+                    }]
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'فشل الإضافة');
+            alert(`✅ ${data.message}`);
+            closeAddModal();
+            await loadInvoiceDetails(invoice._id);
+        } catch (e) {
+            alert('❌ ' + e.message);
+        }
+    }
+
+    // ── سجل التعديلات ────────────────────────────────────────────────
+    function displayAdjustmentLog() {
+        const adjs = invoice.serviceAdjustments || [];
+        if (!adjs.length) return;
+
+        document.getElementById('adjSection').style.display = 'block';
+        document.getElementById('adjLog').innerHTML = adjs.map(adj => {
+            const modeLabel = adj.mode === 'add'
+                ? `<span class="adj-mode-add">➕ إضافة</span>`
+                : `<span class="adj-mode-cancel">➖ إلغاء</span>`;
+            const changes = (adj.changes || []).map(c =>
+                `<li>${c.partName}: ${c.action === 'add'
+                    ? `أُضيف بسعر ${c.total}`
+                    : `أُلغي ${c.cancelledQty} (متبقي: ${c.remainingQty})`
+                }</li>`
+            ).join('');
+            return `
+            <div class="adj-entry">
+                ${modeLabel}
+                <span style="color:#64748b;font-size:12px;margin-right:8px;">
+                    ${new Date(adj.createdAt).toLocaleString('ar-EG')} — ${adj.createdBy || ''}
+                </span>
+                ${adj.notes ? `<span style="color:#475569"> | ${adj.notes}</span>` : ''}
+                <ul style="margin:4px 0 0 16px;font-size:12px;color:#334155;">${changes}</ul>
+            </div>`;
+        }).join('');
+    }
+
     function showError(msg) {
         document.getElementById('loadingSpinner').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
@@ -695,7 +988,7 @@
         }
         
         try {
-            const res = await fetch(`${API}/sales/${invoice._id}`, { method: 'DELETE' });
+            const res = await fetch(`${API}/sales/${invoice._id}`, { method: 'DELETE', headers: authHeaders() });
             if (res.ok) {
                 alert('✅ تم حذف الفاتورة بنجاح');
                 window.location.href = '/sales/sales_list.html';

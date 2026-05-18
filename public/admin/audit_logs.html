@@ -285,8 +285,8 @@
 
         // Check authentication
         function checkAuth() {
-            const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const token = getToken();
+            const user = getUser();
             
             if (token && user.username) {
                 document.getElementById('userDisplay').textContent = `👤 ${user.name || user.username}`;

@@ -49,8 +49,8 @@
 
 <script>
     const API = '/api';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const token = localStorage.getItem('token');
+    const user = getUser();
+    const token = getToken();
     const isAdmin = String(user.role || '').toLowerCase() === 'admin';
 
     function authHeaders() {

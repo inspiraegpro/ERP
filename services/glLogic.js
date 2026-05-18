@@ -37,7 +37,7 @@ const glLogic = {
     getSalesEntryDetails: async (invoice) => {
         const settings = await FinancialSettings.findOne();
         if (!settings || !settings.defaultRevenueAccountId || !settings.defaultVatOutputAccountId) {
-            throw new Error("FATAL_ERROR: Financial mapping is missing. Please configure Financial Settings.");
+            throw new Error("Please define the Revenue Account and VAT Account in Financial Settings first.");
         }
 
         const details = [];
@@ -186,7 +186,7 @@ const glLogic = {
 
         const settings = await FinancialSettings.findOne();
         if (!settings || !settings.defaultCogsAccountId || !settings.defaultInventoryAccountId) {
-            throw new Error("FATAL_ERROR: Financial mapping is missing. Please configure Financial Settings.");
+            throw new Error("Please define the Inventory Account and COGS Account in Financial Settings first.");
         }
 
         const details = [];
@@ -290,7 +290,7 @@ const glLogic = {
     getPurchaseEntryDetails: async (invoice) => {
         const settings = await FinancialSettings.findOne();
         if (!settings || !settings.defaultInventoryAccountId || !settings.defaultVatInputAccountId) {
-            throw new Error("FATAL_ERROR: Financial mapping is missing. Please configure Financial Settings.");
+            throw new Error("Please define the Inventory Account and VAT Input Account in Financial Settings first.");
         }
 
         const details = [];

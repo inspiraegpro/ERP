@@ -27,11 +27,31 @@
         .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
         table { width:100%; border-collapse:collapse; }
         thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
-        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; vertical-align:middle; }
         .status { display:inline-flex; padding:.35rem .7rem; border-radius:999px; font-weight:700; font-size:.82rem; }
         .status.active { background:rgba(31,111,95,.1); color:var(--ok); }
         .status.inactive { background:rgba(159,58,56,.1); color:var(--er); }
+        .empty-state { padding:2rem; text-align:center; color:#738396; }
+        .checkbox-col { width:40px; text-align:center; }
+        .emp-checkbox { width:18px; height:18px; cursor:pointer; }
+        
+        /* Preview Modal Styles */
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+        .modal.open { display:flex; }
+        .modal-content { background:#fff; border-radius:24px; width:90%; max-width:1200px; max-height:85vh; overflow-y:auto; padding:1.5rem; }
+        .modal-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--bd); padding-bottom:1rem; margin-bottom:1rem; }
+        .modal-footer { border-top:1px solid var(--bd); padding-top:1rem; margin-top:1rem; display:flex; justify-content:flex-end; gap:1rem; }
+        .preview-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .preview-table th, .preview-table td { border:1px solid #e2e8f0; padding:8px; text-align:center; }
+        .duplicate-row { background:#fee2e2 !important; color:#991b1b; }
+        .valid-row { background:#dcfce7 !important; color:#166534; }
+        .warning-row { background:#fef3c7 !important; color:#92400e; }
+        .row-actions { display:flex; gap:5px; justify-content:center; }
+        .icon-btn { background:none; border:none; cursor:pointer; font-size:16px; padding:4px 8px; border-radius:8px; }
+        .icon-btn.delete { color:#ef4444; } .icon-btn.delete:hover { background:#fee2e2; }
+        .batch-delete-bar { background:var(--soft); padding:12px 16px; border-radius:16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; }
     </style>
+<base target="_blank">
 </head>
 <body>
 <div class="shell">
@@ -50,17 +70,27 @@
 
     <section class="card">
         <div class="toolbar">
-            <input id="search" placeholder="ابحث بالاسم أو الكود">
+            <input id="search" placeholder="ابحث بالاسم أو الكود" oninput="filterTable()">
             <div class="toolbar">
-                <button class="btn accent" type="button" onclick="resetVacations()">تجديد رصيد الإجازات</button>
-                <button class="btn light" type="button" onclick="syncAllData()">إنعاش البيانات</button>
-                <a class="btn light" href="/hr/technicians.html">عرض الفنيين</a>
-                <a class="btn primary" href="/hr/employee_coding.html">إضافة موظف</a>
+                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="previewEmployeesFile()">
+                <button class="btn accent" type="button" onclick="document.getElementById('fileInput').click()">📥 استيراد موظفين</button>
+                <button class="btn accent" type="button" onclick="resetVacations()">🔄 تجديد رصيد الإجازات</button>
+                <button class="btn light" type="button" onclick="syncAllData()">🔄 إنعاش البيانات</button>
+                <a class="btn light" href="/hr/technicians.html">🔧 عرض الفنيين</a>
+                <a class="btn primary" href="/hr/employee_coding.html">➕ إضافة موظف</a>
             </div>
         </div>
+        
+        <div id="batchDeleteBar" class="batch-delete-bar" style="display:none;">
+            <span>✅ تم اختيار <span id="selectedCount">0</span> موظف</span>
+            <button class="btn danger" onclick="deleteSelected()">🗑️ حذف المحدد</button>
+            <button class="btn light" onclick="clearSelection()">إلغاء التحديد</button>
+        </div>
+        
         <table>
             <thead>
                 <tr>
+                    <th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"></th>
                     <th>الكود</th>
                     <th>الاسم</th>
                     <th>الوظيفة</th>
@@ -75,15 +105,43 @@
         </table>
     </section>
 </div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📋 معاينة بيانات الاستيراد</h3>
+            <button class="icon-btn" onclick="closePreviewModal()" style="font-size:24px;">&times;</button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="preview-table" id="previewTable">
+                <thead id="previewThead"></thead>
+                <tbody id="previewTbody"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn light" onclick="closePreviewModal()">إلغاء</button>
+            <button class="btn success" id="confirmImportBtn" onclick="confirmImport()">✅ تأكيد الاستيراد</button>
+        </div>
+    </div>
+</div>
+
+<script src="/common-functions.js"></script>
 <script>
     const API = '/api/hr';
-    const token = localStorage.getItem('token') || '';
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     let employees = [];
+    let selectedEmployees = new Set();
+    let previewData = [];
+    let importFileBuffer = null;
+
+    function getToken() {
+        return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    }
 
     function authHeaders(includeJson = false) {
         const headers = {};
         if (includeJson) headers['Content-Type'] = 'application/json';
+        const token = getToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
     }
@@ -97,6 +155,7 @@
         const box = document.getElementById('messageBox');
         box.className = `msg ${type === 'error' ? 'er' : 'ok'}`;
         box.textContent = message;
+        setTimeout(() => { box.className = 'msg'; }, 5000);
     }
 
     async function load() {
@@ -112,24 +171,26 @@
     function render(list) {
         const tbody = document.getElementById('tbody');
         if (!list.length) {
-            tbody.innerHTML = '<tr><td colspan="8">لا يوجد موظفون حتى الآن.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-state">لا يوجد موظفون حتى الآن.</td></tr>';
+            updateBatchDeleteBar();
             return;
         }
         tbody.innerHTML = list.map((e) => `
-            <tr>
+            <tr data-id="${e._id}">
+                <td class="checkbox-col"><input type="checkbox" class="emp-checkbox" value="${e._id}" onchange="toggleSelect('${e._id}', this)"></td>
                 <td>${e.code || '-'}</td>
                 <td style="font-weight:700">${e.name || '-'}</td>
                 <td>${e.jobTitle || '-'}</td>
                 <td>${e.department || '-'}</td>
                 <td>${Number(e.totalSalary || 0).toFixed(2)}</td>
                 <td>${Number(e.vacationBalance || 0).toFixed(2)}</td>
-                <td><span class="status ${e.status === 'Active' ? 'active' : 'inactive'}">${e.status === 'Active' ? 'نشط' : 'غير نشط'}</span></td>
+                <td><span class="status ${e.status === 'Active' ? 'active' : 'inactive'}">${e.status === 'Active' ? 'نشط' : (e.status === 'Terminated' ? 'منتهي' : 'مستقيل')}</span></td>
                 <td>
-                    <a class="btn accent" href="/hr/employee_coding.html?id=${e._id}">تعديل</a>
-                    ${(currentUser.role || '').toLowerCase() === 'admin' ? `<button class="btn danger" type="button" onclick="del('${e._id}')">حذف</button>` : ''}
+                    <a class="btn accent" href="/hr/employee_coding.html?id=${e._id}" style="padding:6px 12px; font-size:13px;">✏️ تعديل</a>
                 </td>
             </tr>
         `).join('');
+        updateBatchDeleteBar();
     }
 
     function filterTable() {
@@ -138,25 +199,75 @@
         render(filtered);
     }
 
-    async function del(id) {
-        if (!confirm('هل تريد حذف هذا الموظف نهائيًا؟')) return;
-        try {
-            const res = await fetch(`${API}/employees/${id}`, { method: 'DELETE', headers: authHeaders() });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'فشل حذف الموظف.');
-            await load();
-            setMessage('تم حذف الموظف بنجاح.');
-        } catch (e) {
-            setMessage(e.message || 'تعذر حذف الموظف.', 'error');
+    // ========== Batch Delete Functions ==========
+    function toggleSelectAll(checkbox) {
+        const allCheckboxes = document.querySelectorAll('.emp-checkbox');
+        allCheckboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            if (checkbox.checked) selectedEmployees.add(cb.value);
+            else selectedEmployees.delete(cb.value);
+        });
+        updateBatchDeleteBar();
+    }
+
+    function toggleSelect(empId, checkbox) {
+        if (checkbox.checked) selectedEmployees.add(empId);
+        else selectedEmployees.delete(empId);
+        updateBatchDeleteBar();
+        const selectAll = document.getElementById('selectAllCheckbox');
+        if (selectAll) {
+            const allBoxes = document.querySelectorAll('.emp-checkbox');
+            const allChecked = Array.from(allBoxes).every(cb => cb.checked);
+            selectAll.checked = allChecked && allBoxes.length > 0;
         }
     }
 
+    function updateBatchDeleteBar() {
+        const count = selectedEmployees.size;
+        const bar = document.getElementById('batchDeleteBar');
+        const countSpan = document.getElementById('selectedCount');
+        if (countSpan) countSpan.textContent = count;
+        if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    function clearSelection() {
+        selectedEmployees.clear();
+        document.querySelectorAll('.emp-checkbox').forEach(cb => cb.checked = false);
+        const selectAll = document.getElementById('selectAllCheckbox');
+        if (selectAll) selectAll.checked = false;
+        updateBatchDeleteBar();
+    }
+
+    async function deleteSelected() {
+        if (selectedEmployees.size === 0) {
+            setMessage('لم تختر أي موظف للحذف.', 'error');
+            return;
+        }
+        if (!confirm(`⚠️ هل أنت متأكد من حذف ${selectedEmployees.size} موظف؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+        
+        try {
+            const res = await fetch(`${API}/employees/batch-delete`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({ ids: Array.from(selectedEmployees) })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message);
+            setMessage(`✅ ${json.message}`, 'ok');
+            selectedEmployees.clear();
+            await load();
+        } catch (e) {
+            setMessage(e.message || 'فشل حذف الموظفين.', 'error');
+        }
+    }
+
+    // ========== Vacation Reset & Sync ==========
     async function resetVacations() {
         if (!confirm('سيتم ضبط رصيد الإجازات للموظفين النشطين إلى 21 يومًا. هل أنت متأكد؟')) return;
         try {
             const res = await fetch(`${API}/employees/reset-vacations`, { method: 'POST', headers: authHeaders() });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'فشل تجديد الرصيد.');
+            if (!res.ok) throw new Error(json.message);
             await load();
             setMessage(json.message || 'تم تجديد الرصيد بنجاح.');
         } catch (e) {
@@ -169,14 +280,245 @@
         try {
             const res = await fetch(`${API}/employees/sync-all`, { method: 'POST', headers: authHeaders() });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'فشل إنعاش البيانات.');
+            if (!res.ok) throw new Error(json.message);
             await load();
             setMessage(json.message || 'تم إنعاش البيانات بنجاح.');
         } catch (e) {
             setMessage(e.message || 'تعذر إنعاش البيانات.', 'error');
         }
     }
+
+    // ========== Import with Preview ==========
+    function readExcelFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                resolve(jsonData);
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    async function previewEmployeesFile() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        
+        const file = fileInput.files[0];
+        importFileBuffer = file;
+        
+        setMessage('جاري قراءة الملف ومعالجته...', 'ok');
+        
+        try {
+            const jsonData = await readExcelFile(file);
+            
+            // Get existing employees for duplicate detection
+            const existingRes = await fetch(`${API}/employees`);
+            const existing = await existingRes.json();
+            const existingCodes = new Set(existing.map(e => e.code));
+            const existingNames = new Set(existing.map(e => e.name));
+            
+            previewData = jsonData.map((row, idx) => {
+                const code = row.code || row.Code || row['كود الموظف'] || '';
+                const name = row.name || row.Name || row['اسم الموظف'] || row.employeeName || '';
+                const department = row.department || row.Department || row['القسم'] || '';
+                const jobTitle = row.jobTitle || row.JobTitle || row['المسمى الوظيفي'] || '';
+                const basicSalary = Number(row.basicSalary || row.BasicSalary || row['الراتب الأساسي']) || 0;
+                const variableSalary = Number(row.variableSalary || row.VariableSalary || row['الراتب المتغير']) || 0;
+                const transportAllowance = Number(row.transportAllowance || row.TransportAllowance || row['بدل انتقال']) || 0;
+                const otherAllowance = Number(row.otherAllowance || row.OtherAllowance || row['بدلات أخرى']) || 0;
+                const incentives = Number(row.incentives || row.Incentives || row['حوافز']) || 0;
+                let hireDate = row.hireDate || row.HireDate || row['تاريخ التعيين'];
+                if (hireDate && !isNaN(new Date(hireDate).getTime())) {
+                    hireDate = new Date(hireDate).toISOString().split('T')[0];
+                } else {
+                    hireDate = new Date().toISOString().split('T')[0];
+                }
+                
+                const isDuplicateCode = code && existingCodes.has(code);
+                const isDuplicateName = name && existingNames.has(name);
+                const isValid = name && name.trim() !== '';
+                const status = isDuplicateCode ? 'duplicate' : (isValid ? 'valid' : 'warning');
+                
+                return {
+                    rowIndex: idx,
+                    code, name, department, jobTitle,
+                    basicSalary, variableSalary, transportAllowance, otherAllowance, incentives, hireDate,
+                    isDuplicateCode, isDuplicateName, isValid,
+                    status: isDuplicateCode ? 'duplicate' : (isValid ? 'valid' : 'warning'),
+                    employeeStatus: 'Active',
+                    selected: true
+                };
+            });
+            
+            showPreviewModal();
+            setMessage('تمت المعاينة. حدد البيانات المطلوب استيرادها.', 'ok');
+        } catch (e) {
+            console.error(e);
+            setMessage('خطأ في قراءة الملف: ' + e.message, 'error');
+        }
+        fileInput.value = '';
+    }
+
+    function showPreviewModal() {
+        const modal = document.getElementById('previewModal');
+        const thead = document.getElementById('previewThead');
+        const tbody = document.getElementById('previewTbody');
+        
+        thead.innerHTML = `
+            <tr>
+                <th><input type="checkbox" id="previewSelectAll" onchange="togglePreviewSelectAll(this)" checked></th>
+                <th>الكود</th>
+                <th>الاسم</th>
+                <th>القسم</th>
+                <th>الوظيفة</th>
+                <th>الراتب الأساسي</th>
+                <th>الراتب المتغير</th>
+                <th>بدل انتقال</th>
+                <th>بدلات أخرى</th>
+                <th>حوافز</th>
+                <th>تاريخ التعيين</th>
+                <th>الحالة</th>
+                <th></th>
+            </tr>
+        `;
+        
+        tbody.innerHTML = previewData.map(row => {
+            let statusText = '';
+            let statusClass = '';
+            if (row.status === 'duplicate') {
+                statusText = '⚠️ مكرر';
+                statusClass = 'duplicate-row';
+            } else if (row.status === 'valid') {
+                statusText = '✅ جديد';
+                statusClass = 'valid-row';
+            } else {
+                statusText = '⚠️ ناقص بيانات';
+                statusClass = 'warning-row';
+            }
+            
+            return `
+                <tr class="${statusClass}" data-row="${row.rowIndex}">
+                    <td><input type="checkbox" class="preview-row-checkbox" data-row="${row.rowIndex}" ${row.selected ? 'checked' : ''} onchange="togglePreviewRow(${row.rowIndex}, this)"></td>
+                    <td>${escapeHtml(row.code || '-')}</td>
+                    <td>${escapeHtml(row.name || '-')}</td>
+                    <td>${escapeHtml(row.department || '-')}</td>
+                    <td>${escapeHtml(row.jobTitle || '-')}</td>
+                    <td>${row.basicSalary.toFixed(2)}</td>
+                    <td>${row.variableSalary.toFixed(2)}</td>
+                    <td>${row.transportAllowance.toFixed(2)}</td>
+                    <td>${row.otherAllowance.toFixed(2)}</td>
+                    <td>${row.incentives.toFixed(2)}</td>
+                    <td>${row.hireDate}</td>
+                    <td>${statusText}</td>
+                    <td class="row-actions">
+                        <button class="icon-btn delete" onclick="removePreviewRow(${row.rowIndex})" title="حذف">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        modal.classList.add('open');
+        updatePreviewSelectAll();
+    }
+    
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        str = String(str);
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function togglePreviewSelectAll(checkbox) {
+        const allBoxes = document.querySelectorAll('.preview-row-checkbox');
+        allBoxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            const rowIdx = parseInt(cb.dataset.row);
+            const row = previewData.find(r => r.rowIndex === rowIdx);
+            if (row) row.selected = checkbox.checked;
+        });
+    }
+    
+    function updatePreviewSelectAll() {
+        const allBoxes = document.querySelectorAll('.preview-row-checkbox');
+        const allChecked = allBoxes.length > 0 && Array.from(allBoxes).every(cb => cb.checked);
+        const selectAll = document.getElementById('previewSelectAll');
+        if (selectAll) selectAll.checked = allChecked;
+    }
+    
+    function togglePreviewRow(rowIdx, checkbox) {
+        const row = previewData.find(r => r.rowIndex === rowIdx);
+        if (row) row.selected = checkbox.checked;
+        updatePreviewSelectAll();
+    }
+    
+    function removePreviewRow(rowIdx) {
+        const row = previewData.find(r => r.rowIndex === rowIdx);
+        if (row) row.selected = false;
+        const tr = document.querySelector(`tr[data-row="${rowIdx}"]`);
+        if (tr) tr.remove();
+    }
+    
+    function closePreviewModal() {
+        document.getElementById('previewModal').classList.remove('open');
+        previewData = [];
+        importFileBuffer = null;
+    }
+    
+    async function confirmImport() {
+        const selectedRows = previewData.filter(row => row.selected && row.isValid);
+        const duplicateRows = previewData.filter(row => row.selected && row.isDuplicateCode);
+
+        if (duplicateRows.length > 0) {
+            if (!confirm(`⚠️ يوجد ${duplicateRows.length} صف مكرر (كود موجود مسبقاً). سيتم تحديث بياناتهم بدلاً من إضافتهم. هل تريد المتابعة؟`)) {
+                return;
+            }
+        }
+
+        if (selectedRows.length === 0 && duplicateRows.length === 0) {
+            setMessage('لم تختر أي بيانات صالحة للاستيراد.', 'error');
+            return;
+        }
+
+        const allRows = selectedRows.concat(duplicateRows).map(row => ({
+            ...row,
+            status: row.employeeStatus || 'Active'
+        }));
+
+        setMessage('جاري استيراد البيانات...', 'ok');
+
+        try {
+            const token = getToken();
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch(`${API}/employees/import-confirm`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ employees: allRows })
+            });
+
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'فشل الاستيراد');
+
+            setMessage(`✅ ${json.message || 'تم الاستيراد بنجاح'}`, 'ok');
+            closePreviewModal();
+            await load();
+        } catch (e) {
+            console.error('Import error:', e);
+            setMessage(e.message || 'فشل استيراد البيانات.', 'error');
+        }
+    }
 </script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="/global-navigation.js"></script>
 </body>
 </html>

@@ -62,7 +62,7 @@
 
     async function loadMatrix() {
         try {
-            const token = localStorage.getItem('token');
+            const token = getToken();
             const response = await fetch('/api/pricing/matrix', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -118,7 +118,7 @@
 
     async function saveMatrix() {
         try {
-            const token = localStorage.getItem('token');
+            const token = getToken();
             const response = await fetch('/api/pricing/matrix', {
                 method: 'POST',
                 headers: { 

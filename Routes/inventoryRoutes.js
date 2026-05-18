@@ -383,6 +383,43 @@ router.post('/stock-out', auth, async (req, res) => {
         // 2. Process Inventory Changes
         await inventoryService.processOutbound(transactionData);
 
+        try {
+            // Generate GL Entry for Stock Out
+            const glLogic = require('../services/glLogic');
+            const glService = require('../services/glService');
+            
+            // Calculate total cost for the outbound items
+            let totalCost = 0;
+            const outboundItems = transactionData.items || [];
+            for (const item of outboundItems) {
+                 const product = await db.findById('products', item.product || item.productCode);
+                 totalCost += (Number(product?.cost || 1) * Number(item.quantity || item.area || 1));
+            }
+
+            if (totalCost > 0) {
+                 const mockInvoice = {
+                      invoiceNumber: transactionData.jobOrder || transactionData.jobOrderId || `TRX-${Date.now()}`,
+                      items: outboundItems.map(item => ({ product: item.product || item.productCode, cost: totalCost / outboundItems.length }))
+                 };
+                 
+                 const details = await glLogic.getCogsEntryDetails(mockInvoice, totalCost);
+                 
+                 if (details && details.length > 0) {
+                      await glService.createGlEntry({
+                           date: new Date().toISOString(),
+                           description: `صرف بضاعة مخزن - حركة رقم ${mockInvoice.invoiceNumber}`,
+                           referenceNumber: `OUT-${mockInvoice.invoiceNumber}`,
+                           journalType: 'Inventory',
+                           details: details
+                      });
+                 }
+            }
+        } catch (glError) {
+            console.error('Failed to generate GL Entry for Stock Out:', glError.message);
+            // We still processed the stock out physically, but warn about GL error
+            return res.status(400).json({ message: 'Stock out processed, but accounting entry failed: ' + glError.message });
+        }
+
         res.json({ message: 'Stock out processed successfully', transaction: stockTrx });
     } catch (error) {
         console.error('Stock out error:', error);
@@ -452,6 +489,43 @@ router.put('/issue-job/:jobId', auth, async (req, res) => {
                 status: 'completed',
                 createdAt: new Date().toISOString()
             });
+
+            try {
+                // Generate GL Entry for Stock Out
+                const glLogic = require('../services/glLogic');
+                const glService = require('../services/glService');
+                
+                // Calculate total cost for the outbound items
+                let totalCost = 0;
+                for (const item of outboundItems) {
+                     const product = await db.findById('products', item.product);
+                     totalCost += (Number(product?.cost || 1) * Number(item.quantity || 1));
+                }
+
+                if (totalCost > 0) {
+                     // We use a mock invoice object to pass to getCogsEntryDetails
+                     const mockInvoice = {
+                          invoiceNumber: job.jobOrder,
+                          items: outboundItems.map(item => ({ product: item.product, cost: totalCost / outboundItems.length }))
+                     };
+                     
+                     const details = await glLogic.getCogsEntryDetails(mockInvoice, totalCost);
+                     
+                     if (details && details.length > 0) {
+                          await glService.createGlEntry({
+                               date: new Date().toISOString(),
+                               description: `صرف بضاعة مخزن - أمر تشغيل رقم ${job.jobOrder}`,
+                               referenceNumber: `OUT-${job.jobOrder}`,
+                               journalType: 'Inventory',
+                               details: details
+                          });
+                     }
+                }
+            } catch (glError) {
+                console.error('Failed to generate GL Entry for Stock Out:', glError.message);
+                // Return clear error string if account is missing
+                return res.status(400).json({ message: glError.message });
+            }
         }
 
         await ServiceJob.updateOne(

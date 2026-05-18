@@ -3,58 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <title>تقرير حالة الرولات</title>
+    <script src="/common-functions.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
         .card { background: white; padding: 25px; border-radius: 10px; max-width: 1400px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         h2 { color: #1e293b; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
-        .filters { display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; }
-        .filter-group { flex: 1; }
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; flex-wrap: wrap; }
+        .filter-group { flex: 1; min-width: 160px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: #475569; }
         select, input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .btn-row { display: flex; gap: 10px; align-items: flex-end; }
         button { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button.btn-export { background: #16a34a; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #eee; padding: 10px; text-align: center; }
         th { background: #1e293b; color: white; }
         tr:nth-child(even) { background: #f8fafc; }
         .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-        .status-Available { background: #dcfce7; color: #166534; }
+        .status-Available    { background: #dcfce7; color: #166534; }
         .status-PartiallyUsed { background: #fef3c7; color: #92400e; }
-        .status-Exhausted { background: #fee2e2; color: #991b1b; }
-        .progress-bar { width: 100%; height: 20px; background: #e5e7eb; border-radius: 10px; overflow: hidden; }
+        .status-Exhausted    { background: #fee2e2; color: #991b1b; }
+        .progress-bar { width: 100%; height: 16px; background: #e5e7eb; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.3s; }
+        .summary-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 18px; flex: 1; min-width: 140px; }
+        .summary-card span { display: block; color: #64748b; font-size: 12px; }
+        .summary-card strong { font-size: 1.2rem; color: #1e293b; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2>📊 تقرير حالة الرولات (Roll Status Report)</h2>
-    
+    <h2>📊 تقرير حالة الرولات</h2>
+
+    <div class="summary-bar">
+        <div class="summary-card"><span>إجمالي الرولات</span><strong id="sumTotal">-</strong></div>
+        <div class="summary-card"><span>متاح</span><strong id="sumAvail" style="color:#166534">-</strong></div>
+        <div class="summary-card"><span>مستخدم جزئياً</span><strong id="sumPartial" style="color:#92400e">-</strong></div>
+        <div class="summary-card"><span>مستنفذ</span><strong id="sumExhausted" style="color:#991b1b">-</strong></div>
+        <div class="summary-card"><span>إجمالي المتبقي (م²)</span><strong id="sumRemaining">-</strong></div>
+    </div>
+
     <div class="filters">
         <div class="filter-group">
             <label>الصنف</label>
-            <select id="productFilter">
+            <select id="productFilter" onchange="applyFilters()">
                 <option value="">جميع الأصناف</option>
             </select>
         </div>
         <div class="filter-group">
             <label>المخزن</label>
-            <select id="warehouseFilter">
+            <select id="warehouseFilter" onchange="applyFilters()">
                 <option value="">جميع المخازن</option>
             </select>
         </div>
         <div class="filter-group">
             <label>الحالة</label>
-            <select id="statusFilter">
+            <select id="statusFilter" onchange="applyFilters()">
                 <option value="">جميع الحالات</option>
-                <option value="Available">متاح</option>
-                <option value="PartiallyUsed">مستخدم جزئياً</option>
-                <option value="Exhausted">مستنفذ</option>
+                <option value="Available">✅ متاح</option>
+                <option value="PartiallyUsed">⚠️ مستخدم جزئياً</option>
+                <option value="Exhausted">❌ مستنفذ</option>
             </select>
         </div>
-        <div class="filter-group" style="display: flex; align-items: flex-end;">
-            <button onclick="loadReport()">🔍 تحديث التقرير</button>
+        <div class="filter-group">
+            <label>بحث بالكود</label>
+            <input id="searchInput" placeholder="كود الرول..." oninput="applyFilters()">
+        </div>
+        <div class="filter-group btn-row">
+            <button onclick="loadReport()">🔄 تحديث</button>
+            <button class="btn-export" onclick="exportCSV()">📥 تصدير CSV</button>
         </div>
     </div>
-    
+
     <table id="reportTable">
         <thead>
             <tr>
@@ -69,42 +89,79 @@
                 <th>الحالة</th>
                 <th>تكلفة المتر</th>
                 <th>تاريخ الاستلام</th>
-                <th>رقم الشحنة / الفاتورة</th>
+                <th>المرجع</th>
             </tr>
         </thead>
         <tbody id="tbody">
-            <tr><td colspan="12" style="padding: 30px; text-align: center; color: #666;">جاري التحميل...</td></tr>
+            <tr><td colspan="12" style="padding:30px;text-align:center;color:#666">جاري التحميل...</td></tr>
         </tbody>
     </table>
 </div>
 
 <script>
     const API = '/api';
+    let allRolls = [];
     let productsList = [];
     let warehousesList = [];
 
     window.onload = async () => {
         await loadMasterData();
+        // استعادة حالة الفلاتر من URL
+        restoreFiltersFromURL();
         await loadReport();
     };
+
+    // ── حفظ واستعادة الفلاتر في URL ──────────────────────────────────
+    function saveFiltersToURL() {
+        const params = new URLSearchParams();
+        const p = document.getElementById('productFilter').value;
+        const w = document.getElementById('warehouseFilter').value;
+        const s = document.getElementById('statusFilter').value;
+        const q = document.getElementById('searchInput').value;
+        if (p) params.set('product', p);
+        if (w) params.set('warehouse', w);
+        if (s) params.set('status', s);
+        if (q) params.set('q', q);
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    function restoreFiltersFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('product'))   document.getElementById('productFilter').value   = params.get('product');
+        if (params.get('warehouse')) document.getElementById('warehouseFilter').value = params.get('warehouse');
+        if (params.get('status'))    document.getElementById('statusFilter').value    = params.get('status');
+        if (params.get('q'))         document.getElementById('searchInput').value     = params.get('q');
+    }
+
+    function applyFilters() {
+        saveFiltersToURL();
+        renderTable();
+    }
 
     async function loadMasterData() {
         try {
             const [pRes, wRes] = await Promise.all([
-                fetch(`${API}/products`),
-                fetch(`/api/warehouses`)
+                fetch(`${API}/products`, { headers: Auth.getHeaders() }),
+                fetch(`${API}/warehouses`, { headers: Auth.getHeaders() })
             ]);
-            productsList = await pRes.json();
-            warehousesList = await wRes.json();
+            productsList  = pRes.ok  ? await pRes.json()  : [];
+            warehousesList = wRes.ok ? await wRes.json() : [];
 
             const productSel = document.getElementById('productFilter');
             productsList.forEach(p => {
-                productSel.innerHTML += `<option value="${p._id}">${p.name} (${p.code})</option>`;
+                const opt = document.createElement('option');
+                opt.value = p._id;
+                opt.textContent = `${p.name} (${p.code || '-'})`;
+                productSel.appendChild(opt);
             });
 
             const warehouseSel = document.getElementById('warehouseFilter');
             warehousesList.forEach(w => {
-                warehouseSel.innerHTML += `<option value="${w.path || w.name}">${w.path || w.name}</option>`;
+                const opt = document.createElement('option');
+                opt.value = w.path || w.name;
+                opt.textContent = w.path || w.name;
+                warehouseSel.appendChild(opt);
             });
         } catch(e) {
             console.error('خطأ في تحميل البيانات الأساسية:', e);
@@ -112,79 +169,118 @@
     }
 
     async function loadReport() {
-        const productId = document.getElementById('productFilter').value;
-        const warehouse = document.getElementById('warehouseFilter').value;
-        const status = document.getElementById('statusFilter').value;
-
-        let url = `${API}/stock/roll-status?`;
-        if (productId) url += `productId=${productId}&`;
-        if (warehouse) url += `warehouse=${encodeURIComponent(warehouse)}&`;
-        if (status) url += `status=${status}&`;
-
-        const tbody = document.getElementById('tbody');
-        tbody.innerHTML = '<tr><td colspan="12" style="padding: 20px; text-align: center; color: #666;">جاري التحميل...</td></tr>';
-
+        document.getElementById('tbody').innerHTML =
+            '<tr><td colspan="12" style="padding:20px;text-align:center;color:#666">جاري التحميل...</td></tr>';
         try {
-            const res = await fetch(url);
+            const res = await fetch(`${API}/inventory/rolls`, { headers: Auth.getHeaders() });
             if (!res.ok) throw new Error('فشل تحميل البيانات');
-            const rolls = await res.json();
-
-            if (rolls.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" style="padding: 30px; text-align: center; color: #666;">لا توجد رولات مطابقة للفلتر</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = rolls.map(roll => {
-                const product = roll.product || { name: '-', code: '-' };
-                const originalArea = roll.originalDimensions.area || 0;
-                const consumed = roll.consumedArea || 0;
-                const remaining = roll.remainingArea || 0;
-                const usagePercent = originalArea > 0 ? ((consumed / originalArea) * 100).toFixed(1) : 0;
-
-                const statusClass = `status-${roll.status}`;
-                const statusText = {
-                    'Available': '✅ متاح',
-                    'PartiallyUsed': '⚠️ مستخدم جزئياً',
-                    'Exhausted': '❌ مستنفذ'
-                }[roll.status] || roll.status;
-
-                const progressWidth = Math.min(100, (consumed / originalArea) * 100);
-                const lengthCm = Number(roll.originalLengthCm || roll.originalDimensions?.lengthCm || 0);
-                const widthCm = Number(roll.originalWidthCm || roll.widthCm || roll.width || roll.originalDimensions?.widthCm || 0);
-                const dimsCmText = (lengthCm && widthCm) ? `${Math.round(lengthCm)}×${Math.round(widthCm)} سم` : '';
-
-                return `
-                    <tr>
-                        <td style="font-weight: bold; color: #d97706;">
-                            <div>${roll.rollCode}</div>
-                            ${dimsCmText ? `<div style="margin-top:4px;font-size:12px;color:#64748b;font-weight:700;">${dimsCmText}</div>` : ''}
-                        </td>
-                        <td>${product.name}<br><small style="color: #666;">${product.code}</small></td>
-                        <td>${roll.warehouse}</td>
-                        <td>${roll.originalDimensions.length.toFixed(2)} × ${roll.originalDimensions.width.toFixed(2)} م</td>
-                        <td style="font-weight: bold;">${originalArea.toFixed(2)}</td>
-                        <td style="color: #ef4444;">${consumed.toFixed(2)}</td>
-                        <td style="font-weight: bold; color: #059669;">${remaining.toFixed(2)}</td>
-                        <td>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${progressWidth}%"></div>
-                            </div>
-                            <small>${usagePercent}%</small>
-                        </td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>${(roll.unitCost || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</td>
-                        <td>${new Date(roll.receivedDate).toLocaleDateString('ar-EG')}</td>
-                        <td>${roll.supplierDoc || roll.purchaseInvoiceId || '-'}</td>
-                    </tr>
-                `;
-            }).join('');
+            allRolls = await res.json();
+            renderTable();
         } catch(e) {
-            console.error('خطأ:', e);
-            tbody.innerHTML = `<tr><td colspan="12" style="padding: 30px; text-align: center; color: #dc2626;">حدث خطأ: ${e.message}</td></tr>`;
+            document.getElementById('tbody').innerHTML =
+                `<tr><td colspan="12" style="padding:30px;text-align:center;color:#dc2626">حدث خطأ: ${e.message}</td></tr>`;
         }
     }
+
+    function renderTable() {
+        const productId = document.getElementById('productFilter').value;
+        const warehouse = document.getElementById('warehouseFilter').value;
+        const status    = document.getElementById('statusFilter').value;
+        const search    = document.getElementById('searchInput').value.trim().toLowerCase();
+
+        let rolls = allRolls;
+        if (productId) rolls = rolls.filter(r => String(r.product?._id || r.product) === productId);
+        if (warehouse) rolls = rolls.filter(r => String(r.warehouse || '') === warehouse);
+        if (status)    rolls = rolls.filter(r => r.status === status);
+        if (search)    rolls = rolls.filter(r => String(r.rollCode || '').toLowerCase().includes(search));
+
+        // ملخص
+        document.getElementById('sumTotal').textContent     = rolls.length;
+        document.getElementById('sumAvail').textContent     = rolls.filter(r => r.status === 'Available').length;
+        document.getElementById('sumPartial').textContent   = rolls.filter(r => r.status === 'PartiallyUsed').length;
+        document.getElementById('sumExhausted').textContent = rolls.filter(r => r.status === 'Exhausted').length;
+        document.getElementById('sumRemaining').textContent =
+            rolls.reduce((s, r) => s + (parseFloat(r.remainingArea) || 0), 0).toFixed(2);
+
+        if (!rolls.length) {
+            document.getElementById('tbody').innerHTML =
+                '<tr><td colspan="12" style="padding:30px;text-align:center;color:#666">لا توجد رولات مطابقة للفلتر</td></tr>';
+            return;
+        }
+
+        const STATUS_LABELS = {
+            Available:     '✅ متاح',
+            PartiallyUsed: '⚠️ مستخدم جزئياً',
+            Exhausted:     '❌ مستنفذ'
+        };
+
+        document.getElementById('tbody').innerHTML = rolls.map(roll => {
+            const product      = roll.product || {};
+            const originalArea = parseFloat(roll.originalArea || roll.originalDimensions?.area || 0);
+            const remaining    = parseFloat(roll.remainingArea || roll.currentArea || 0);
+            const consumed     = parseFloat(roll.consumedArea !== undefined ? roll.consumedArea : Math.max(0, originalArea - remaining));
+            const usagePct     = originalArea > 0 ? ((consumed / originalArea) * 100).toFixed(1) : 0;
+            const progressW    = Math.min(100, originalArea > 0 ? (consumed / originalArea) * 100 : 0);
+            const lengthCm     = Number(roll.originalLengthCm || roll.originalDimensions?.lengthCm || (roll.originalDimensions?.length ? roll.originalDimensions.length * 100 : 0));
+            const widthCm      = Number(roll.originalWidthCm  || roll.widthCm || roll.width || roll.originalDimensions?.widthCm || (roll.originalDimensions?.width ? roll.originalDimensions.width * 100 : 0));
+            const dimsCm       = (lengthCm && widthCm) ? `${Math.round(lengthCm)}×${Math.round(widthCm)} سم` : '';
+            const statusClass  = `status-${roll.status}`;
+            const statusText   = STATUS_LABELS[roll.status] || roll.status;
+            const receivedDate = roll.receivedDate ? new Date(roll.receivedDate).toLocaleDateString('ar-EG') : '-';
+
+            return `
+                <tr>
+                    <td style="font-weight:bold;color:#d97706;text-align:right">
+                        ${roll.rollCode}
+                        ${dimsCm ? `<div style="font-size:11px;color:#64748b;font-weight:400">${dimsCm}</div>` : ''}
+                    </td>
+                    <td style="text-align:right">${product.name || '-'}<br><small style="color:#666">${product.code || '-'}</small></td>
+                    <td>${roll.warehouse || '-'}</td>
+                    <td>${(lengthCm / 100).toFixed(2)} × ${(widthCm / 100).toFixed(2)} م</td>
+                    <td style="font-weight:bold">${originalArea.toFixed(2)}</td>
+                    <td style="color:#ef4444">${consumed.toFixed(2)}</td>
+                    <td style="font-weight:bold;color:#059669">${remaining.toFixed(2)}</td>
+                    <td>
+                        <div class="progress-bar"><div class="progress-fill" style="width:${progressW}%"></div></div>
+                        <small>${usagePct}%</small>
+                    </td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>${(roll.unitCost || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 })}</td>
+                    <td>${receivedDate}</td>
+                    <td>${roll.supplierDoc || roll.purchaseInvoiceId || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function exportCSV() {
+        const productId = document.getElementById('productFilter').value;
+        const warehouse = document.getElementById('warehouseFilter').value;
+        const status    = document.getElementById('statusFilter').value;
+        const search    = document.getElementById('searchInput').value.trim().toLowerCase();
+
+        let rolls = allRolls;
+        if (productId) rolls = rolls.filter(r => String(r.product?._id || r.product) === productId);
+        if (warehouse) rolls = rolls.filter(r => String(r.warehouse || '') === warehouse);
+        if (status)    rolls = rolls.filter(r => r.status === status);
+        if (search)    rolls = rolls.filter(r => String(r.rollCode || '').toLowerCase().includes(search));
+
+        let csv = 'كود الرول,الصنف,المخزن,المساحة الأصلية,المستهلك,المتبقي,الحالة,تكلفة المتر,تاريخ الاستلام\n';
+        rolls.forEach(r => {
+            const origArea = parseFloat(r.originalArea || r.originalDimensions?.area || 0);
+            const remArea = parseFloat(r.remainingArea || r.currentArea || 0);
+            const consArea = parseFloat(r.consumedArea !== undefined ? r.consumedArea : Math.max(0, origArea - remArea));
+            csv += `"${r.rollCode}","${r.product?.name || '-'}","${r.warehouse || '-'}",${origArea.toFixed(2)},${consArea.toFixed(2)},${remArea.toFixed(2)},"${r.status}",${r.unitCost || 0},"${r.receivedDate ? new Date(r.receivedDate).toLocaleDateString('ar-EG') : '-'}"\n`;
+        });
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `roll_status_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    }
 </script>
-    <script src="/global-navigation.js"></script>
+<script src="/global-navigation.js"></script>
 </body>
 </html>
 

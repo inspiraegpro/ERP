@@ -266,8 +266,13 @@
         const API = '/api';
         let allJournals = [];
 
+        function safeGetToken() {
+            if (typeof getToken === 'function') return getToken();
+            return localStorage.getItem('token') || '';
+        }
+
         function authHeaders() {
-            const token = localStorage.getItem('token');
+            const token = safeGetToken();
             return token ? { 'Authorization': `Bearer ${token}` } : {};
         }
 

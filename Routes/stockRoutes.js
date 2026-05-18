@@ -6,14 +6,27 @@ const { authenticateToken: auth } = require('../middleware/auth');
 
 const db = new FileDbManager();
 
+// ─── مولّد رقم مسلسل فريد ────────────────────────────────────────────────────
+async function generateSerialNumber(type) {
+    const prefix = (type === 'Inbound' || type === 'Stock In') ? 'IN' : 'OUT';
+    const all    = await db.find('stocktransactions');
+    const same   = all.filter(t => String(t.serialNumber || '').startsWith(prefix));
+    const max    = same.reduce((m, t) => {
+        const n = parseInt(String(t.serialNumber).replace(prefix, '')) || 0;
+        return n > m ? n : m;
+    }, 0);
+    return `${prefix}-${String(max + 1).padStart(5, '0')}`;
+}
+
 // GET: All Transactions
 router.get('/', auth, async (req, res) => { 
     try {
-        const { type, warehouse, supplierDoc } = req.query;
+        const { type, warehouse, supplierDoc, jobOrder } = req.query;
         const filters = {};
-        if (type) filters.type = type;
-        if (warehouse) filters.warehouse = warehouse;
+        if (type)        filters.type        = type;
+        if (warehouse)   filters.warehouse   = warehouse;
         if (supplierDoc) filters.supplierDoc = supplierDoc;
+        if (jobOrder)    filters.jobOrder    = jobOrder;
         
         const transactions = await db.find('stocktransactions', filters);
         res.json(transactions || []);
@@ -31,7 +44,7 @@ router.get('/available-rolls', auth, async (req, res) => {
         const rolls = await db.find('rollbalances');
         const filtered = rolls.filter(r => 
             (String(r.product) === String(productId) || String(r.productCode) === String(productId)) &&
-            (r.status === 'Available' || r.status === 'PartiallyUsed' || r.status === 'Available') &&
+            (r.status === 'Available' || r.status === 'PartiallyUsed') &&
             (!warehouse || r.warehouse === warehouse)
         );
         
@@ -59,8 +72,8 @@ router.get('/smart-suggestions', auth, async (req, res) => {
 
         const suggestions = await inventoryService.getSmartSuggestions(
             productId,
-            parseFloat(area) || 0,
-            parseFloat(lengthCm) || 0,
+            parseFloat(area)    || 0,
+            parseFloat(lengthCm)|| 0,
             parseFloat(widthCm) || 0,
             warehouse || ''
         );
@@ -76,11 +89,27 @@ router.get('/smart-suggestions', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
     try {
         const txData = req.body;
-        
+
+        // رقم مسلسل فريد تلقائياً إذا لم يُرسَل أو كان مكرراً
+        const providedSerial = String(txData.serialNumber || '').trim();
+        let serialNumber = providedSerial;
+        if (!serialNumber) {
+            serialNumber = await generateSerialNumber(txData.type);
+        } else {
+            // تحقق من التكرار
+            const existing = await db.findOne('stocktransactions', { serialNumber: providedSerial });
+            if (existing) {
+                return res.status(400).json({ message: 'رقم الإذن مكرر، يرجى إدخال رقم مختلف أو تركه فارغاً للتوليد التلقائي.', error: 'رقم الإذن مكرر.' });
+            }
+        }
+
         // 1. Create the transaction record
         const transaction = await db.create('stocktransactions', {
             ...txData,
-            createdAt: new Date().toISOString()
+            serialNumber,
+            reversedBy:  null,   // يُملأ عند الإلغاء
+            isReversed:  false,
+            createdAt:   new Date().toISOString()
         });
 
         // 2. Process the transaction effect on inventory balance
@@ -121,7 +150,98 @@ router.get('/:id', auth, async (req, res) => {
     }
 });
 
-// DELETE: Remove a Stock Transaction by ID
+// POST: Reverse (Undo) a Stock Transaction — يُنشئ حركة عكسية ويُعيد الأرصدة
+router.post('/:id/reverse', auth, async (req, res) => {
+    try {
+        const original = await db.findOne('stocktransactions', { _id: req.params.id });
+        if (!original) {
+            return res.status(404).json({ error: 'الإذن المخزني غير موجود.' });
+        }
+        if (original.isReversed) {
+            return res.status(400).json({ error: 'هذا الإذن تم إلغاؤه مسبقاً.' });
+        }
+
+        // نوع الحركة العكسية
+        const reverseType = (original.type === 'Inbound' || original.type === 'Stock In')
+            ? 'Outbound'
+            : 'Inbound';
+
+        const reverseSerial = await generateSerialNumber(reverseType);
+
+        // إنشاء الحركة العكسية
+        const reversal = await db.create('stocktransactions', {
+            type:             reverseType,
+            serialNumber:     reverseSerial,
+            date:             new Date().toISOString().split('T')[0],
+            jobOrder:         original.jobOrder    || null,
+            jobOrderId:       original.jobOrderId  || null,
+            warehouseId:      original.warehouseId || original.warehouse,
+            warehouse:        original.warehouseId || original.warehouse,
+            carName:          original.carName     || '',
+            customerName:     original.customerName|| '',
+            items:            original.items       || [],
+            notes:            `إلغاء إذن ${original.serialNumber} — ${req.body.reason || 'بدون سبب'}`,
+            source:           'Reversal',
+            reversalOf:       original._id,
+            isReversed:       false,
+            reversedBy:       null,
+            status:           'completed',
+            createdAt:        new Date().toISOString()
+        });
+
+        // تطبيق الأثر العكسي على المخزون
+        if (reverseType === 'Inbound') {
+            await inventoryService.processInbound(reversal);
+        } else {
+            await inventoryService.processOutbound(reversal);
+        }
+
+        // تعليم الأصل كـ "مُلغى"
+        await db.updateOne('stocktransactions', { _id: original._id }, {
+            isReversed:  true,
+            reversedBy:  reversal._id,
+            reversedAt:  new Date().toISOString()
+        });
+
+        res.status(201).json({
+            message:  `تم إلغاء الإذن ${original.serialNumber} وإنشاء حركة عكسية ${reverseSerial}`,
+            original: { _id: original._id, serialNumber: original.serialNumber },
+            reversal
+        });
+    } catch (error) {
+        console.error('Error reversing stock transaction:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: Bulk delete multiple stock transactions by IDs
+router.post('/bulk-delete', auth, async (req, res) => {
+    try {
+        const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+        if (ids.length === 0) {
+            return res.status(400).json({ error: 'يجب إرسال قائمة بالمعرفات للحذف.' });
+        }
+
+        let deletedCount = 0;
+        let notFoundCount = 0;
+
+        for (const id of ids) {
+            const deleted = await db.deleteOne('stocktransactions', { _id: id });
+            if (deleted) deletedCount += 1;
+            else notFoundCount += 1;
+        }
+
+        res.json({
+            message: `تم حذف ${deletedCount} حركة بنجاح.`,
+            deletedCount,
+            notFoundCount
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE: Remove a Stock Transaction by ID (حذف مباشر — استخدم /reverse للإلغاء الآمن)
 router.delete('/:id', auth, async (req, res) => {
     try {
         const deleted = await db.deleteOne('stocktransactions', { _id: req.params.id });

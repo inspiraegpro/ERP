@@ -73,23 +73,26 @@ const routes = {
     '/api/accounts': './Routes/accountRoutes',
     '/api/purchases': './Routes/purchaseRoutes',
     '/api/sales': './Routes/salesRoutes',
-    '/api/hr': './Routes/hrRoutes',
+    '/api/hr': './Routes/hrRoutes',           // تأكد أن هذا الملف يحتوي على POST/PUT/DELETE
     '/api/treasury': './Routes/treasuryRoutes',
+    '/api/financial-settings': './Routes/financialSettingsRoutes', // New: Financial Settings Route
     '/api/cars': './Routes/carRoutes',
     '/api/reports': './Routes/reportRoutes',
     '/api/service-jobs': './Routes/serviceJobRoutes',
     '/api/inventory': './Routes/inventoryRoutes',
     '/api/journal': './Routes/journalRoutes',
-    '/api/pricing': './Routes/pricingRoutes'
+    '/api/pricing': './Routes/pricingRoutes',
+    '/api/agents': './Routes/agentRoutes',      // ← وكلاء البيع
+    '/api/data': './Routes/dataRoutes',         // ← استيراد وتصدير الإكسيل
+    '/api/payment': './Routes/paymentRoutes',
+    '/api/import-shipments': './Routes/importRoutes',
+    '/api/accounting-mappings': './Routes/accountingMappingRoutes'
 };
 
 Object.entries(routes).forEach(([path, file]) => useRoute(path, file));
 
 // Admin / System Routes
 useRoute('/api/admin', './Routes/adminRoutes');
-
-// Pricing Routes
-app.use('/api/pricing', require('./Routes/pricingRoutes'));
 
 // API 404 Handler - MUST be before static middleware
 app.use('/api', (req, res, next) => {

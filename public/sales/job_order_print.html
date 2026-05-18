@@ -58,10 +58,10 @@
         <div class="logo-area">WrapStyle Cairo – Empyrean Enterprises</div>
 
         <!-- Header Info -->
-        <div class="sec-title">PAYMENT RECEIPT</div>
+        <div class="sec-title">JOB ORDER</div>
         
         <div class="row">
-            <div class="label">Receipt Number</div>
+            <div class="label">Job Order Number</div>
             <div class="val" id="invNum" style="font-weight:bold; font-size:16px"></div>
         </div>
         <div class="row">
@@ -103,11 +103,11 @@
 
         <!-- Financials -->
         <div class="row">
-            <div class="label">Date</div>
-            <div class="val" id="receiptDate"></div>
+            <div class="label">Order Date</div>
+            <div class="val" id="orderDate"></div>
         </div>
         <div class="row">
-            <div class="label">وكيل البيع</div>
+            <div class="label">Sales Person</div>
             <div class="val" id="salesPersonName">-</div>
         </div>
         <div class="row">
@@ -117,19 +117,19 @@
 
         <div class="money-row">
             <div class="money-lbl">Subtotal</div>
-            <div class="money-val" id="total">0.00</div>
+            <div class="money-val" id="subtotalVal">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">Discount</div>
+            <div class="money-val" id="discountVal">0.00</div>
         </div>
         <div class="money-row">
             <div class="money-lbl">VAT (14%)</div>
-            <div class="money-val" id="disc">0.00</div>
+            <div class="money-val" id="vatVal">0.00</div>
         </div>
         <div class="money-row">
-            <div class="money-lbl">Withholding Tax</div>
-            <div class="money-val" id="wht">0.00</div>
-        </div>
-        <div class="money-row">
-            <div class="money-lbl">Net Received</div>
-            <div class="money-val" id="net">0.00</div>
+            <div class="money-lbl">Total</div>
+            <div class="money-val" id="finalVal">0.00</div>
         </div>
 
         <!-- Remarks -->
@@ -168,7 +168,10 @@
         if(!id) return alert('No Invoice ID');
 
         try {
-            const res = await fetch(`${API}/sales/${id}`);
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API}/sales/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (!res.ok) throw new Error("فاتورة غير موجودة");
             const inv = await res.json();
 
@@ -176,7 +179,7 @@
             document.getElementById('date').innerText = new Date(inv.date).toLocaleDateString('en-GB');
             document.getElementById('custName').innerText = inv.customer?.name || inv.customerName || '-';
             document.getElementById('phone').innerText = inv.customer?.phone || '-';
-            document.getElementById('receiptDate').innerText = new Date(inv.date).toLocaleDateString('en-GB');
+            document.getElementById('orderDate').innerText = new Date(inv.date).toLocaleDateString('en-GB');
             document.getElementById('salesPersonName').innerText = inv.salesPerson?.name || inv.salesPerson || '-';
             document.getElementById('serviceTypeVal').innerText = inv.serviceType || '-';
             
@@ -186,27 +189,49 @@
             const year = inv.carModel?.year || '';
             document.getElementById('carInfo').innerText = `${brand} ${model} ${year}`.trim() || '-';
             
-            // Services
-            let html = '';
-            inv.items.forEach(item => {
-                const prodName = item.product?.name || item.partName || 'خدمة';
-                const price = item.price || 0;
-                html += `<div class="service-line"><span>${prodName}</span> <span>${parseFloat(price).toLocaleString()}</span></div>`;
+            // Group Services (Ignore part names and area, just sum up by product/service name)
+            const servicesMap = {};
+            (inv.items || []).forEach(item => {
+                let serviceName = item.product?.name || item.productName;
+                if (!serviceName && typeof item.product === 'string') {
+                    serviceName = item.product;
+                }
+                serviceName = serviceName || item.materialCategory || inv.serviceType || 'General Service';
+                
+                if (serviceName.toLowerCase() === 'window_film') serviceName = 'Window Film';
+                if (serviceName.toLowerCase() === 'ppf') serviceName = 'PPF Paint Protection';
+                
+                const price = parseFloat(item.price || item.total || item.lineTotal) || 0;
+                
+                if (!servicesMap[serviceName]) {
+                    servicesMap[serviceName] = 0;
+                }
+                servicesMap[serviceName] += price;
             });
-            document.getElementById('servicesList').innerHTML = html;
+
+            let html = '';
+            for (const [name, val] of Object.entries(servicesMap)) {
+                html += `<div class="service-line"><span>${name}</span> <span>${val.toLocaleString('en-GB', {minimumFractionDigits: 2})} EGP</span></div>`;
+            }
+            
+            const extra = parseFloat(inv.totalExtraCosts) || 0;
+            if (extra > 0) {
+                html += `<div class="service-line"><span>Additional Services / Extra Costs</span> <span>${extra.toLocaleString('en-GB', {minimumFractionDigits: 2})} EGP</span></div>`;
+            }
+            
+            document.getElementById('servicesList').innerHTML = html || '<div class="service-line"><span>No services recorded</span><span>0.00 EGP</span></div>';
 
             // Financials
             const sub = parseFloat(inv.subtotal) || 0;
-            const extra = parseFloat(inv.totalExtraCosts) || 0;
             const gross = sub + extra;
+            const discount = parseFloat(inv.totalDiscount || inv.discount) || 0;
             const vat = parseFloat(inv.totalTax) || 0;
-            const wht = parseFloat(inv.whtAmount) || 0;
             const final = parseFloat(inv.finalTotal) || 0;
 
-            document.getElementById('total').innerText = gross.toLocaleString();
-            document.getElementById('disc').innerText = vat.toLocaleString();
-            document.getElementById('wht').innerText = wht.toLocaleString();
-            document.getElementById('net').innerText = final.toLocaleString();
+            document.getElementById('subtotalVal').innerText = gross.toLocaleString('en-GB', {minimumFractionDigits: 2});
+            document.getElementById('discountVal').innerText = discount.toLocaleString('en-GB', {minimumFractionDigits: 2});
+            document.getElementById('vatVal').innerText = vat.toLocaleString('en-GB', {minimumFractionDigits: 2});
+            document.getElementById('finalVal').innerText = final.toLocaleString('en-GB', {minimumFractionDigits: 2});
 
         } catch(e) { 
             alert('خطأ في تحميل الفاتورة: ' + e.message); 
@@ -216,4 +241,3 @@
     <script src="/global-navigation.js"></script>
 </body>
 </html>
-

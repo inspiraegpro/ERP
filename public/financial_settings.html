@@ -164,6 +164,22 @@
                 <select id="defaultSupplierAccountId" name="defaultSupplierAccountId"></select>
             </div>
             <div class="form-group">
+                <label>مشتريات محلية: حساب المخزون</label>
+                <select id="purchaseLocalInventoryAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>مشتريات محلية: حساب المورد</label>
+                <select id="purchaseLocalSupplierAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>مشتريات مستوردة: حساب البضاعة</label>
+                <select id="purchaseImportedInventoryAccountId"></select>
+            </div>
+            <div class="form-group">
+                <label>مشتريات مستوردة: حساب المورد الخارجي</label>
+                <select id="purchaseImportedSupplierAccountId"></select>
+            </div>
+            <div class="form-group">
                 <label>حساب ضريبة خصم المنبع</label>
                 <select id="defaultWhtAccountId" name="defaultWhtAccountId"></select>
             </div>
@@ -192,6 +208,7 @@
         <div id="toast" class="toast"></div>
     </div>
 
+    <script src="/common-functions.js"></script>
     <script>
         const toast = document.getElementById('toast');
         
@@ -202,10 +219,35 @@
             setTimeout(() => { toast.style.display = 'none'; }, 3000);
         }
 
+        function setSelectValue(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.value = value || '';
+        }
+
+        function buildPayloadFromForm(form) {
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            data.journalMappings = {
+                purchase: {
+                    local: {
+                        inventoryAccountId: document.getElementById('purchaseLocalInventoryAccountId').value || '',
+                        supplierAccountId: document.getElementById('purchaseLocalSupplierAccountId').value || ''
+                    },
+                    imported: {
+                        inventoryAccountId: document.getElementById('purchaseImportedInventoryAccountId').value || '',
+                        supplierAccountId: document.getElementById('purchaseImportedSupplierAccountId').value || ''
+                    }
+                }
+            };
+
+            return data;
+        }
+
         async function init() {
             try {
                 // Fetch Accounts
-                const accRes = await fetch('/api/accounts');
+                const accRes = await fetch('/api/accounts', { headers: Auth.getHeaders() });
                 const accounts = await accRes.json();
                 
                 const selects = document.querySelectorAll('select');
@@ -220,13 +262,19 @@
                 });
 
                 // Fetch Current Settings
-                const setRes = await fetch('/api/financial-settings');
+                const setRes = await fetch('/api/financial-settings', {
+                    headers: Auth.getHeaders()
+                });
                 const settings = await setRes.json();
                 if (settings) {
                     Object.keys(settings).forEach(key => {
                         const el = document.getElementById(key);
                         if (el) el.value = settings[key];
                     });
+                    setSelectValue('purchaseLocalInventoryAccountId', settings.journalMappings?.purchase?.local?.inventoryAccountId || settings.defaultInventoryAccountId);
+                    setSelectValue('purchaseLocalSupplierAccountId', settings.journalMappings?.purchase?.local?.supplierAccountId || settings.defaultSupplierAccountId);
+                    setSelectValue('purchaseImportedInventoryAccountId', settings.journalMappings?.purchase?.imported?.inventoryAccountId || settings.defaultInventoryAccountId);
+                    setSelectValue('purchaseImportedSupplierAccountId', settings.journalMappings?.purchase?.imported?.supplierAccountId || settings.defaultSupplierAccountId);
                 }
             } catch (err) {
                 showToast('فشل في تحميل البيانات', 'error');
@@ -235,8 +283,7 @@
 
         document.getElementById('settingsForm').onsubmit = async (e) => {
             e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
+            const data = buildPayloadFromForm(e.target);
             
             const btn = e.target.querySelector('button');
             btn.disabled = true;
@@ -245,7 +292,7 @@
             try {
                 const res = await fetch('/api/financial-settings', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: Auth.getHeaders(true),
                     body: JSON.stringify(data)
                 });
                 const result = await res.json();

@@ -66,9 +66,8 @@
         <thead>
             <tr>
                 <th width="40%">?????? (?????)</th>
-                <th width="25%">???? ??????? (???????)</th>
-                <th width="15%">??????</th>
-                <th width="15%">??????? ?????</th>
+                <th width="30%">??????</th>
+                <th width="25%">??????? ?????</th>
                 <th width="5%" class="no-print">x</th>
             </tr>
         </thead>
@@ -94,9 +93,9 @@
     <button class="btn btn-save no-print" onclick="saveInvoice()">? ??? ???????</button>
 </div>
 
+<script src="/common-functions.js"></script>
 <script>
     const API = '/api';
-    let accounts = [];
     let editingId = null;
 
     window.onload = async () => {
@@ -114,13 +113,11 @@
 
     async function loadData() {
         try {
-            const [sRes, aRes, fsRes] = await Promise.all([
-                fetch(`${API}/suppliers`),
-                fetch(`${API}/accounts`),
-                fetch(`${API}/financial-settings`)
+            const [sRes, fsRes] = await Promise.all([
+                fetch(`${API}/suppliers`, { headers: Auth.getHeaders() }),
+                fetch(`${API}/financial-settings`, { headers: Auth.getHeaders() })
             ]);
             const suppliers = await sRes.json();
-            accounts = await aRes.json();
             window.financialSettings = await fsRes.json() || {};
 
             const supSel = document.getElementById('supplier');
@@ -147,7 +144,6 @@
                 inv.items.forEach(item => {
                     addEmptyRow({
                         desc: item.itemName,
-                        acc: item.expenseAccount,
                         amount: item.cost
                     });
                 });
@@ -166,19 +162,9 @@
     function addEmptyRow(d = {}) { 
         const tbody = document.querySelector('tbody');
         const tr = document.createElement('tr');
-        
-        let accOpts = '<option value="">-- ???? ?????? --</option>';
-        // Filter Expense Accounts (usually start with 5) or Assets (1)
-        const expAccs = accounts.filter(a => a.isTransactional && (a.code.startsWith('5') || a.code.startsWith('1')));
-        
-        expAccs.forEach(a => {
-            const selected = (d.acc === a._id) ? 'selected' : '';
-            accOpts += `<option value="${a._id}" ${selected}>${a.code} - ${a.name}</option>`;
-        });
 
         tr.innerHTML = `
             <td><input class="desc" value="${d.desc||''}" placeholder="????: ?????? ?????? ????? ??????"></td>
-            <td><select class="acc">${accOpts}</select></td>
             <td><input type="number" class="amount" value="${d.amount||0}" oninput="calcTotal()"></td>
             <td><input class="note" placeholder="..."></td>
             <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
@@ -201,13 +187,11 @@
         
         for(const tr of rows) {
             const desc = tr.querySelector('.desc').value;
-            const acc = tr.querySelector('.acc').value;
             const amount = parseFloat(tr.querySelector('.amount').value)||0;
             
-            if(desc && amount > 0 && acc) {
+            if(desc && amount > 0) {
                 items.push({
                     itemName: desc,
-                    expenseAccount: acc,
                     quantity: 1,
                     cost: amount,
                     lineTotal: amount
@@ -223,7 +207,6 @@
             invoiceNumber: document.getElementById('invNum').value || 'GEN-' + Date.now(),
             date: document.getElementById('date').value,
             supplier: supplier,
-            accSupplier: window.financialSettings?.defaultSupplierAccountId || null,
             items: items,
             subtotal: parseFloat(document.getElementById('subtotal').innerText),
             totalTax: parseFloat(document.getElementById('taxVal').value)||0,
@@ -237,7 +220,7 @@
             
             const res = await fetch(url, { 
                 method: method, 
-                headers: {'Content-Type':'application/json'}, 
+                headers: Auth.getHeaders(true), 
                 body: JSON.stringify(data) 
             });
             if(res.ok) { 

@@ -151,6 +151,10 @@
 
 <script>
     const API = '/api';
+    function safeGetToken() {
+        if (typeof getToken === 'function') return getToken();
+        return localStorage.getItem('token') || '';
+    }
     
     // البيانات الحقيقية من API
     let allJobs = [];
@@ -160,13 +164,13 @@
     function authHeaders(includeJson = false) {
         const headers = {};
         if (includeJson) headers['Content-Type'] = 'application/json';
-        const token = localStorage.getItem('token');
+        const token = safeGetToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
     }
     
     function checkAuth() {
-        const token = localStorage.getItem('token');
+        const token = safeGetToken();
         if (!token) {
             showMessage('❌ يرجى تسجيل الدخول أولاً', 'error');
             setTimeout(() => window.location.href = '/login.html', 2000);
@@ -321,42 +325,41 @@
             const item = items[idx];
             try {
                 const partName = item.partName || item.description || item.productName || ('بند ' + (idx+1));
-                // Skip empty items
-                if (!partName || partName === '-' || partName === '') {
-                    continue;
-                }
+                if (!partName || partName === '-' || partName === '') continue;
                 validRowCount++;
-                // Extract category from partName (e.g., "Window Film - درجة 1" -> "Window Film")
+
                 const extractedCat = partName.split('-')[0].trim();
                 const category = extractedCat || item.materialCategory || item.category || item.serviceType || '-';
-                // Check if item has dimensions or is quantity-based
+
                 const hasDimensions = item.lengthCM || item.widthCM || item.area;
                 const length = hasDimensions ? Number(item.lengthCM || 0).toFixed(1) : '-';
-                const width = hasDimensions ? Number(item.widthCM || 0).toFixed(1) : '-';
-                const area = hasDimensions ? Number(item.area || 0).toFixed(2) : (item.quantity || '-');
-                // Debug product data
-                console.log(`Item ${idx} product data:`, {
-                    product: item.product,
-                    productData: item.productData,
-                    productName: item.productName
-                });
-                
-                // Try to get product name from multiple sources
+                const width  = hasDimensions ? Number(item.widthCM  || 0).toFixed(1) : '-';
+                const area   = hasDimensions ? Number(item.area     || 0).toFixed(2) : (item.quantity || '-');
+
+                // اسم الصنف المخزني
                 let productName = '-';
                 if (item.productData && item.productData.name) {
                     productName = item.productData.name;
                 } else if (item.productName) {
                     productName = item.productName;
                 } else if (item.product) {
-                    // Find product from global products array
                     const product = products.find(p => String(p._id) === String(item.product));
-                    if (product) {
-                        productName = product.name;
-                    }
+                    if (product) productName = product.name;
                 }
-                const techName = item.assignedTechnicianId ? getTechnicianName(item.assignedTechnicianId) : (item.technicianName || (job.technicianAssignments && job.technicianAssignments.length > 0 ? getTechnicianName(job.technicianAssignments[0].technicianId) : '-'));
-                const rating = item.rating ? (item.rating + '/10') : '-';
-                
+
+                // اسم الفني — من كل المصادر
+                const techName = resolveTechName(item, job);
+
+                // حالة الصرف
+                const issueStatus = item.issueStatus === 'Issued'
+                    ? '<span style="color:#059669;font-weight:bold;">✅ صُرف</span>'
+                    : '<span style="color:#d97706;">⏳ معلق</span>';
+
+                // التقييم — يظهر دائماً (قيمة أو -)
+                const rating = (item.rating !== undefined && item.rating !== null)
+                    ? `<span style="color:#4f46e5;font-weight:bold;">${item.rating}/10</span>`
+                    : '-';
+
                 rows += `<tr>
                     <td>${partName}</td>
                     <td>${category}</td>
@@ -365,11 +368,12 @@
                     <td>${area}</td>
                     <td>${productName}</td>
                     <td>${techName}</td>
+                    <td>${issueStatus}</td>
                     <td>${rating}</td>
                 </tr>`;
             } catch (e) {
                 console.error('Error rendering item', idx, e);
-                rows += `<tr><td colspan="8" style="color:red;">خطأ في عرض البند ${idx+1}</td></tr>`;
+                rows += `<tr><td colspan="9" style="color:red;">خطأ في عرض البند ${idx+1}</td></tr>`;
             }
         }
         
@@ -387,6 +391,7 @@
                     <th>المساحة (م²)</th>
                     <th>الصنف المخزني</th>
                     <th>الفني المسند</th>
+                    <th>حالة الصرف</th>
                     <th>التقييم</th>
                 </tr>
             </thead>
@@ -405,8 +410,32 @@
     }
     
     function getTechnicianName(id) {
-        const tech = technicians.find(t => t._id === id);
-        return tech ? tech.name : '-';
+        if (!id || id === 'null' || id === 'undefined') return '-';
+        const tech = technicians.find(t => String(t._id) === String(id));
+        return tech ? tech.name : `(${String(id).slice(0,8)}...)`;
+    }
+
+    // استخراج اسم الفني من كل المصادر المتاحة في الـ item والـ job
+    function resolveTechName(item, job) {
+        // 1. من الـ item مباشرة
+        if (item.assignedTechnicianId && item.assignedTechnicianId !== 'null') {
+            const name = getTechnicianName(item.assignedTechnicianId);
+            if (name !== '-') return name;
+        }
+        // 2. اسم محفوظ في الـ item
+        if (item.technicianName) return item.technicianName;
+        // 3. من technicianAssignments على مستوى الـ Job
+        if (job.technicianAssignments && job.technicianAssignments.length > 0) {
+            const first = job.technicianAssignments[0];
+            if (first.technicianId && first.technicianId !== 'null') {
+                const name = getTechnicianName(first.technicianId);
+                if (name !== '-') return name;
+            }
+        }
+        // 4. technicianId على مستوى الـ Job (legacy)
+        if (job.technicianId) return getTechnicianName(job.technicianId);
+        if (job.technicianName) return job.technicianName;
+        return '-';
     }
     
     // فتح مودال تجهيز المهمة
@@ -534,45 +563,42 @@
     
     async function submitSetup() {
         const jobId = document.getElementById('setupJobId').value;
-        console.log('submitSetup called for job:', jobId);
-        
+
         const rows = document.querySelectorAll('#setupItemsList .rating-row');
         const itemsData = [];
         const requiredProducts = [];
         const technicianIds = new Set();
-        
+
         rows.forEach((row) => {
             const productSelect = row.querySelector('.product-select');
-            const techSelect = row.querySelector('.tech-select');
-            const productId = productSelect.value;
-            const techId = techSelect.value;
-            const itemIndex = parseInt(row.dataset.itemIndex) || 0;
-            
-            console.log(`Row ${itemIndex}: productId=${productId}, techId=${techId}`);
-            
+            const techSelect    = row.querySelector('.tech-select');
+            const productId     = productSelect.value.trim();
+            // ← نتأكد إن الـ techId مش فاضي أو "null" string
+            const rawTechId     = techSelect.value.trim();
+            const techId        = (rawTechId && rawTechId !== 'null') ? rawTechId : null;
+            const itemIndex     = parseInt(row.dataset.itemIndex) || 0;
+
             if (productId) {
                 itemsData.push({
-                    itemIndex: itemIndex,
-                    productId: productId,
-                    assignedTechnicianId: techId
+                    itemIndex,
+                    productId,
+                    assignedTechnicianId: techId   // null لو مفيش فني
                 });
                 requiredProducts.push({ productId, itemIndex });
                 if (techId) technicianIds.add(techId);
             }
         });
-        
+
         // Validation: Check if technician is selected
         if (technicianIds.size === 0) {
             showMessage('❌ يجب اختيار فني واحد على الأقل', 'error');
             return;
         }
-        
+
         const technicianAssignments = Array.from(technicianIds).map(techId => ({
             technicianId: techId,
             assignedAt: new Date().toISOString()
         }));
-        
-        console.log('Sending data:', { itemsData, requiredProducts, technicianAssignments });
         
         try {
             const res = await fetch(`${API}/service-jobs/${jobId}/ops-setup`, {
@@ -609,7 +635,7 @@
         container.innerHTML = `<input type="hidden" id="ratingJobId" value="${jobId}">`;
         
         (job.items || []).forEach((item, idx) => {
-            const techName = item.assignedTechnicianId ? getTechnicianName(item.assignedTechnicianId) : (item.technicianName || '-');
+            const techName = resolveTechName(item, job);   // ← استخدام الدالة الموحدة
             const div = document.createElement('div');
             div.className = 'rating-row';
             div.innerHTML = `
@@ -724,5 +750,7 @@
     // بدء التحميل من API
     loadJobs();
 </script>
+<script src="/common-functions.js"></script>
+<script src="/global-navigation.js"></script>
 </body>
 </html>

@@ -15,11 +15,13 @@ const SalesInvoice = require('../models/SalesInvoice');
 const Account = require('../models/Account');
 const StockTransaction = require('../models/StockTransaction');
 const Car = require('../models/Car'); 
-const Employee = require('../models/Employee');
-const Payroll = require('../models/Payroll');
 const TreasuryTransaction = require('../models/TreasuryTransaction');
 const JournalEntry = require('../models/JournalEntry');
 let ImportShipment; try { ImportShipment = require('../models/ImportShipment'); } catch(e){}
+
+// Local DB for migrated modules
+const FileDatabaseManager = require('../file_db_manager');
+const dbManager = new FileDatabaseManager();
 
 // Services
 const inventoryService = require('../services/inventoryService');
@@ -31,8 +33,8 @@ function getModel(type) {
     const models = {
         'products': Product, 'customers': Customer, 'suppliers': Supplier, 'accounts': Account,
         'purchase_invoices': PurchaseInvoice, 'general_purchases': PurchaseInvoice, 'sales_invoices': SalesInvoice,
-        'stock_transactions': StockTransaction, 'cars': Car, 'employees': Employee,
-        'payroll': Payroll, 'treasury': TreasuryTransaction, 'journal': JournalEntry
+        'stock_transactions': StockTransaction, 'cars': Car,
+        'treasury': TreasuryTransaction, 'journal': JournalEntry
     };
     return models[type];
 }
@@ -108,8 +110,10 @@ router.get('/export/:type', async (req, res) => {
         let data = [];
         
         // 1. Fetch Data
-        if(['customers', 'suppliers', 'employees'].includes(type)) {
+        if(['customers', 'suppliers'].includes(type)) {
             data = await Model.find(query);
+        } else if (type === 'employees') {
+            data = await dbManager.find('employees') || [];
         } else if (type === 'products') {
             data = await Model.find(query)
                 
@@ -546,7 +550,9 @@ router.post('/import/:type', upload.single('file'), async (req, res) => {
         const jsonData = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         const Model = getModel(type);
         
-        if (!Model) return res.status(400).json({ message: "Unknown Data Type" });
+        if (!Model && type !== 'employees' && type !== 'payroll') {
+            return res.status(400).json({ message: "Unknown Data Type" });
+        }
 
         // Resolve Accounts Map for Master Data
         const allAccounts = await Account.find();
@@ -1248,10 +1254,31 @@ router.post('/import/:type', upload.single('file'), async (req, res) => {
         // B. Master Data (Simple Insert)
         // --------------------------------------------------------
         else {
-            if (wipeData) await Model.deleteMany({});
+            if (wipeData && Model) await Model.deleteMany({});
             
             for (const row of jsonData) {
                 try {
+                    if (type === 'employees') {
+                        const empData = {
+                            code: row.code || row.Code || row['كود الموظف'] || `EMP-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+                            name: row.name || row.Name || row['اسم الموظف'] || row.employeeName || 'بدون اسم',
+                            department: row.department || row.Department || row['القسم'] || '',
+                            jobTitle: row.jobTitle || row.JobTitle || row['المسمى الوظيفي'] || '',
+                            basicSalary: parseNumber(row.basicSalary || row.BasicSalary || row['الراتب الأساسي']),
+                            variableSalary: parseNumber(row.variableSalary || row.VariableSalary || row['الراتب المتغير']),
+                            status: row.status || row.Status || row['الحالة'] || 'Active',
+                            hireDate: row.hireDate ? parseExcelDate(row.hireDate).toISOString() : new Date().toISOString()
+                        };
+                        const existing = await dbManager.findOne('employees', { code: empData.code });
+                        if (existing) {
+                            await dbManager.updateOne('employees', { _id: existing._id }, empData);
+                        } else {
+                            await dbManager.create('employees', empData);
+                        }
+                        successCount++;
+                        continue;
+                    }
+
                     const d = { ...row };
                     
                     // Handle Account Mapping (Strict Check with multiple column names)

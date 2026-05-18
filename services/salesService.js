@@ -4,8 +4,7 @@ const Car = require('../models/Car');
 const ServiceJob = require('../models/ServiceJob');
 const Product = require('../models/Product');
 const FileDatabaseManager = require('../file_db_manager');
-const { createGlEntry } = require('./glService');
-const glLogic = require('./glLogic');
+const journalService = require('./journalService');
 
 const db = new FileDatabaseManager();
 
@@ -23,33 +22,61 @@ async function generateInvoiceNumber() {
     }
 }
 
-async function createSalesInvoice(data) {
-    const totalWithVat = toNumber(data.totalAmount);
+async function createSalesInvoice(data, user) {
+    // الـ frontend بيبعت finalTotal — نقبل الاثنين ونأخذ الأكبر
+    const totalWithVat = toNumber(data.finalTotal || data.totalAmount);
     const vatRate = 0.14;
-    const netAmount = Number((totalWithVat / (1 + vatRate)).toFixed(2));
-    const vatAmount = Number((totalWithVat - netAmount).toFixed(2));
-    const agentCommission = data.agentCommission || (totalWithVat * 0.05);
+    const netAmount  = Number((totalWithVat / (1 + vatRate)).toFixed(2));
+    const vatAmount  = Number((totalWithVat - netAmount).toFixed(2));
+    const agentCommission = toNumber(data.agent_commission_value || data.agentCommission)
+                         || (totalWithVat * 0.05);
 
     const normalizedInvoice = {
-        invoiceNumber: data.invoiceNumber || await generateInvoiceNumber(),
-        customer: data.customer,
-        customerName: data.customerName || data.customer?.name,
-        carModel: data.carModel,
-        items: data.items || [],
-        totalAmount: totalWithVat,
-        vat: vatAmount,
-        discount: toNumber(data.discount),
-        finalAmount: totalWithVat,
-        paymentMethod: data.paymentMethod || 'Cash',
-        salesPersonId: data.salesPersonId,
+        invoiceNumber:   data.invoiceNumber || await generateInvoiceNumber(),
+        customer:        data.customer,
+        customerName:    data.customerName || data.customer?.name,
+        carModel:        data.carModel,
+        items:           data.items || [],
+        // ── حقول مالية مكتملة ──────────────────────────────────────
+        subtotal:        toNumber(data.subtotal),
+        totalExtraCosts: toNumber(data.totalExtraCosts),
+        totalDiscount:   toNumber(data.totalDiscount),
+        totalTax:        toNumber(data.vatAmount || data.totalTax),
+        whtAmount:       toNumber(data.whtAmount),
+        netAmount:       toNumber(data.netAmount),
+        totalAmount:     totalWithVat,   // إجمالي شامل الضريبة
+        vat:             vatAmount,
+        discount:        toNumber(data.totalDiscount || data.discount),
+        finalAmount:     totalWithVat,   // نفس totalAmount — للتوافق مع الكود القديم
+        finalTotal:      totalWithVat,   // الحقل الذي يستخدمه الـ frontend
+        // ────────────────────────────────────────────────────────────
+        paymentMethod:   data.paymentMethod || 'Cash',
+        salesPersonId:   data.salesPerson   || data.salesPersonId,
         salesPersonName: data.salesPersonName,
+        commissionRate:  toNumber(data.commissionRate),
+        commissionType:  data.commissionType  || 'percentage',
+        commissionValue: toNumber(data.commissionValue),
         agentCommission: agentCommission,
-        date: data.date || new Date().toISOString(),
-        status: 'active',
-        glStatus: 'pending',
-        glErrorMessage: null,
-        createdAt: new Date().toISOString()
+        serviceType:     data.serviceType || '',
+        vehicleType:     data.vehicleType  || '',
+        vehicleModel:    data.vehicleModel || '',
+        vehiclePlate:    data.vehiclePlate || '',
+        vehicleColor:    data.vehicleColor || '',
+        date:            data.date || new Date().toISOString(),
+        status:          'active',
+        glStatus:        'pending',
+        glErrorMessage:  null,
+        createdAt:       new Date().toISOString()
     };
+
+    await journalService.archiveBeforeMutation({
+        transactionType: 'SALES_INVOICE',
+        transactionCollection: 'salesinvoices',
+        referenceNumber: normalizedInvoice.invoiceNumber,
+        incomingPayload: normalizedInvoice,
+        user,
+        action: 'CREATE'
+    });
 
     const invoice = await SalesInvoice.create(normalizedInvoice);
     if (!invoice) throw new Error('Failed to create sales invoice');
@@ -57,8 +84,18 @@ async function createSalesInvoice(data) {
     let glStatus = 'synced';
     let glErrorMessage = null;
     try {
-        const glData = glLogic.generateSalesGl(invoice);
-        await createGlEntry(glData);
+        await journalService.syncSalesJournal({
+            ...invoice,
+            subtotal:        toNumber(data.subtotal),
+            totalExtraCosts: toNumber(data.totalExtraCosts),
+            totalDiscount:   toNumber(data.totalDiscount),
+            totalWithVat:    toNumber(data.finalTotal || data.totalAmount),
+            finalTotal:      toNumber(data.finalTotal || data.totalAmount),
+            vatAmount:       toNumber(data.vatAmount || data.totalTax),
+            netAmount:       toNumber(data.netAmount),
+            whtAmount:       toNumber(data.whtAmount),
+            customerName:    invoice.customerName || ''
+        }, user);
     } catch (glError) {
         glStatus = 'pending_manual_entry';
         glErrorMessage = glError.message;
@@ -101,36 +138,61 @@ async function createSalesInvoice(data) {
 
     // Hydrate invoice items with product data for service job
     const hydratedItems = await Promise.all((normalizedInvoice.items || []).map(async (item) => {
-        const productId = typeof item.product === 'object' ? item.product._id : item.product;
+        let productId = typeof item.product === 'object' ? item.product._id : item.product;
         let materialCategory = item.materialCategory || item.category || item.serviceType || '';
-        
-        // If product exists, get its category information
+
         if (productId) {
             try {
-                const product = await db.findOne('products', { _id: productId });
+                // أولاً: ابحث بالـ _id
+                let product = await db.findOne('products', { _id: productId });
+
+                // إذا مش لاقيه بالـ _id، ابحث بالـ slug أو الاسم (legacy data)
+                if (!product) {
+                    product = await db.findOne('products', { inventorySlug: productId });
+                }
+                if (!product) {
+                    product = await db.findOne('products', { code: productId });
+                }
+                if (!product) {
+                    // بحث بالاسم كـ fallback أخير
+                    const allProds = await db.find('products');
+                    product = allProds.find(p =>
+                        String(p.name || '').toLowerCase() === String(productId).toLowerCase()
+                    ) || null;
+                }
+
                 if (product) {
-                    materialCategory = materialCategory || product.category || product.type || product.serviceCategory || '';
+                    productId = product._id;   // ← استبدل الـ slug بالـ _id الحقيقي
+                    materialCategory = materialCategory
+                        || product.category
+                        || product.type
+                        || product.serviceCategory
+                        || '';
                 }
             } catch (error) {
-                console.error('Error fetching product for category in salesService:', error);
+                console.error('Error resolving product in salesService:', error);
             }
         }
-        
+
         return {
             ...item,
-            partName: item.partName || item.productName || item.description || '',
+            product:          productId,   // دائماً _id وليس slug
+            partName:         item.partName || item.productName || item.description || '',
             materialCategory,
-            lengthCM: item.lengthCM || item.length || 0,
-            widthCM: item.widthCM || item.width || 0,
-            area: item.area || 0,
-            issueStatus: 'Pending',
-            product: productId
+            lengthCM:         item.lengthCM || item.length || 0,
+            widthCM:          item.widthCM  || item.width  || 0,
+            area:             item.area     || 0,
+            issueStatus:      'Pending'
         };
     }));
 
+    // حدّث items في الفاتورة المحفوظة بالـ IDs الصحيحة
+    await SalesInvoice.updateOne({ _id: invoice._id }, { items: hydratedItems });
+
     // Create service job with proper structure
-    await ServiceJob.create({
+    const serviceJob = await ServiceJob.create({
         salesInvoiceId: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,   // رقم الفاتورة — المفتاح المشترك مع إذن الصرف
         jobOrder: invoice.invoiceNumber,
         date: normalizedInvoice.date,
         customer: normalizedInvoice.customer,
@@ -142,6 +204,16 @@ async function createSalesInvoice(data) {
         workflowStatus: 'AwaitingTechnician',
         items: hydratedItems
     });
+
+    // ربط الفاتورة بأمر التشغيل فور إنشائه
+    if (serviceJob && serviceJob._id) {
+        await SalesInvoice.updateOne(
+            { _id: invoice._id },
+            { serviceJobId: serviceJob._id }
+        );
+        // أضف serviceJobId للـ object المُرجَع حتى لا يحتاج المستدعي لإعادة جلبه
+        invoice.serviceJobId = serviceJob._id;
+    }
 
     if (normalizedInvoice.customer) {
         const customerId = typeof normalizedInvoice.customer === 'object' ? normalizedInvoice.customer._id : normalizedInvoice.customer;

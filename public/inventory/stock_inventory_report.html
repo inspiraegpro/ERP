@@ -116,7 +116,7 @@
         async function loadData() {
             try {
                 const response = await fetch(`${API}/inventory/report/detailed`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 if (!response.ok) throw new Error('فشل جلب البيانات');
                 rawData = await response.json();

@@ -238,7 +238,7 @@
             
             try {
                 if (type === 'pending_jobs') {
-                    const res = await fetch(`${API}/service-jobs`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+                    const res = await fetch(`${API}/service-jobs`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
                     const jobs = await res.json();
                     
                     const inTargetFlow = jobs.filter(job => ['AwaitingWarehouseIssue', 'IssuedToTechnician'].includes(job.workflowStatus));
@@ -256,7 +256,7 @@
                     }
                     
                     if(url) {
-                        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+                        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
                         currentReportData = await res.json();
                     }
                 }

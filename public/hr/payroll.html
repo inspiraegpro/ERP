@@ -79,15 +79,14 @@
         <span class="close" onclick="document.getElementById('postModal').style.display='none'">&times;</span>
         <h3 style="margin-top:0; color:#8b5cf6;">⚙️ ترحيل جزئي (للموظفين الظاهرين)</h3>
         <p>عدد الموظفين: <span id="countToPost" style="font-weight:bold; color:red">0</span></p>
-        <div class="form-group"><label>1. حساب الرواتب (المدين) *</label><select id="salaryAcc"></select></div>
-        <div class="form-group"><label>2. حساب الصرف (الدائن) *</label><select id="treasuryAcc"></select></div>
-        <div class="form-group"><label>3. حساب سلف شهرية (دائن)</label><select id="monthlyLoanAcc"><option value="">-- لا يوجد --</option></select></div>
-        <div class="form-group"><label>4. حساب سلف مستديمة (دائن)</label><select id="permLoanAcc"><option value="">-- لا يوجد --</option></select></div>
-        <div class="form-group"><label>5. حساب الجزاءات</label><select id="penaltiesAcc"><option value="">-- لا يوجد --</option></select></div>
+        <p style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; padding:10px; border-radius:8px;">
+            سيتم تحديد حسابات الرواتب والخزينة والسلف والجزاءات تلقائياً من `financial_settings.json`.
+        </p>
         <button class="btn" style="background:#10b981; width:100%; margin-top:10px;" onclick="confirmPartialPost()">✅ تأكيد الترحيل</button>
     </div>
 </div>
 
+<script src="/common-functions.js"></script>
 <script>
     const API = '/api/hr';
     const API_BASE = '/api';
@@ -96,10 +95,9 @@
     let currentPayrollId = null;
 
     window.onload = async () => {
-        await loadAccounts(); 
         const params = new URLSearchParams(window.location.search);
         const viewMonth = params.get('viewMonth');
-        const res = await fetch(`${API}/employees`);
+        const res = await fetch(`${API}/employees`, { headers: Auth.getHeaders() });
         const tempEmps = await res.json();
         const depts = [...new Set(tempEmps.map(e => e.department).filter(d => d))];
         const jobs = [...new Set(tempEmps.map(e => e.jobTitle).filter(j => j))];
@@ -110,35 +108,11 @@
         else { const now = new Date(); document.getElementById('month').value = now.toISOString().slice(0, 7); }
     };
 
-    async function loadAccounts() {
-        try {
-            const res = await fetch(`${API_BASE}/accounts`);
-            const accs = await res.json();
-            const sub = accs.filter(a => a.isTransactional);
-            const opts = '<option value="">-- اختر الحساب --</option>' + sub.map(a => `<option value="${a._id}">${a.name}</option>`).join('');
-            document.getElementById('salaryAcc').innerHTML = opts;
-            document.getElementById('treasuryAcc').innerHTML = opts;
-            document.getElementById('monthlyLoanAcc').innerHTML = opts;
-            document.getElementById('permLoanAcc').innerHTML = opts;
-            document.getElementById('penaltiesAcc').innerHTML = opts;
-            
-            const fsRes = await fetch(`${API_BASE}/financial-settings`);
-            if (fsRes.ok) {
-                const settings = await fsRes.json() || {};
-                if(settings.defaultSalariesExpenseAccountId) document.getElementById('salaryAcc').value = settings.defaultSalariesExpenseAccountId;
-                if(settings.defaultTreasuryAccountId) document.getElementById('treasuryAcc').value = settings.defaultTreasuryAccountId;
-                if(settings.defaultAdvancesAccountId) document.getElementById('monthlyLoanAcc').value = settings.defaultAdvancesAccountId;
-                if(settings.defaultAdvancesAccountId) document.getElementById('permLoanAcc').value = settings.defaultAdvancesAccountId;
-                if(settings.defaultRevenueAccountId) document.getElementById('penaltiesAcc').value = settings.defaultRevenueAccountId;
-            }
-        } catch(e) { console.error(e); }
-    }
-
     async function loadArchivedPayroll(month) {
         document.getElementById('archiveBanner').style.display = 'block';
         document.getElementById('archiveBanner').innerHTML = `👁️ أنت تشاهد أرشيف شهر ${month} <a href="/hr/payroll.html" style="margin-right:15px;color:red">العودة للصرف الجديد</a>`;
         document.getElementById('month').value = month;
-        const res = await fetch(`${API}/payroll?month=${month}`);
+        const res = await fetch(`${API}/payroll?month=${month}`, { headers: Auth.getHeaders() });
         const data = await res.json();
         if (data.length > 0) {
             currentPayrollId = data[0]._id; 
@@ -165,7 +139,7 @@
         if(!month) { alert('اختر شهر الصرف أولاً!'); return; }
         
         try {
-            const resDraft = await fetch(`${API}/payroll?month=${month}`);
+            const resDraft = await fetch(`${API}/payroll?month=${month}`, { headers: Auth.getHeaders() });
             const drafts = await resDraft.json();
 
             if (drafts.length > 0) {
@@ -176,7 +150,7 @@
                 applyFiltersLocal(); 
                 document.getElementById('grandTotal').innerText = drafts[0].totalAmount.toLocaleString();
             } else {
-                const resEmps = await fetch(`${API}/employees?activeOnly=true`);
+                const resEmps = await fetch(`${API}/employees?activeOnly=true`, { headers: Auth.getHeaders() });
                 allEmployees = await resEmps.json();
                 currentPayrollId = null;
                 currentPayrollDetails = allEmployees.map(emp => ({
@@ -278,7 +252,11 @@
         formData.append('month', month);
         if(!confirm('سيتم تحديث المتغيرات. متابعة؟')) return;
         try {
-            const res = await fetch(`${API}/payroll/import-variables`, { method: 'POST', body: formData });
+            const res = await fetch(`${API}/payroll/import-variables`, {
+                method: 'POST',
+                headers: Auth.getHeaders(),
+                body: formData
+            });
             const json = await res.json();
             if (res.ok) { alert(json.message); loadEmployees(); } 
             else alert('خطأ: ' + json.message);
@@ -294,7 +272,11 @@
         };
         if(!data.month) { alert('اختر الشهر'); return; }
         try {
-            const res = await fetch(`${API}/payroll`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+            const res = await fetch(`${API}/payroll`, {
+                method:'POST',
+                headers: Auth.getHeaders(true),
+                body:JSON.stringify(data)
+            });
             if(res.ok) { 
                 const saved = await res.json();
                 currentPayrollId = saved._id; 
@@ -323,21 +305,14 @@
              }
         });
 
-        const body = {
-            salaryAccountId: document.getElementById('salaryAcc').value,
-            treasuryAccountId: document.getElementById('treasuryAcc').value,
-            monthlyLoanAccountId: document.getElementById('monthlyLoanAcc').value || null,
-            permanentLoanAccountId: document.getElementById('permLoanAcc').value || null,
-            penaltiesAccountId: document.getElementById('penaltiesAcc').value || null,
-            selectedEmployeeIds: selectedIds 
-        };
+        const body = { selectedEmployeeIds: selectedIds };
 
         if(!confirm(`هل أنت متأكد من ترحيل ${selectedIds.length} موظف؟`)) return;
 
         try {
             const res = await fetch(`${API_BASE}/hr/payroll/${currentPayrollId}/post`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: Auth.getHeaders(true),
                 body: JSON.stringify(body)
             });
             const json = await res.json();

@@ -443,7 +443,7 @@
     let efficiencyChartInstance = null;
 
     function authHeaders() {
-        const token = localStorage.getItem('token') || '';
+        const token = getToken() || '';
         return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     }
 

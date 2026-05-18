@@ -158,6 +158,7 @@
                     <a href="/financial/treasury.html" class="quick-card"><div class="quick-icon">خز</div><div><strong>الخزينة</strong><span>تسجيل حركات الخزينة ومتابعة الأرصدة</span></div></a>
                     <a href="/service/cars.html" class="quick-card"><div class="quick-icon">سي</div><div><strong>السيارات والمقاسات</strong><span>إدارة الموديلات والأجزاء والمقاسات وربطها بالمبيعات</span></div></a>
                     <a href="/hr/hr.html" class="quick-card"><div class="quick-icon">HR</div><div><strong>الموارد البشرية</strong><span>الموظفون والرواتب والتحليلات المرتبطة بها</span></div></a>
+                    <a href="/hr/employees_list.html" class="quick-card"><div class="quick-icon">وظف</div><div><strong>دليل الموظفين</strong><span>قائمة الموظفين وإدارة الإجازات واستيرادهم</span></div></a>
                     <a href="/inventory/products.html" class="quick-card"><div class="quick-icon">صنف</div><div><strong>المنتجات</strong><span>إدارة الأصناف والبطاقات والبيانات الأساسية</span></div></a>
                     <a href="/sales/customers.html" class="quick-card"><div class="quick-icon">عمل</div><div><strong>العملاء</strong><span>متابعة العملاء والأرصدة والحسابات</span></div></a>
                     <a href="/purchases/suppliers.html" class="quick-card"><div class="quick-icon">ورد</div><div><strong>الموردون</strong><span>إدارة الموردين والأرصدة والربط مع المشتريات</span></div></a>
@@ -182,7 +183,7 @@
 
         function getCurrentUser() {
             try {
-                return JSON.parse(localStorage.getItem('user') || '{}');
+                return getUser();
             } catch {
                 return {};
             }

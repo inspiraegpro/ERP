@@ -5,7 +5,7 @@
 
     const user = (() => {
         try {
-            return JSON.parse(localStorage.getItem("user") || "{}");
+            return getUser();
         } catch (error) {
             return {};
         }
@@ -73,11 +73,12 @@
         {
             label: "الموارد البشرية",
             children: [
-                { href: "/hr/hr.html", label: "الموظفين" },
-                { href: "/hr/employees_list.html", label: "قائمة الموظفين" },
-                { href: "/hr/payroll.html", label: "الرواتب" },
+                { href: "/hr/hr.html", label: "الرئيسية (HR)" },
+                { href: "/hr/employees_list.html", label: "دليل الموظفين" },
+                { href: "/hr/payroll.html", label: "صرف الرواتب" },
                 { href: "/hr/payroll_management.html", label: "إدارة الرواتب" },
-                { href: "/hr/technicians.html", label: "الفنيين" }
+                { href: "/hr/technicians.html", label: "سجل الفنيين" },
+                { href: "/hr/tech_performance.html", label: "أداء الفنيين" }
             ]
         }
     ];
@@ -312,8 +313,12 @@
     document.body.insertBefore(shell, document.body.firstChild);
 
     shell.querySelector(".global-nav-logout").addEventListener("click", function () {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login.html";
+        if (typeof logoutUser === 'function') {
+            logoutUser();
+        } else {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = "/login.html";
+        }
     });
 })();

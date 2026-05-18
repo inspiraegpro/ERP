@@ -70,7 +70,7 @@
     </div>
 
     <script>
-        const token = localStorage.getItem('token') || '';
+        const token = getToken() || '';
         const params = new URLSearchParams(window.location.search);
         const barcode = params.get('barcode') || '';
 

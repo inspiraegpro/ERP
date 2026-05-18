@@ -90,7 +90,6 @@
             </div>
             <div class="f"><label for="invNum">رقم الفاتورة</label><input id="invNum" placeholder="رقم فاتورة المورد"></div>
             <div class="f"><label for="date">التاريخ</label><input type="date" id="date"></div>
-            <div class="f"><label for="supplier">المورد</label><select id="supplier"><option value="">اختر المورد</option></select></div>
             <div class="f" style="position:relative">
                 <label for="supplier">المورد</label>
                 <div style="display:flex;align-items:center;gap:8px;">
@@ -134,7 +133,7 @@
                 try {
                     const res = await fetch(`${API}/suppliers`, {
                         method: 'POST',
-                        headers: authHeaders(true),
+                        headers: Auth.getHeaders(true),
                         body: JSON.stringify({ name })
                     });
                     if (!res.ok) throw new Error('فشل إضافة المورد.');
@@ -175,14 +174,11 @@
     <section class="card no-print">
         <div class="head">
             <div>
-                <h2>التوجيه المحاسبي</h2>
-                <p>نفس الحسابات الحالية المستخدمة في الـ backend.</p>
+                <h2>معالجة التكاليف</h2>
+                <p>الواجهة ترسل بيانات الفاتورة فقط، بينما يتم تحديد الحسابات آليًا داخل المحرك المحاسبي المركزي.</p>
             </div>
         </div>
         <div class="grid">
-            <div class="f"><label for="accInventory">حساب المخزن</label><select id="accInventory"></select></div>
-            <div class="f"><label for="accSupplier">حساب المورد</label><select id="accSupplier"></select></div>
-            <div class="f"><label for="accVat">حساب الضريبة</label><select id="accVat"></select></div>
             <div class="f"><label for="landedMode">معالجة التكاليف الإضافية</label><select id="landedMode"><option value="none">بدون تحميل تلقائي</option><option value="allocate">تحميل على البنود</option></select></div>
         </div>
     </section>
@@ -240,20 +236,13 @@
     </section>
 </div>
 
+<script src="/common-functions.js"></script>
 <script>
 const API = '/api';
-const token = localStorage.getItem('token') || '';
 let products = [];
 let productsMap = {};
 let importShipments = [];
 let shipmentById = {};
-
-function authHeaders(includeJson = false) {
-    const headers = {};
-    if (includeJson) headers['Content-Type'] = 'application/json';
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return headers;
-}
 
 function msg(text, kind = 'info') {
     const box = document.getElementById('messageBox');
@@ -302,16 +291,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadData() {
     try {
-        const [pRes, sRes, aRes, shRes] = await Promise.all([
-            fetch(`${API}/products`),
-            fetch(`${API}/suppliers`),
-            fetch(`${API}/accounts`),
-            fetch(`${API}/import-shipments`)
+        const [pRes, sRes, shRes] = await Promise.all([
+            fetch(`${API}/products`, { headers: Auth.getHeaders() }),
+            fetch(`${API}/suppliers`, { headers: Auth.getHeaders() }),
+            fetch(`${API}/import-shipments`, { headers: Auth.getHeaders() })
         ]);
 
         products = await pRes.json();
         const suppliers = await sRes.json();
-        const accounts = await aRes.json();
         importShipments = shRes.ok ? await shRes.json() : [];
 
         productsMap = {};
@@ -323,14 +310,6 @@ async function loadData() {
         supplierSelect.innerHTML = '<option value="">اختر المورد</option>';
         suppliers.forEach((supplier) => {
             supplierSelect.innerHTML += `<option value="${supplier._id}">${supplier.code ? supplier.code + ' - ' : ''}${supplier.name}</option>`;
-        });
-
-        ['accInventory', 'accSupplier', 'accVat'].forEach((id) => {
-            const select = document.getElementById(id);
-            select.innerHTML = '<option value="">اختر الحساب</option>';
-            accounts.filter((account) => account.isTransactional).forEach((account) => {
-                select.innerHTML += `<option value="${account._id}">${account.code} - ${account.name}</option>`;
-            });
         });
     } catch (error) {
         console.error(error);
@@ -556,8 +535,6 @@ async function saveInvoice() {
     clearMsg();
     const items = collectItems();
     const supplier = document.getElementById('supplier').value;
-    const accInventory = document.getElementById('accInventory').value;
-    const accSupplier = document.getElementById('accSupplier').value;
 
     if (!items.length) {
         msg('أضف صنفًا واحدًا على الأقل قبل الحفظ.', 'error');
@@ -565,10 +542,6 @@ async function saveInvoice() {
     }
     if (!supplier) {
         msg('اختر المورد أولًا.', 'error');
-        return;
-    }
-    if (!accInventory || !accSupplier) {
-        msg('يرجى اختيار حسابي المخزن والمورد قبل الحفظ.', 'error');
         return;
     }
 
@@ -583,9 +556,6 @@ async function saveInvoice() {
         supplier,
         referenceCode: document.getElementById('referenceCode').value.trim(),
         linkedShipmentId: document.getElementById('linkedShipmentId').value || undefined,
-        accInventory,
-        accSupplier,
-        accVat: document.getElementById('accVat').value,
         notes: document.getElementById('notes').value,
         landedMode: document.getElementById('landedMode').value,
         items,
@@ -600,7 +570,7 @@ async function saveInvoice() {
     try {
         const response = await fetch(url, {
             method,
-            headers: authHeaders(true),
+            headers: Auth.getHeaders(true),
             body: JSON.stringify(payload)
         });
         const result = await response.json();
@@ -615,7 +585,7 @@ async function saveInvoice() {
 
 async function loadForEdit(id) {
     try {
-        const response = await fetch(`${API}/purchases/${id}`);
+        const response = await fetch(`${API}/purchases/${id}`, { headers: Auth.getHeaders() });
         const invoice = await response.json();
 
         document.getElementById('editId').value = invoice._id;
@@ -628,9 +598,6 @@ async function loadForEdit(id) {
         document.getElementById('referenceCode').value = invoice.referenceCode || '';
         document.getElementById('linkedShipmentId').value = invoice.linkedShipmentId || '';
         document.getElementById('supplier').value = invoice.supplier?._id || invoice.supplier || '';
-        document.getElementById('accInventory').value = invoice.accInventory || '';
-        document.getElementById('accSupplier').value = invoice.accSupplier || '';
-        document.getElementById('accVat').value = invoice.accVat || '';
         document.getElementById('extraCost').value = Number(invoice.totalExtraCosts || 0);
         document.getElementById('taxVal').value = Number(invoice.totalTax || 0);
         document.getElementById('whtVal').value = Number(invoice.whtAmount || 0);

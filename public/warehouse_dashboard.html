@@ -118,7 +118,7 @@
 
     <script>
         const API = '/api';
-        const token = localStorage.getItem('token') || '';
+        const token = getToken() || '';
         let currentJob = null;
         let products = [];
         let technicians = [];

@@ -98,10 +98,15 @@ class FileDatabaseManager {
             const filePath = this.getCollectionPath(collection);
             const data = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8') || '[]') : [];
 
+            // لو الـ document جاي بـ _id فارغ أو null، نولّد ID جديد
+            const docId = (document._id !== undefined && document._id !== null && document._id !== '')
+                ? document._id
+                : this.generateId();
+
             const newDoc = {
-                _id: this.generateId(),
                 ...document,
-                createdAt: new Date().toISOString(),
+                _id: docId,          // ← الـ _id دايماً يكون صحيح
+                createdAt: document.createdAt || new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
 

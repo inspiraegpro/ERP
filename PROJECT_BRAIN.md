@@ -472,6 +472,22 @@ This file is the persistent technical memory for Wrapstyle ERP. It is meant to s
   - explicitly created to guarantee HR storage presence
 
 ## Recent Changes
+- 2026-05-12:
+  - Added sales invoice service-adjustment API in `Routes/salesRoutes.js`:
+    - `POST /api/sales/:id/service-adjustments`
+    - supports `mode=add|cancel` under same invoice number without deleting old history.
+    - stores immutable adjustment log in `serviceAdjustments` with ref/user/time.
+    - recalculates invoice totals after each adjustment.
+    - syncs linked `servicejobs` and re-syncs sales journal safely.
+  - Hardened partial warehouse issue flow in `Routes/serviceJobRoutes.js`:
+    - multiple issue rounds are now supported across days/weeks.
+    - tracks `issuedQuantity` per item.
+    - item status becomes `PartiallyIssued` or `Issued` based on remaining qty.
+    - job status stays `PENDING_WAREHOUSE` until all required quantities are fully issued, then moves to `IN_PROGRESS`.
+  - Added purchase remaining endpoint in `Routes/purchaseRoutes.js`:
+    - `GET /api/purchases/number/:ref/remaining`
+    - returns ordered/received/remaining quantities per item using actual inbound stock transactions.
+    - supports partial receipt scenarios (single item or lower quantity now, complete later).
 - 2026-04-28:
   - Hardened barcode persistence during stock receipt in `services/inventoryService.js`:
     - inbound rolls now store `barcode_id`, `barcodeId`, and `barcode` consistently.

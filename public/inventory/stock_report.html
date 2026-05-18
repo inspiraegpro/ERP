@@ -89,15 +89,15 @@
     </table>
 </div>
 
+<script src="/common-functions.js"></script>
 <script>
     const API = '/api';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const token = localStorage.getItem('token');
+    const user = getUser();
     const isAdmin = String(user.role || '').toLowerCase() === 'admin';
     const canEdit = true; // Allow edit button for all users on stock report
 
     function authHeaders() {
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return window.Auth ? window.Auth.getHeaders() : {};
     }
     let allTransactions = [];
     
@@ -180,18 +180,23 @@
         const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
         if (selected.length === 0) { alert('لم يتم تحديد أي حركة للحذف'); return; }
         
-        if (!confirm(`تحذير! ⚠️\n\nأنت على وشك حذف (${selected.length}) حركة مخزنية.\nسيتم عكس الكميات وإلغاء القيود.\n\nهل أنت متأكد؟`)) return;
+        if (!confirm(`تحذير! ⚠️\n\nأنت على وشك حذف (${selected.length}) حركة مخزنية.\nسيتم حذفها مباشرة من السجل.\n\nهل أنت متأكد؟`)) return;
 
-        let successCount = 0;
-        for (const id of selected) {
-            try {
-                const res = await fetch(`${API}/stock/${id}`, { method: 'DELETE', headers: authHeaders() });
-                if(res.ok) successCount++;
-            } catch(e) { console.error(e); }
+        try {
+            const res = await fetch(`${API}/stock/bulk-delete`, {
+                method: 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selected })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || json.message || 'خطأ في حذف الحركات');
+
+            alert(`✅ ${json.message}`);
+            location.reload();
+        } catch (e) {
+            console.error(e);
+            alert(e.message || 'فشل حذف الحركات.');
         }
-        
-        alert(`تم حذف ${successCount} من أصل ${selected.length} حركة بنجاح.`);
-        location.reload();
     }
 
     async function del(id, type) {

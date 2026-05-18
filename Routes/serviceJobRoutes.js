@@ -11,6 +11,17 @@ const FileDatabaseManager = require('../file_db_manager');
 const { authenticateToken } = require('../middleware/auth');
 const db = new FileDatabaseManager();
 
+const toNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+};
+
+const getItemRequiredQuantity = (item) => {
+    const area = toNumber(item?.area);
+    if (area > 0) return area;
+    return toNumber(item?.quantity);
+};
+
 function normalizeServiceJobStatus(value) {
     const text = String(value || '').trim().toUpperCase();
     if (!text) return 'PENDING_OPS';
@@ -383,12 +394,13 @@ router.post('/:id/warehouse-issue', authenticateToken, async (req, res) => {
 
         const outboundItems = [];
         const barcodeMeta = {};
+        const updatedItems = [...(job.items || [])];
 
         for (const row of rows) {
             const itemIndex = Number(row.itemIndex);
             const barcode = String(row.barcode || '').trim();
-            const requestedQty = Number(row.quantity || 0);
-            const jobItem = (job.items || [])[itemIndex];
+            const requestedQty = toNumber(row.quantity || 0);
+            const jobItem = updatedItems[itemIndex];
 
             if (!jobItem) {
                 return res.status(400).json({ message: `البند رقم ${itemIndex + 1} غير صالح.` });
@@ -402,9 +414,20 @@ router.post('/:id/warehouse-issue', authenticateToken, async (req, res) => {
                 return res.status(400).json({ message: `الباركود ${barcode} غير موجود بالمخزن.` });
             }
 
+            const requiredQty = getItemRequiredQuantity(jobItem);
+            const issuedBefore = toNumber(jobItem.issuedQuantity);
+            const remainingQty = Math.max(0, requiredQty - issuedBefore);
+            const issueNowQty = requestedQty > 0
+                ? Math.min(requestedQty, remainingQty)
+                : remainingQty;
+
+            if (issueNowQty <= 0) {
+                continue;
+            }
+
             const outboundItem = {
                 product: jobItem.product,
-                quantity: requestedQty > 0 ? requestedQty : Number(jobItem.area || 0),
+                quantity: issueNowQty,
                 rollCode: inventoryItem.type === 'roll' ? inventoryItem.code : undefined,
                 pieceCode: inventoryItem.type === 'piece' ? inventoryItem.code : undefined
             };
@@ -417,8 +440,24 @@ router.post('/:id/warehouse-issue', authenticateToken, async (req, res) => {
             barcodeMeta[itemIndex] = {
                 barcode,
                 inventoryCode: inventoryItem.code || barcode,
-                inventoryType: inventoryItem.type || ''
+                inventoryType: inventoryItem.type || '',
+                issuedNow: issueNowQty
             };
+
+            const newIssuedQty = issuedBefore + issueNowQty;
+            updatedItems[itemIndex] = {
+                ...jobItem,
+                issuedQuantity: Number(newIssuedQty.toFixed(2)),
+                issueStatus: newIssuedQty + 0.0001 >= requiredQty ? 'Issued' : 'PartiallyIssued',
+                issuedBarcode: barcode,
+                issuedInventoryCode: inventoryItem.code || barcode,
+                issuedInventoryType: inventoryItem.type || '',
+                issuedAt: new Date().toISOString()
+            };
+        }
+
+        if (!outboundItems.length) {
+            return res.status(400).json({ message: 'لا توجد كميات متبقية للصرف في البنود المحددة.' });
         }
 
         const warehouseId = req.body.warehouseId || job.warehouseId || 'default-warehouse';
@@ -439,16 +478,10 @@ router.post('/:id/warehouse-issue', authenticateToken, async (req, res) => {
             createdAt: new Date().toISOString()
         });
 
-        const updatedItems = (job.items || []).map((item, index) => {
-            if (!barcodeMeta[index]) return item;
-            return {
-                ...item,
-                issueStatus: 'Issued',
-                issuedBarcode: barcodeMeta[index].barcode,
-                issuedInventoryCode: barcodeMeta[index].inventoryCode,
-                issuedInventoryType: barcodeMeta[index].inventoryType,
-                issuedAt: new Date().toISOString()
-            };
+        const isFullyIssued = updatedItems.every((item) => {
+            const required = getItemRequiredQuantity(item);
+            if (required <= 0) return true;
+            return toNumber(item.issuedQuantity) + 0.0001 >= required;
         });
 
         const updated = await ServiceJob.updateOne(
@@ -456,8 +489,8 @@ router.post('/:id/warehouse-issue', authenticateToken, async (req, res) => {
             {
                 items: updatedItems,
                 warehouseIssuedAt: new Date().toISOString(),
-                status: 'IN_PROGRESS',
-                workflowStatus: 'IssuedToTechnician'
+                status: isFullyIssued ? 'IN_PROGRESS' : 'PENDING_WAREHOUSE',
+                workflowStatus: isFullyIssued ? 'IssuedToTechnician' : 'PENDING_WAREHOUSE'
             }
         );
 
@@ -623,6 +656,7 @@ router.post('/sync-missing-from-sales', authenticateToken, async (req, res) => {
             
             const newJob = await ServiceJob.create({
                 salesInvoiceId: inv._id,
+                invoiceNumber: inv.invoiceNumber,   // رقم الفاتورة — المفتاح المشترك مع إذن الصرف
                 jobOrder: inv.invoiceNumber,
                 date: inv.date,
                 customer: inv.customer,
@@ -657,28 +691,38 @@ router.post('/sync-missing-from-sales', authenticateToken, async (req, res) => {
 // =====================================
 router.put('/:id/ops-setup', authenticateToken, async (req, res) => {
     try {
-        console.log('ops-setup called for job:', req.params.id);
         const { itemsData, requiredProducts, technicianAssignments } = req.body;
-        console.log('itemsData received:', itemsData);
-        console.log('requiredProducts received:', requiredProducts);
-        console.log('technicianAssignments received:', technicianAssignments);
-        
+
         const job = await ServiceJob.findById(req.params.id);
         if (!job) {
             return res.status(404).json({ message: 'أمر التشغيل غير موجود.' });
         }
-        console.log('Job found:', job._id, 'items count:', job.items?.length);
 
-        // Update items with product and technician assignments
+        // بناء map للفنيين من الـ assignments المرسلة
+        const techMap = {};
+        for (const td of (itemsData || [])) {
+            if (td.assignedTechnicianId && td.assignedTechnicianId !== 'null') {
+                if (!techMap[td.assignedTechnicianId]) {
+                    // جلب اسم الفني من قاعدة البيانات
+                    try {
+                        const emp = await Employee.findById(td.assignedTechnicianId);
+                        techMap[td.assignedTechnicianId] = emp ? emp.name : '';
+                    } catch (_) { techMap[td.assignedTechnicianId] = ''; }
+                }
+            }
+        }
+
         const currentItems = job.items || [];
         const updatedItems = currentItems.map((item, index) => {
             const data = itemsData?.find(d => d.itemIndex === index);
             if (data) {
-                console.log(`Updating item ${index}: product=${data.productId}, technician=${data.assignedTechnicianId}`);
+                const techId   = data.assignedTechnicianId || item.assignedTechnicianId || null;
+                const techName = (techId && techId !== 'null') ? (techMap[techId] || item.technicianName || '') : (item.technicianName || '');
                 return {
                     ...item,
-                    product: data.productId || item.product,
-                    assignedTechnicianId: data.assignedTechnicianId || item.assignedTechnicianId
+                    product:              data.productId || item.product,
+                    assignedTechnicianId: techId,
+                    technicianName:       techName   // ← حفظ الاسم مباشرة في الـ item
                 };
             }
             return item;
@@ -687,14 +731,13 @@ router.put('/:id/ops-setup', authenticateToken, async (req, res) => {
         const updated = await ServiceJob.updateOne(
             { _id: req.params.id },
             {
-                items: updatedItems,
-                requiredProducts: requiredProducts || [],
+                items:                updatedItems,
+                requiredProducts:     requiredProducts     || [],
                 technicianAssignments: technicianAssignments || [],
-                status: 'PENDING_WAREHOUSE',
-                workflowStatus: 'PENDING_WAREHOUSE'
+                status:               'PENDING_WAREHOUSE',
+                workflowStatus:       'PENDING_WAREHOUSE'
             }
         );
-        console.log('Job updated successfully');
 
         res.json({ success: true, updated });
     } catch (error) {

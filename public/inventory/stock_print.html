@@ -56,7 +56,7 @@
 
 <script>
     const API = '/api';
-    const token = localStorage.getItem('token') || '';
+    const token = getToken() || '';
     function authHeaders() {
         return token ? { Authorization: `Bearer ${token}` } : {};
     }

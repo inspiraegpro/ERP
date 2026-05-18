@@ -56,11 +56,25 @@
 </div>
 <script>
     const API = '/api';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const token = localStorage.getItem('token');
+    function safeGetToken() {
+        if (typeof getToken === 'function') return getToken();
+        return localStorage.getItem('token') || '';
+    }
+
+    function safeGetUser() {
+        if (typeof getUser === 'function') return getUser() || {};
+        try {
+            return JSON.parse(localStorage.getItem('user') || '{}');
+        } catch {
+            return {};
+        }
+    }
+
+    const user = safeGetUser();
     const isAdmin = String(user.role || '').toLowerCase() === 'admin';
 
     function authHeaders() {
+        const token = safeGetToken();
         return token ? { Authorization: `Bearer ${token}` } : {};
     }
     
@@ -89,6 +103,9 @@
             const custId = i.customer?.accountId || '';
             const payLink = `/financial/treasury.html?invoiceId=${i._id}&invNum=${i.invoiceNumber}&amount=${i.finalTotal}&type=Inbound&custId=${custId}&custName=${custName}&carInfo=${carInfo}`;
             const cutLink = `/inventory/cutting_planner.html?invoiceId=${i._id}`;
+            // روابط الربط المباشر — رقم الفاتورة هو المفتاح المشترك
+            const jobLink      = `/service/service_jobs.html`;
+            const stockOutLink = `/inventory/stock_out.html?jobOrder=${encodeURIComponent(i.invoiceNumber)}`;
 
             return `
             <tr data-id="${i._id}">
@@ -106,6 +123,8 @@
                     ${isAdmin ? `<button class="btn btn-edit" onclick="location.href='/sales/sales_invoice.html?id=${i._id}'">✏️</button>` : ''}
                     <button class="btn" style="background:#8b5cf6; color:white;" onclick="location.href='/sales/sales_invoice_details.html?id=${i._id}'">👁️</button>
                     <button class="btn btn-print" onclick="printInvoice('${i._id}')">🖨️</button>
+                    <button class="btn" style="background:#0f766e; color:white;" title="أمر التشغيل" onclick="location.href='${jobLink}'">📋</button>
+                    <button class="btn" style="background:#b45309; color:white;" title="إذن الصرف - ${i.invoiceNumber}" onclick="location.href='${stockOutLink}'">📦</button>
                     ${isAdmin ? `<button class="btn btn-del" onclick="del('${i._id}')">🗑️</button>` : ''}
                 </td>
             </tr>
@@ -175,7 +194,7 @@
     }
 
     function printInvoice(id) {
-        alert('خاصية طباعة الفاتورة قيد التطوير، يمكنك استخدام زرار التعديل لرؤية التفاصيل وطباعتها من هناك.');
+        window.open('/sales/job_order_print.html?id=' + id, '_blank');
     }
 
     load();

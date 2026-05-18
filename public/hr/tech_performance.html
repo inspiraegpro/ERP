@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير إنتاجية الفنيين - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); --soft:#f5f7fb; }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:radial-gradient(circle at top left,rgba(185,137,24,.14),transparent 20rem),linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1380px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero,.card { border-radius:24px; box-shadow:0 18px 38px rgba(22,58,95,.08); }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; padding:2rem; margin-bottom:1.25rem; }
+        .hero h1 { margin:0 0 .7rem; }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.85; max-width:56rem; }
+        .card { background:var(--sf); border:1px solid var(--bd); padding:1.25rem; margin-bottom:1.25rem; }
+        .filters { display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-bottom:1.5rem; }
+        .filter-group { display:flex; flex-direction:column; gap:.5rem; }
+        .filter-group label { font-weight:700; color:var(--s); font-size:.85rem; }
+        .filter-group input, .filter-group select { padding:.75rem; border:1px solid rgba(82,98,119,.2); border-radius:12px; min-width:160px; }
+        .btn { border:none; border-radius:14px; padding:.85rem 1.2rem; font-weight:800; cursor:pointer; background:var(--a); color:#fff; }
+        .btn.success { background:var(--ok); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:1rem .8rem; border-bottom:1px solid var(--bd); font-size:.9rem; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
+        .summary-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .stat-card { background:var(--soft); border-radius:16px; padding:1rem; text-align:center; }
+        .stat-card .value { font-size:1.8rem; font-weight:800; color:var(--p); }
+        .stat-card .label { font-size:.85rem; color:var(--s); }
+        .rating-good { color:#10b981; font-weight:700; }
+        .rating-avg { color:#f59e0b; font-weight:700; }
+        .rating-bad { color:#ef4444; font-weight:700; }
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+        .modal.open { display:flex; }
+        .modal-content { background:#fff; border-radius:24px; width:90%; max-width:800px; max-height:80vh; overflow-y:auto; padding:1.5rem; }
+        .modal-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--bd); padding-bottom:1rem; margin-bottom:1rem; }
+        .close-btn { background:none; border:none; font-size:24px; cursor:pointer; }
+        .loading { text-align:center; padding:2rem; color:#738396; }
+        .empty-state { text-align:center; padding:2rem; color:#738396; }
+    </style>
+<base target="_blank">
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>📊 تقرير إنتاجية الفنيين</h1>
+        <p>تحليل أداء الفنيين بناءً على أوامر التشغيل المكتملة - عدد الجوبات، المساحة المنفذة، التقييمات، والإنتاجية.</p>
+    </section>
+
+    <section class="card">
+        <div class="filters">
+            <div class="filter-group">
+                <label>من تاريخ</label>
+                <input type="date" id="fromDate">
+            </div>
+            <div class="filter-group">
+                <label>إلى تاريخ</label>
+                <input type="date" id="toDate">
+            </div>
+            <div class="filter-group">
+                <label>الفني</label>
+                <select id="techFilter"><option value="">جميع الفنيين</option></select>
+            </div>
+            <div class="filter-group">
+                <button class="btn" onclick="loadReport()">🔍 عرض التقرير</button>
+            </div>
+            <div class="filter-group">
+                <button class="btn success" onclick="exportReport()">📥 تصدير Excel</button>
+            </div>
+        </div>
+
+        <div class="summary-stats" id="summaryStats">
+            <div class="stat-card"><div class="value" id="totalTechs">0</div><div class="label">عدد الفنيين</div></div>
+            <div class="stat-card"><div class="value" id="totalJobs">0</div><div class="label">إجمالي الجوبات</div></div>
+            <div class="stat-card"><div class="value" id="totalArea">0</div><div class="label">إجمالي المساحة (م²)</div></div>
+            <div class="stat-card"><div class="value" id="avgRating">0</div><div class="label">متوسط التقييم</div></div>
+            <div class="stat-card"><div class="value" id="totalParts">0</div><div class="label">إجمالي القطع/الباقات</div></div>
+            <div class="stat-card"><div class="value" id="totalItems">0</div><div class="label">إجمالي البنود</div></div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table id="reportTable">
+                <thead>
+                    <tr>
+                        <th>الفني</th>
+                        <th>الكود</th>
+                        <th>عدد الجوبات</th>
+                        <th>عدد البنود</th>
+                        <th>المساحة (م²)</th>
+                        <th>متوسط التقييم</th>
+                        <th>الإنتاجية (م²/جوب)</th>
+                        <th>التفاصيل</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody">
+                    <tr><td colspan="8" class="loading">⏳ اضغط "عرض التقرير" لتحميل البيانات</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<!-- Details Modal -->
+<div id="detailsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">تفاصيل أداء الفني</h3>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script src="/common-functions.js"></script>
+<script>
+    const API = '/api';
+    let currentReportData = [];
+    let allJobs = [];
+    let allTechnicians = [];
+
+    function getToken() {
+        return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    }
+
+    function authHeaders(includeJson = false) {
+        const headers = {};
+        if (includeJson) headers['Content-Type'] = 'application/json';
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Set default date range (last 30 days)
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 30);
+        document.getElementById('fromDate').value = fromDate.toISOString().split('T')[0];
+        document.getElementById('toDate').value = toDate.toISOString().split('T')[0];
+
+        await loadTechnicians();
+    });
+
+    async function loadTechnicians() {
+        try {
+            const res = await fetch(`${API}/hr/employees?activeOnly=true&technicianOnly=true`, { headers: authHeaders() });
+            allTechnicians = await res.json();
+            const select = document.getElementById('techFilter');
+            allTechnicians.forEach(tech => {
+                select.innerHTML += `<option value="${tech._id}">${tech.name} (${tech.code || 'بدون كود'})</option>`;
+            });
+        } catch (e) {
+            console.error('Error loading technicians:', e);
+        }
+    }
+
+    async function loadReport() {
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        const techId = document.getElementById('techFilter').value;
+
+        if (!from || !to) {
+            alert('يرجى تحديد فترة التقرير');
+            return;
+        }
+
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">⏳ جاري تحميل البيانات...</td></tr>';
+
+        try {
+            // 1. Get all COMPLETED service jobs in date range
+            const res = await fetch(`${API}/service-jobs`, { headers: authHeaders() });
+            allJobs = await res.json();
+
+            // Filter by status and date
+            const fromDate = new Date(from);
+            const toDate = new Date(to);
+            toDate.setHours(23, 59, 59);
+
+            const completedJobs = allJobs.filter(job => {
+                if (job.status !== 'COMPLETED') return false;
+                const jobDate = new Date(job.completionDate || job.updatedAt || job.createdAt);
+                return jobDate >= fromDate && jobDate <= toDate;
+            });
+
+            // 2. Aggregate data by technician from job items
+            const techMap = new Map();
+
+            completedJobs.forEach(job => {
+                const items = job.items || [];
+
+                items.forEach(item => {
+                    // Get technician info
+                    let techId = item.assignedTechnicianId;
+                    let techName = item.technicianName;
+
+                    // Fallback to job-level technician
+                    if (!techId && job.technicianId) {
+                        techId = job.technicianId;
+                        techName = job.technicianName;
+                    }
+
+                    // Fallback to technicianAssignments
+                    if (!techId && job.technicianAssignments && job.technicianAssignments.length > 0) {
+                        techId = job.technicianAssignments[0].technicianId;
+                    }
+
+                    if (!techId || techId === 'null') return;
+
+                    // Get technician details from our loaded list
+                    const tech = allTechnicians.find(t => String(t._id) === String(techId));
+                    const techCode = tech ? tech.code : '-';
+                    const finalTechName = tech ? tech.name : (techName || 'فني غير معروف');
+
+                    if (!techMap.has(techId)) {
+                        techMap.set(techId, {
+                            _id: techId,
+                            name: finalTechName,
+                            code: techCode,
+                            jobs: new Set(),
+                            items: [],
+                            totalArea: 0,
+                            totalRating: 0,
+                            ratedItems: 0
+                        });
+                    }
+
+                    const techData = techMap.get(techId);
+                    techData.jobs.add(job._id);
+                    techData.items.push({
+                        jobOrder: job.jobOrder || job.invoiceNumber || '-',
+                        carName: job.carName || '-',
+                        partName: item.partName || '-',
+                        area: Number(item.area || 0),
+                        rating: item.rating !== undefined && item.rating !== null ? Number(item.rating) : null,
+                        date: job.completionDate || job.updatedAt || job.createdAt
+                    });
+                    techData.totalArea += Number(item.area || 0);
+                    if (item.rating !== undefined && item.rating !== null) {
+                        techData.totalRating += Number(item.rating);
+                        techData.ratedItems++;
+                    }
+                });
+            });
+
+            // Convert to array and calculate metrics
+            currentReportData = Array.from(techMap.values()).map(tech => ({
+                ...tech,
+                jobCount: tech.jobs.size,
+                itemsCount: tech.items.length,
+                avgRating: tech.ratedItems > 0 ? (tech.totalRating / tech.ratedItems).toFixed(1) : '-',
+                productivity: tech.jobs.size > 0 ? (tech.totalArea / tech.jobs.size).toFixed(2) : 0
+            }));
+
+            // Filter by selected technician if any
+            if (techId) {
+                currentReportData = currentReportData.filter(t => String(t._id) === techId);
+            }
+
+            // Sort by job count (most active first)
+            currentReportData.sort((a, b) => b.jobCount - a.jobCount);
+
+            renderReport();
+            renderSummary();
+
+        } catch (e) {
+            console.error('Error loading report:', e);
+            document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:red;">❌ حدث خطأ في تحميل البيانات</td></tr>';
+        }
+    }
+
+    function renderReport() {
+        const tbody = document.getElementById('tbody');
+
+        if (currentReportData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">📭 لا توجد بيانات في الفترة المحددة</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = currentReportData.map(tech => {
+            let ratingClass = '';
+            const rating = parseFloat(tech.avgRating);
+            if (!isNaN(rating)) {
+                if (rating >= 8) ratingClass = 'rating-good';
+                else if (rating >= 6) ratingClass = 'rating-avg';
+                else ratingClass = 'rating-bad';
+            }
+
+            return `
+                <tr>
+                    <td style="font-weight:700">${tech.name}</td>
+                    <td>${tech.code}</td>
+                    <td>${tech.jobCount}</td>
+                    <td>${tech.itemsCount}</td>
+                    <td>${tech.totalArea.toFixed(2)}</td>
+                    <td class="${ratingClass}">${tech.avgRating !== '-' ? tech.avgRating + '/10' : '-'}</td>
+                    <td>${tech.productivity}</td>
+                    <td><button class="btn" style="padding:5px 10px; font-size:12px;" onclick="showDetails('${tech._id}')">📋 تفاصيل</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderSummary() {
+        const totalTechs = currentReportData.length;
+        const totalJobs = currentReportData.reduce((sum, t) => sum + t.jobCount, 0);
+        const totalArea = currentReportData.reduce((sum, t) => sum + t.totalArea, 0);
+        const totalItems = currentReportData.reduce((sum, t) => sum + t.itemsCount, 0);
+
+        // Calculate average rating only for technicians with ratings
+        const ratedTechs = currentReportData.filter(t => t.avgRating !== '-');
+        const avgRating = ratedTechs.length > 0 
+            ? (ratedTechs.reduce((sum, t) => sum + parseFloat(t.avgRating), 0) / ratedTechs.length).toFixed(1)
+            : '-';
+
+        document.getElementById('totalTechs').textContent = totalTechs;
+        document.getElementById('totalJobs').textContent = totalJobs;
+        document.getElementById('totalArea').textContent = totalArea.toFixed(2);
+        document.getElementById('avgRating').textContent = avgRating;
+        document.getElementById('totalParts').textContent = totalItems;
+        document.getElementById('totalItems').textContent = totalItems;
+    }
+
+    function showDetails(techId) {
+        const tech = currentReportData.find(t => String(t._id) === techId);
+        if (!tech || !tech.items || tech.items.length === 0) {
+            alert('لا توجد تفاصيل إضافية لهذا الفني في الفترة المحددة');
+            return;
+        }
+
+        const modal = document.getElementById('detailsModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+
+        modalTitle.textContent = `📋 تفاصيل أداء: ${tech.name}`;
+
+        modalBody.innerHTML = `
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:#eef2f7;">
+                        <th style="padding:8px;">رقم الجوب</th>
+                        <th style="padding:8px;">السيارة</th>
+                        <th style="padding:8px;">القطعة</th>
+                        <th style="padding:8px;">المساحة (م²)</th>
+                        <th style="padding:8px;">التقييم</th>
+                        <th style="padding:8px;">التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tech.items.map(item => `
+                        <tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:8px;">${item.jobOrder}</td>
+                            <td style="padding:8px;">${item.carName}</td>
+                            <td style="padding:8px;">${item.partName}</td>
+                            <td style="padding:8px;">${item.area.toFixed(2)}</td>
+                            <td style="padding:8px;">${item.rating !== null ? item.rating + '/10' : '-'}</td>
+                            <td style="padding:8px;">${new Date(item.date).toLocaleDateString('ar-EG')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+                <tfoot>
+                    <tr style="background:#eef2f7; font-weight:bold;">
+                        <td colspan="3" style="padding:8px;">الإجمالي</td>
+                        <td style="padding:8px;">${tech.totalArea.toFixed(2)}</td>
+                        <td style="padding:8px;">${tech.avgRating !== '-' ? tech.avgRating : '-'}</td>
+                        <td style="padding:8px;"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+
+        modal.classList.add('open');
+    }
+
+    function closeModal() {
+        document.getElementById('detailsModal').classList.remove('open');
+    }
+
+    function exportReport() {
+        if (!currentReportData || currentReportData.length === 0) {
+            alert('لا توجد بيانات للتصدير');
+            return;
+        }
+
+        // Prepare data for Excel
+        const exportData = currentReportData.map(tech => ({
+            'الكود': tech.code,
+            'اسم الفني': tech.name,
+            'عدد الجوبات': tech.jobCount,
+            'عدد البنود': tech.itemsCount,
+            'المساحة (م²)': tech.totalArea.toFixed(2),
+            'متوسط التقييم': tech.avgRating,
+            'الإنتاجية (م²/جوب)': tech.productivity
+        }));
+
+        // Add summary row
+        exportData.push({
+            'الكود': '---',
+            'اسم الفني': 'الإجمالي',
+            'عدد الجوبات': exportData.reduce((sum, t) => sum + t['عدد الجوبات'], 0),
+            'عدد البنود': exportData.reduce((sum, t) => sum + t['عدد البنود'], 0),
+            'المساحة (م²)': exportData.reduce((sum, t) => sum + parseFloat(t['المساحة (م²)'] || 0), 0).toFixed(2),
+            'متوسط التقييم': '---',
+            'الإنتاجية (م²/جوب)': '---'
+        });
+
+        // Create and download Excel file
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Technician Performance');
+        XLSX.writeFile(wb, `tech_performance_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+</script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

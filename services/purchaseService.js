@@ -1,6 +1,5 @@
 const FileDbManager = require('../file_db_manager');
-const JournalEntry = require('../models/JournalEntry');
-const glLogic = require('./glLogic');
+const journalService = require('./journalService');
 
 const db = new FileDbManager();
 
@@ -27,16 +26,26 @@ const purchaseService = {
         return max + 1;
     },
 
-    createPurchase: async (data) => {
+    createPurchase: async (data, user) => {
         try {
-            // 1. Validate total balance in data
+            // Normalize numeric values before persisting or posting.
             data.totalAmount = parseFloat(data.finalTotal || data.totalAmount || 0);
             data.subtotal = parseFloat(data.subtotal || 0);
             data.totalTax = parseFloat(data.totalTax || 0);
             data.totalDiscount = parseFloat(data.totalDiscount || 0);
             data.totalExtraCosts = parseFloat(data.totalExtraCosts || 0);
 
-            // 2. Save Invoice
+            await journalService.archiveBeforeMutation({
+                transactionType: String(data.invoiceType || 'local').toLowerCase() === 'imported'
+                    ? 'PURCHASE_IMPORTED'
+                    : 'PURCHASE_LOCAL',
+                transactionCollection: 'purchaseinvoices',
+                referenceNumber: data.invoiceNumber,
+                incomingPayload: data,
+                user,
+                action: 'CREATE'
+            });
+
             const invoice = await db.create('purchaseinvoices', {
                 ...data,
                 status: data.status || 'Draft',
@@ -44,22 +53,10 @@ const purchaseService = {
                 updatedAt: new Date().toISOString()
             });
 
-            // 3. Generate GL Entry
             try {
-                const entryDetails = await glLogic.getPurchaseEntryDetails(invoice);
-                const entryNumber = await JournalEntry.generateEntryNumber();
-                
-                await JournalEntry.createBalancedEntry({
-                    entryNumber,
-                    date: invoice.date,
-                    description: `فاتورة مشتريات رقم ${invoice.invoiceNumber} - مورد: ${invoice.supplierName || ''}`,
-                    source: 'Purchase Module',
-                    referenceNumber: invoice.invoiceNumber,
-                    lines: entryDetails
-                });
+                await journalService.syncPurchaseJournal(invoice, user);
             } catch (glError) {
                 console.error('⚠️ Failed to generate GL Entry for Purchase:', glError.message);
-                // We still returned the invoice, but maybe mark it as "Warning: No GL Entry"
             }
 
             return invoice;
@@ -69,11 +66,35 @@ const purchaseService = {
         }
     },
 
-    updatePurchase: async (id, data) => {
-        return await db.updateOne('purchaseinvoices', { _id: id }, {
+    updatePurchase: async (id, data, user) => {
+        data.totalAmount = parseFloat(data.finalTotal || data.totalAmount || 0);
+        data.subtotal = parseFloat(data.subtotal || 0);
+        data.totalTax = parseFloat(data.totalTax || 0);
+        data.totalDiscount = parseFloat(data.totalDiscount || 0);
+        data.totalExtraCosts = parseFloat(data.totalExtraCosts || 0);
+
+        await journalService.archiveBeforeMutation({
+            transactionType: String(data.invoiceType || 'local').toLowerCase() === 'imported'
+                ? 'PURCHASE_IMPORTED'
+                : 'PURCHASE_LOCAL',
+            transactionCollection: 'purchaseinvoices',
+            transactionId: id,
+            referenceNumber: data.invoiceNumber,
+            incomingPayload: data,
+            user,
+            action: 'UPDATE'
+        });
+
+        const updatedPurchase = await db.updateOne('purchaseinvoices', { _id: id }, {
             ...data,
             updatedAt: new Date().toISOString()
         });
+
+        if (updatedPurchase) {
+            await journalService.syncPurchaseJournal(updatedPurchase, user);
+        }
+
+        return updatedPurchase;
     },
 
     deletePurchase: async (id) => {

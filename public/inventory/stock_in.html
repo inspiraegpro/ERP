@@ -418,10 +418,15 @@
             box.className = `status-box ${type}`;
             box.textContent = message;
         }
-        const token = localStorage.getItem('token') || '';
+        function safeGetToken() {
+            if (typeof getToken === 'function') return getToken() || '';
+            if (window.Auth && typeof window.Auth.getToken === 'function') return window.Auth.getToken() || '';
+            return localStorage.getItem('token') || '';
+        }
         function authHeaders(includeJson = false) {
             const headers = {};
             if (includeJson) headers['Content-Type'] = 'application/json';
+            const token = safeGetToken();
             if (token) headers['Authorization'] = `Bearer ${token}`;
             return headers;
         }
@@ -697,6 +702,61 @@
                 customDimensions: { length: Number(row.querySelector('.len').value || 0), width: Number(row.querySelector('.wid').value || 0) }
             }));
             if (items.some((item) => !item.rollCode)) { setMessage('كل بند وارد يجب أن يحتوي على كود رول.', 'error'); return; }
+
+            // ── التحقق من تكرار رقم الإذن في قاعدة البيانات ──────────
+            try {
+                const serialInput = document.getElementById('inSerial').value.trim();
+                if (serialInput) {
+                    const existingRes = await fetch(`${API}/stock`, { headers: authHeaders() });
+                    if (existingRes.ok) {
+                        const existingTxns = await existingRes.json();
+                        const isDuplicateSerial = existingTxns.some(txn => 
+                            txn.serialNumber === serialInput && 
+                            String(txn._id) !== String(document.getElementById('editId').value)
+                        );
+                        if (isDuplicateSerial) {
+                            setMessage(`❌ رقم الإذن "${serialInput}" مكرر. يرجى إدخال رقم مختلف أو تركه فارغاً.`, 'error');
+                            return;
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('تعذر التحقق من تكرار رقم الإذن:', e.message);
+            }
+
+            // ── التحقق من تكرار rollCode داخل نفس الإذن ──────────────
+            const codesInForm = items.map(i => i.rollCode);
+            const duplicateInForm = codesInForm.find((c, idx) => codesInForm.indexOf(c) !== idx);
+            if (duplicateInForm) {
+                setMessage(`❌ كود الرول "${duplicateInForm}" مكرر داخل هذا الإذن. يجب أن يكون كل كود فريداً.`, 'error');
+                return;
+            }
+
+            // ── التحقق من تكرار rollCode في قاعدة البيانات ───────────
+            try {
+                const existingRes = await fetch(`${API}/stock?type=Inbound`, { headers: authHeaders() });
+                if (existingRes.ok) {
+                    const existingTxns = await existingRes.json();
+                    const existingCodes = new Set();
+                    existingTxns.forEach(txn => {
+                        if (!txn.isReversed) {
+                            (txn.items || []).forEach(item => {
+                                if (item.rollCode) existingCodes.add(String(item.rollCode).trim());
+                            });
+                        }
+                    });
+                    const editId = document.getElementById('editId').value;
+                    // في وضع التعديل نتجاهل الأكواد الخاصة بنفس الإذن
+                    const duplicateInDB = items.find(item => existingCodes.has(item.rollCode));
+                    if (duplicateInDB && !editId) {
+                        setMessage(`❌ كود الرول "${duplicateInDB.rollCode}" موجود مسبقاً في المخزن. لا يمكن إضافة رول بنفس الكود.`, 'error');
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.warn('تعذر التحقق من تكرار الأكواد:', e.message);
+            }
+
             const payload = {
                 type: 'Inbound',
                 date: document.getElementById('inDate').value,

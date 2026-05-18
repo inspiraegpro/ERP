@@ -53,7 +53,7 @@
             const response = await fetch(`${API}/import-shipments/${id}/receive`, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+                    Authorization: `Bearer ${getToken() || ''}`
                 }
             });
 

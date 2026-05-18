@@ -298,7 +298,7 @@
         }
 
         // Initialize user info and setup
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const user = getUser();
         if (!user.username) window.location.href = '/login.html';
         
         init();

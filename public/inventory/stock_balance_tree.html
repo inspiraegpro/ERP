@@ -2,65 +2,265 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Ø´Ø¬Ø±Ø© Ø£Ø±ØµØ¯Ø© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†</title>
+  <title>شجرة أرصدة المخزون</title>
+  <script src="/common-functions.js"></script>
   <style>
-    body{font-family:'Segoe UI',sans-serif;background:#f1f5f9;padding:20px}
-    .card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:20px;max-width:1100px;margin:0 auto}
-    h2{margin:0 0 10px;color:#334155}
-    .controls{display:flex;gap:10px;margin:10px 0 20px}
-    select,input{padding:8px;border:1px solid #cbd5e1;border-radius:6px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #e2e8f0;text-align:center}
-    th{background:#0f172a;color:#fff}
-    .group{display:flex;flex-direction:column}
-    .num{font-family:Consolas,monospace;direction:ltr}
-    .lvl1{background:#f8fafc;font-weight:bold}
-    .lvl2{background:#f0f9ff}
+    body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 20px; margin: 0; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 24px; max-width: 1200px; margin: 0 auto; }
+    h2 { margin: 0 0 16px; color: #1e293b; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
+    .controls { display: flex; gap: 12px; margin: 0 0 20px; flex-wrap: wrap; align-items: flex-end; }
+    .controls label { font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px; }
+    select, input { padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #fff; }
+    .btn-refresh { padding: 9px 18px; background: #163a5f; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 14px; }
+    .btn-refresh:hover { background: #244c73; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #1e293b; color: #fff; padding: 12px 10px; text-align: center; font-weight: 600; }
+    th:nth-child(2) { text-align: right; }
+    td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; vertical-align: middle; }
+    td:nth-child(2) { text-align: right; }
+    .num { font-family: Consolas, monospace; direction: ltr; }
+    .lvl1 { background: #f0f9ff; font-weight: 700; color: #0369a1; }
+    .lvl1 td:nth-child(2) { font-size: 15px; }
+    .lvl2 { background: #fff; }
+    .lvl2:hover { background: #f8fafc; }
+    .lvl2 td:nth-child(2) { padding-right: 28px; color: #334155; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-ok   { background: #dcfce7; color: #166534; }
+    .badge-low  { background: #fef3c7; color: #92400e; }
+    .badge-zero { background: #fee2e2; color: #991b1b; }
+    .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 20px; flex: 1; min-width: 160px; }
+    .summary-card span { display: block; color: #64748b; font-size: 12px; margin-bottom: 4px; }
+    .summary-card strong { font-size: 1.3rem; color: #1e293b; }
+    .loading { text-align: center; padding: 40px; color: #64748b; }
+    .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 16px; }
+    .toggle-btn { background: none; border: none; cursor: pointer; color: #0369a1; font-size: 16px; padding: 0 6px; }
+    .group-row { cursor: pointer; }
+    .group-row:hover { background: #e0f2fe !important; }
   </style>
 </head>
 <body>
 <div class="card">
-  <h2>ðŸ“¦ Ø´Ø¬Ø±Ø© Ø£Ø±ØµØ¯Ø© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†</h2>
-  <div class="controls">
-    <div class="group"><label>Ø§Ù„Ù…Ø®Ø²Ù†</label><select id="warehouse"><option value="">Ø§Ù„ÙƒÙ„</option></select></div>
+  <h2>📦 شجرة أرصدة المخزون</h2>
+
+  <div class="summary-bar">
+    <div class="summary-card">
+      <span>إجمالي الأصناف</span>
+      <strong id="sumProducts">-</strong>
+    </div>
+    <div class="summary-card">
+      <span>إجمالي المساحة (م²)</span>
+      <strong id="sumArea">-</strong>
+    </div>
+    <div class="summary-card">
+      <span>إجمالي القيمة (ج.م)</span>
+      <strong id="sumValue">-</strong>
+    </div>
+    <div class="summary-card">
+      <span>عدد الرولات</span>
+      <strong id="sumRolls">-</strong>
+    </div>
   </div>
-  <table>
-    <thead><tr><th>Ø§Ù„ÙƒÙˆØ¯</th><th>Ø§Ù„Ø§Ø³Ù…</th><th>Ø§Ù„Ø±ØµÙŠØ¯ (Ù…Â²)</th><th>Ù…ØªÙˆØ³Ø· Ø§Ù„ØªÙƒÙ„ÙØ©</th><th>Ø§Ù„Ù‚ÙŠÙ…Ø©</th></tr></thead>
-    <tbody id="tbody"></tbody>
-  </table>
+
+  <div class="controls">
+    <div>
+      <label>المخزن</label>
+      <select id="warehouse" onchange="load()">
+        <option value="">الكل</option>
+      </select>
+    </div>
+    <div>
+      <label>الفئة</label>
+      <select id="categoryFilter" onchange="load()">
+        <option value="">الكل</option>
+      </select>
+    </div>
+    <div>
+      <label>بحث</label>
+      <input id="searchInput" placeholder="اسم أو كود..." oninput="load()" style="width:200px;">
+    </div>
+    <button class="btn-refresh" onclick="load()">🔄 تحديث</button>
+  </div>
+
+  <div id="tableContainer">
+    <div class="loading">⏳ جاري تحميل البيانات...</div>
+  </div>
 </div>
+
 <script>
   const API = '/api';
-  async function init(){
-    try{ const w = await (await fetch(`/api/warehouses`)).json(); const sel=document.getElementById('warehouse'); w.forEach(x=> sel.innerHTML += `<option value="${x.path}">${x.path}</option>`); }catch(e){}
-    load();
-    document.getElementById('warehouse').onchange = load;
+  let allData = [];
+  let expandedGroups = new Set();
+
+  async function init() {
+    try {
+      // تحميل المخازن
+      const wRes = await fetch(`${API}/warehouses`, { headers: Auth.getHeaders() });
+      if (wRes.ok) {
+        const warehouses = await wRes.json();
+        const sel = document.getElementById('warehouse');
+        warehouses.forEach(w => {
+          const opt = document.createElement('option');
+          opt.value = w.path || w._id;
+          opt.textContent = w.path || w.name || 'مخزن';
+          sel.appendChild(opt);
+        });
+      }
+    } catch(e) { console.warn('Warehouses load failed:', e.message); }
+
+    await load();
   }
-  async function load(){
-    const wh = document.getElementById('warehouse').value;
-    const res = await fetch(`${API}/reports/stock-current`);
-    const data = await res.json();
-    const tbody = document.getElementById('tbody');
-    tbody.innerHTML = '';
-    // Group by first 2 digits of code as a simple tree (main group)
-    const groups = {};
-    data.forEach(p=>{
-      const g = (p.code||'-').slice(0,2);
-      if(!groups[g]) groups[g] = { code:g, name:`Ù…Ø¬Ù…ÙˆØ¹Ø© ${g}`, qty:0, val:0, items:[] };
-      const qty = p.qty||0, val = qty*(p.avgCost||0);
-      groups[g].qty += qty; groups[g].val += val; groups[g].items.push(p);
-    });
-    Object.values(groups).sort((a,b)=> (a.code||'').localeCompare(b.code||'')).forEach(g=>{
-      tbody.insertAdjacentHTML('beforeend', `<tr class="lvl1"><td>${g.code}</td><td style="text-align:right">${g.name}</td><td class="num">${g.qty.toFixed(2)}</td><td>-</td><td class="num">${g.val.toFixed(2)}</td></tr>`);
-      g.items.forEach(p=>{
-        const qty = p.qty||0, avg = p.avgCost||0, val = qty*avg;
-        tbody.insertAdjacentHTML('beforeend', `<tr class="lvl2"><td>${p.code}</td><td style="text-align:right">${p.name}</td><td class="num">${qty.toFixed(2)}</td><td class="num">${avg.toFixed(4)}</td><td class="num">${val.toFixed(2)}</td></tr>`);
+
+  async function load() {
+    const wh     = document.getElementById('warehouse').value;
+    const cat    = document.getElementById('categoryFilter').value;
+    const search = document.getElementById('searchInput').value.trim().toLowerCase();
+
+    document.getElementById('tableContainer').innerHTML = '<div class="loading">⏳ جاري تحميل البيانات...</div>';
+
+    try {
+      // جلب أرصدة الرولات
+      const res = await fetch(`${API}/reports/stock-current`, { headers: Auth.getHeaders() });
+      if (!res.ok) throw new Error('فشل جلب بيانات المخزون');
+      allData = await res.json();
+
+      // تطبيق الفلاتر
+      let filtered = allData;
+      if (wh)     filtered = filtered.filter(p => String(p.warehouse || '').includes(wh));
+      if (cat)    filtered = filtered.filter(p => String(p.category || p.type || '').toLowerCase() === cat.toLowerCase());
+      if (search) filtered = filtered.filter(p =>
+        String(p.name || '').toLowerCase().includes(search) ||
+        String(p.code || '').toLowerCase().includes(search)
+      );
+
+      // بناء قائمة الفئات للفلتر
+      const cats = [...new Set(allData.map(p => p.category || p.type || 'أخرى').filter(Boolean))];
+      const catSel = document.getElementById('categoryFilter');
+      const prevCat = catSel.value;
+      catSel.innerHTML = '<option value="">الكل</option>';
+      cats.sort().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (c === prevCat) opt.selected = true;
+        catSel.appendChild(opt);
       });
-    });
+
+      renderTable(filtered);
+    } catch(e) {
+      document.getElementById('tableContainer').innerHTML =
+        `<div class="empty">⚠️ ${e.message}</div>`;
+    }
   }
+
+  function renderTable(data) {
+    if (!data || data.length === 0) {
+      document.getElementById('tableContainer').innerHTML =
+        '<div class="empty">لا توجد بيانات مخزون متاحة</div>';
+      updateSummary([]);
+      return;
+    }
+
+    // تجميع حسب الفئة
+    const groups = {};
+    data.forEach(p => {
+      const g = p.category || p.type || 'أخرى';
+      if (!groups[g]) groups[g] = { name: g, qty: 0, val: 0, rolls: 0, items: [] };
+      const qty = parseFloat(p.qty || p.remainingArea || 0);
+      const avg = parseFloat(p.avgCost || p.unitCost || 0);
+      const val = qty * avg;
+      groups[g].qty   += qty;
+      groups[g].val   += val;
+      groups[g].rolls += parseInt(p.rollCount || 1);
+      groups[g].items.push({ ...p, qty, avg, val });
+    });
+
+    updateSummary(data);
+
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px">الكود</th>
+            <th>الاسم</th>
+            <th>الرصيد (م²)</th>
+            <th>متوسط التكلفة</th>
+            <th>القيمة الإجمالية</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0])).forEach(([gName, g]) => {
+      const isExpanded = expandedGroups.has(gName);
+      html += `
+        <tr class="lvl1 group-row" onclick="toggleGroup('${escHtml(gName)}')">
+          <td><button class="toggle-btn">${isExpanded ? '▼' : '▶'}</button></td>
+          <td>📁 ${escHtml(gName)} <small style="color:#64748b;font-weight:400">(${g.items.length} صنف)</small></td>
+          <td class="num">${g.qty.toFixed(2)}</td>
+          <td>-</td>
+          <td class="num">${g.val.toFixed(2)}</td>
+          <td></td>
+        </tr>
+      `;
+
+      if (isExpanded) {
+        g.items.sort((a,b) => String(a.code||'').localeCompare(String(b.code||''))).forEach(p => {
+          const statusBadge = p.qty <= 0
+            ? '<span class="badge badge-zero">نفد</span>'
+            : p.qty < 5
+              ? '<span class="badge badge-low">منخفض</span>'
+              : '<span class="badge badge-ok">متاح</span>';
+
+          html += `
+            <tr class="lvl2">
+              <td class="num" style="color:#64748b;font-size:12px">${escHtml(p.code || '-')}</td>
+              <td>${escHtml(p.name || '-')}</td>
+              <td class="num">${p.qty.toFixed(2)}</td>
+              <td class="num">${p.avg.toFixed(4)}</td>
+              <td class="num">${p.val.toFixed(2)}</td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        });
+      }
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tableContainer').innerHTML = html;
+  }
+
+  function toggleGroup(name) {
+    if (expandedGroups.has(name)) {
+      expandedGroups.delete(name);
+    } else {
+      expandedGroups.add(name);
+    }
+    load();
+  }
+
+  function updateSummary(data) {
+    const totalQty   = data.reduce((s, p) => s + parseFloat(p.qty || p.remainingArea || 0), 0);
+    const totalVal   = data.reduce((s, p) => {
+      const qty = parseFloat(p.qty || p.remainingArea || 0);
+      const avg = parseFloat(p.avgCost || p.unitCost || 0);
+      return s + qty * avg;
+    }, 0);
+    const totalRolls = data.reduce((s, p) => s + parseInt(p.rollCount || 1), 0);
+
+    document.getElementById('sumProducts').textContent = data.length;
+    document.getElementById('sumArea').textContent     = totalQty.toFixed(2);
+    document.getElementById('sumValue').textContent    = totalVal.toLocaleString('ar-EG', { maximumFractionDigits: 2 });
+    document.getElementById('sumRolls').textContent    = totalRolls;
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
   init();
 </script>
-    <script src="/global-navigation.js"></script>
+<script src="/global-navigation.js"></script>
 </body>
 </html>
-

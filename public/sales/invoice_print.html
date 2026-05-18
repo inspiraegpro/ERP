@@ -2,235 +2,273 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نموذج أمر التشغيل - Wrapstyle ERP</title>
+    <title>فاتورة مبيعات - طباعة</title>
+    <script src="/common-functions.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Tahoma, sans-serif;
-            background: #f3f4f6;
-            color: #0f172a;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        .toolbar { text-align: center; padding: 1rem; }
-        .toolbar button {
-            border: none;
-            border-radius: 12px;
-            padding: .8rem 1.4rem;
-            font-weight: 800;
-            background: #163a5f;
-            color: #fff;
-            cursor: pointer;
-        }
-        .sheet {
-            width: 210mm;
-            min-height: 297mm;
-            background: #fff;
-            margin: 0 auto 1.5rem;
-            border: 1px solid #d6dbe3;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, .1);
-            padding: 12mm 14mm;
-        }
-        .top {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            border-bottom: 3px solid #163a5f;
-            padding-bottom: 10px;
-            margin-bottom: 14px;
-        }
-        .brand { font-size: 26px; font-weight: 900; color: #163a5f; margin-bottom: 4px; }
-        .muted { color: #475569; font-size: 12px; line-height: 1.7; }
-        .title { text-align: center; font-size: 30px; font-weight: 900; margin: 10px 0 14px; }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .info-row { display: flex; border: 1px solid #0f172a; min-height: 38px; }
-        .label {
-            width: 130px;
-            background: #eef2f7;
-            border-left: 1px solid #0f172a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            padding: 6px 8px;
-        }
-        .value {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            padding: 6px 10px;
-            font-weight: 700;
-        }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th, td { border: 1px solid #0f172a; padding: 9px 7px; text-align: center; font-size: 12px; }
-        th { background: #163a5f; color: #fff; font-weight: 800; }
-        .final-total {
-            margin-top: 16px;
-            border: 2px solid #163a5f;
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 26px;
-            font-weight: 900;
-            color: #163a5f;
-            display: flex;
-            justify-content: space-between;
-        }
-        .notes { margin-top: 12px; border: 1px solid #0f172a; min-height: 54px; padding: 10px; }
-        .signs { display: flex; justify-content: space-between; gap: 12px; margin-top: 34px; }
-        .sign { flex: 1; text-align: center; padding-top: 30px; border-top: 1px solid #0f172a; font-weight: 700; }
+        body { font-family: 'Arial', 'Segoe UI', sans-serif; background: #fff; padding: 20px; color: #000; }
+        .container { max-width: 800px; margin: 0 auto; border: 1px solid #000; min-height: 1000px; position: relative; }
+        
+        /* Header Logo Area */
+        .logo-area { background: #333; color: white; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; border-bottom: 2px solid #000; }
+        
+        /* Section Title */
+        .sec-title { background: #555; color: white; text-align: center; font-weight: bold; padding: 5px; text-transform: uppercase; border-top: 1px solid #000; border-bottom: 1px solid #000; font-size: 14px; }
+        
+        /* Table Grid */
+        .row { display: flex; border-bottom: 1px solid #ccc; }
+        .row:last-child { border-bottom: none; }
+        .label { background: #f0f0f0; width: 180px; padding: 5px 10px; font-weight: bold; border-right: 1px solid #ccc; font-size: 13px; display: flex; align-items: center; }
+        .val { flex: 1; padding: 5px 10px; font-size: 14px; display: flex; align-items: center; }
+        .val-half { width: 50%; display: flex; border-right: 1px solid #ccc; }
+        
+        /* Services Section */
+        .services-box { min-height: 200px; padding: 10px; font-size: 14px; }
+        .service-line { padding: 5px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
+        
+        /* Financials */
+        .money-row { display: flex; border-top: 1px solid #000; }
+        .money-lbl { width: 50%; padding: 5px; text-align: right; border-right: 1px solid #000; font-weight: bold; background: #f9f9f9; }
+        .money-val { width: 50%; padding: 5px; text-align: center; font-weight: bold; }
+
+        /* Remarks */
+        .remarks-box { height: 60px; padding: 10px; font-style: italic; border-bottom: 1px solid #000; }
+
+        /* Footer & Signatures */
+        .signatures { display: flex; border-top: 2px solid #000; margin-top: 0; }
+        .sig-box { flex: 1; text-align: center; height: 80px; border-right: 1px solid #000; }
+        .sig-box:last-child { border-right: none; }
+        .sig-title { background: #555; color: white; padding: 5px; font-weight: bold; font-size: 12px; }
+
+        .terms { font-size: 10px; padding: 10px; text-align: justify; color: #444; border-top: 1px solid #000; }
+        .bottom-strip { background: #333; color: white; padding: 5px 20px; display: flex; justify-content: space-between; font-size: 12px; position: absolute; bottom: 0; width: 100%; box-sizing: border-box; }
+
+        /* Items Table */
+        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .items-table th { background: #555; color: white; padding: 8px; font-size: 12px; text-align: center; border: 1px solid #000; }
+        .items-table td { padding: 8px; border: 1px solid #ccc; text-align: center; font-size: 12px; }
+        .items-table .desc { text-align: right; }
+        .items-table .qty { text-align: center; }
+        .items-table .price { text-align: center; }
+        .items-table .total { text-align: center; font-weight: bold; }
+
         @media print {
-            body { background: #fff; }
-            .toolbar { display: none !important; }
-            .sheet { margin: 0; box-shadow: none; border: none; width: auto; min-height: auto; }
-            @page { size: A4; margin: 0; }
+            .no-print { display: none; }
+            .container { border: none; }
+            body { padding: 0; margin: 0; }
         }
     </style>
 </head>
 <body>
-    <div class="toolbar"><button onclick="window.print()">طباعة</button></div>
-    <div class="sheet">
-        <div class="top">
-            <div>
-                <div class="brand">Wrapstyle ERP</div>
-                <div class="muted">WrapStyle Job Order Template</div>
-                <div class="muted">Cloud Nine Mall, New Cairo</div>
+
+    <div class="no-print" style="text-align:center; margin-bottom:20px;">
+        <button onclick="window.print()" style="padding:10px 30px; background:#000; color:#fff; cursor:pointer;">🖨️ طباعة</button>
+    </div>
+
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo-area">WrapStyle Cairo – Empyrean Enterprises</div>
+
+        <!-- Header Info -->
+        <div class="sec-title">فاتورة مبيعات</div>
+        
+        <div class="row">
+            <div class="label">رقم الفاتورة</div>
+            <div class="val" id="invNum" style="font-weight:bold; font-size:16px"></div>
+        </div>
+        <div class="row">
+            <div class="val-half" style="flex:1">
+                <div class="label" style="width:120px">التاريخ</div>
+                <div class="val" id="date"></div>
             </div>
-            <div class="muted" style="text-align:left">
-                الهاتف: +2012 00 999 333<br>
-                البريد: cairo@wrapstyle.com<br>
-                الموقع: wrapstyle.com
+            <div class="val-half" style="flex:1">
+                <div class="label" style="width:80px; border-left:1px solid #ccc">الفرع</div>
+                <div class="val">Cloud Nine Mall, Mohamed Naguib Axis, New Cairo</div>
             </div>
         </div>
-
-        <h1 class="title">أمر تشغيل / فاتورة مبيعات</h1>
-
-        <div class="info-grid">
-            <div class="info-row"><div class="label">رقم الفاتورة</div><div class="value" id="invoiceNumber">-</div></div>
-            <div class="info-row"><div class="label">التاريخ</div><div class="value" id="invoiceDate">-</div></div>
-            <div class="info-row"><div class="label">العميل</div><div class="value" id="customerName">-</div></div>
-            <div class="info-row"><div class="label">السيارة</div><div class="value" id="carName">-</div></div>
-            <div class="info-row"><div class="label">نوع السيارة</div><div class="value" id="vehicleType">-</div></div>
-            <div class="info-row"><div class="label">الموديل / اللوحة</div><div class="value" id="vehicleMeta">-</div></div>
-            <div class="info-row"><div class="label">لون السيارة</div><div class="value" id="vehicleColor">-</div></div>
-            <div class="info-row"><div class="label">نوع الخدمة</div><div class="value" id="serviceType">-</div></div>
+        <div class="row">
+            <div class="label">العميل</div>
+            <div class="val" id="custName"></div>
+        </div>
+        <div class="row">
+            <div class="label">رقم الهاتف</div>
+            <div class="val" id="phone"></div>
+        </div>
+        <div class="row">
+            <div class="label">نوع السيارة</div>
+            <div class="val" id="vehicleType"></div>
+        </div>
+        <div class="row">
+            <div class="label">موديل السيارة</div>
+            <div class="val" id="carModel"></div>
+        </div>
+        <div class="row">
+            <div class="label">رقم اللوحة</div>
+            <div class="val" id="vehiclePlate">-</div>
+        </div>
+        <div class="row">
+            <div class="label">لون السيارة</div>
+            <div class="val" id="vehicleColor">-</div>
         </div>
 
-        <table>
+        <!-- Items Table -->
+        <div class="sec-title">الأصناف</div>
+        <table class="items-table">
             <thead>
                 <tr>
-                    <th>القطعة</th>
-                    <th>الخدمة/الخامة</th>
-                    <th>الإجمالي</th>
+                    <th width="8%">#</th>
+                    <th width="25%">القطعة / الباقة</th>
+                    <th width="20%">الخامة / الخدمة</th>
+                    <th width="10%">الطول</th>
+                    <th width="10%">العرض</th>
+                    <th width="12%">المساحة</th>
+                    <th width="15%">السعر</th>
+                    <th width="15%">الإجمالي</th>
                 </tr>
             </thead>
             <tbody id="itemsBody">
-                <tr><td colspan="3">جاري التحميل...</td></tr>
             </tbody>
         </table>
 
-        <div class="final-total">
-            <span>الإجمالي النهائي</span>
-            <span id="finalTotal">0.00</span>
+        <!-- Financials -->
+        <div class="row">
+            <div class="label">نوع الخدمة</div>
+            <div class="val" id="serviceType">-</div>
+        </div>
+        <div class="row">
+            <div class="label">مندوب المبيعات</div>
+            <div class="val" id="salesPersonName">-</div>
         </div>
 
-        <div class="notes">
-            <strong>ملاحظات:</strong>
-            <div id="notesText">-</div>
+        <div class="money-row">
+            <div class="money-lbl">إجمالي الأصناف (قبل الضريبة):</div>
+            <div class="money-val" id="subtotal">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">+ خدمات إضافية:</div>
+            <div class="money-val" id="extraCost">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">- خصم:</div>
+            <div class="money-val" id="discount">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">الإجمالي (قبل الضريبة):</div>
+            <div class="money-val" id="totalBeforeVat">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">ضريبة القيمة المضافة (14%):</div>
+            <div class="money-val" id="vatVal">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">الإجمالي النهائي:</div>
+            <div class="money-val" id="finalTotal">0.00</div>
         </div>
 
-        <div class="signs">
-            <div class="sign">توقيع الموظف</div>
-            <div class="sign">توقيع العميل</div>
-            <div class="sign">الختم</div>
+        <!-- Remarks -->
+        <div class="sec-title">ملاحظات</div>
+        <div class="remarks-box" id="notes"></div>
+
+        <!-- Signatures -->
+        <div class="signatures">
+            <div class="sig-box">
+                <div class="sig-title">إدارة المبيعات</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-title">توقيع العميل</div>
+            </div>
+        </div>
+
+        <!-- Terms -->
+        <div class="terms">
+            الشروط والأحكام: جميع الأسعار أعلاه تشمل 14% ضريبة القيمة المضافة. بتوقيع هذا النموذج، وافق العميل على السعر المذكور أعلاه، وفهم ضمان المنتجات المثبتة، وأكد إزالة جميع المتعلقات من السيارة.
+        </div>
+
+        <!-- Footer -->
+        <div class="bottom-strip">
+            <span>📞 +2012 00 999 333</span>
+            <span>✉️ cairo@wrapstyle.com</span>
+            <span>🌐 wrapstyle.com</span>
         </div>
     </div>
 
-    <script>
-        const API = '/api';
+<script>
+    const API = '/api';
+    
+    window.onload = async () => {
+        const id = new URLSearchParams(window.location.search).get('id');
+        if(!id) return alert('لا يوجد رقم فاتورة');
 
-        function safe(v) {
-            return String(v || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-        function number(v) { return (Number(v) || 0).toFixed(2); }
-        function date(v) {
-            if (!v) return '-';
-            const d = new Date(v);
-            if (Number.isNaN(d.getTime())) return String(v);
-            return d.toLocaleDateString('ar-EG');
-        }
+        try {
+            const token = localStorage.getItem('token'); 
+            const res = await fetch(`${API}/sales/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error("فاتورة غير موجودة");
+            const inv = await res.json();
 
-        async function fetchJson(url) {
-            const res = await fetch(url);
-            const text = await res.text();
-            let data = null;
-            if (text) {
-                try { data = JSON.parse(text); }
-                catch {
-                    if (text.trim().startsWith('<')) throw new Error('الخادم أعاد HTML بدل JSON.');
-                    throw new Error(text.slice(0, 180));
-                }
-            }
-            if (!res.ok) throw new Error(data?.error || data?.message || `فشل الطلب: ${res.status}`);
-            return data;
-        }
-
-        function render(invoice) {
-            document.getElementById('invoiceNumber').textContent = invoice.invoiceNumber || '-';
-            document.getElementById('invoiceDate').textContent = date(invoice.date);
-            document.getElementById('customerName').textContent = invoice.customer?.name || invoice.customerName || '-';
-            document.getElementById('carName').textContent =
-                invoice.carName ||
-                invoice.carModel?.fullModelName ||
-                `${invoice.carModel?.brand || ''} ${invoice.carModel?.model || ''}`.trim() ||
-                '-';
-            document.getElementById('vehicleType').textContent = invoice.vehicleType || invoice.carCategory || '-';
-            document.getElementById('vehicleMeta').textContent = [invoice.vehicleModel, invoice.vehiclePlate].filter(Boolean).join(' - ') || '-';
-            document.getElementById('vehicleColor').textContent = invoice.vehicleColor || invoice.carColor || '-';
-            document.getElementById('serviceType').textContent = invoice.serviceType || '-';
-            document.getElementById('finalTotal').textContent = number(invoice.finalTotal || invoice.totalWithVat);
-            document.getElementById('notesText').textContent = invoice.remarks || invoice.note || '-';
-
-            const body = document.getElementById('itemsBody');
-            const rows = (invoice.items || []).map((item) => {
-                const lineTotal = Number(item.total || item.price || 0);
-                return `
+            // Fill header information
+            document.getElementById('invNum').innerText = inv.invoiceNumber;
+            document.getElementById('date').innerText = new Date(inv.date).toLocaleDateString('ar-EG');
+            document.getElementById('custName').innerText = inv.customer?.name || inv.customerName || '-';
+            document.getElementById('phone').innerText = inv.customer?.phone || '-';
+            document.getElementById('vehicleType').innerText = inv.vehicleType || '-';
+            document.getElementById('carModel').innerText = inv.carModel || '-';
+            document.getElementById('vehiclePlate').innerText = inv.vehiclePlate || '-';
+            document.getElementById('vehicleColor').innerText = inv.vehicleColor || '-';
+            document.getElementById('serviceType').innerText = inv.serviceType || '-';
+            document.getElementById('salesPersonName').innerText = inv.salesPerson?.name || inv.salesPerson || '-';
+            document.getElementById('notes').innerText = inv.notes || '-';
+            
+            // Fill items table
+            const itemsBody = document.getElementById('itemsBody');
+            let itemsHtml = '';
+            
+            (inv.items || []).forEach((item, index) => {
+                const partName = item.partName || item.product?.name || 'خدمة';
+                const productName = item.product?.name || item.productName || '-';
+                const length = item.length || 0;
+                const width = item.width || 0;
+                const area = item.area || 0;
+                const price = item.price || 0;
+                const total = item.lineTotal || (price * area) || price || 0;
+                
+                itemsHtml += `
                     <tr>
-                        <td>${safe(item.partName || '-')}</td>
-                        <td>${safe(item.product?.name || item.productName || '-')}</td>
-                        <td>${number(lineTotal)}</td>
+                        <td>${index + 1}</td>
+                        <td class="desc">${partName}</td>
+                        <td>${productName}</td>
+                        <td>${length}</td>
+                        <td>${width}</td>
+                        <td>${area.toFixed(4)}</td>
+                        <td>${Number(price).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
+                        <td class="total">${Number(total).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `;
             });
-
-            body.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="3">لا توجد بنود.</td></tr>';
+            
+            itemsBody.innerHTML = itemsHtml;
+            
+            // Fill financials
+            const subtotal = parseFloat(inv.subtotal) || 0;
+            const extraCost = parseFloat(inv.totalExtraCosts) || 0;
+            const discount = parseFloat(inv.discount) || 0;
+            const totalBeforeVat = subtotal + extraCost - discount;
+            const vat = totalBeforeVat * 0.14;
+            const finalTotal = totalBeforeVat + vat;
+            
+            document.getElementById('subtotal').innerText = subtotal.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('extraCost').innerText = extraCost.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('discount').innerText = discount.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('totalBeforeVat').innerText = totalBeforeVat.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('vatVal').innerText = vat.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('finalTotal').innerText = finalTotal.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            
+        } catch(e) {
+            alert('خطأ في تحميل الفاتورة: ' + e.message);
+            console.error('Invoice Load Error:', e);
         }
+    };
+</script>
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const id = new URLSearchParams(window.location.search).get('id');
-            if (!id) {
-                alert('رقم الفاتورة غير صالح.');
-                return;
-            }
-            try {
-                const invoice = await fetchJson(`${API}/sales/${id}`);
-                render(invoice);
-            } catch (error) {
-                console.error(error);
-                alert(error.message || 'تعذر تحميل الفاتورة.');
-            }
-        });
-    </script>
 </body>
 </html>

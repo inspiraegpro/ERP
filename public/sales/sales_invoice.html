@@ -58,6 +58,21 @@
             color: #1e293b;
             font-weight: 500;
         }
+
+        /* ── حالة الفاتورة badges ─────────────────────────────── */
+        .inv-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .inv-status-draft        { background:#f1f5f9; color:#475569; }
+        .inv-status-confirmed    { background:#d1fae5; color:#065f46; }
+        .inv-status-amended      { background:#fef3c7; color:#92400e; }
+        .inv-status-add_request  { background:#dbeafe; color:#1e40af; }
+        .inv-status-cancel_request { background:#fee2e2; color:#991b1b; }
+        .inv-status-cancelled    { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
         
         .row { display: flex; gap: 15px; margin-bottom: 15px; }
         .col { flex: 1; }
@@ -176,8 +191,9 @@
             </div>
             <div class="detail-row">
                 <span class="detail-label">الحالة:</span>
-                <span class="detail-value" id="invoiceStatus">مسودة</span>
+                <span class="detail-value inv-status inv-status-draft" id="invoiceStatus" data-status="draft">📝 مسودة</span>
             </div>
+            <div class="detail-row no-print" id="statusActionsBar" style="flex-wrap:wrap; gap:6px; margin-top:4px;"></div>
         </div>
     </div>
 
@@ -318,17 +334,82 @@
     </div>
 </div>
 
+<script src="/common-functions.js"></script>
 <script>
     const API = '/api';
-    const token = localStorage.getItem('token') || '';
     const VAT_RATE = 0.14; // 14% VAT - prices are without VAT, add VAT to total
     let products = [], carsData = [];
+    let originalInvoiceItems = [];
 
-    function authHeaders(includeJson = false) {
-        const headers = {};
-        if (includeJson) headers['Content-Type'] = 'application/json';
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        return headers;
+    function getPriceWithoutVat(product) {
+        if (!product) return 0;
+        // هنا نتأكد أننا نسحب السعر الصافي الذي حسبته صفحة المنتجات مسبقاً
+        if (product.pricing && product.pricing.priceWithoutVat) {
+            return Number(product.pricing.priceWithoutVat);
+        }
+        // إذا لم يوجد سعر صافي مسجل، نحسبه من السعر الإجمالي كخطة بديلة
+        const salePrice = Number(product.pricing?.salePrice || product.pricing?.unitSalePrice || product.price || 0);
+        return salePrice / 1.14; 
+    }
+
+    function findProductByTab(tabName) {
+        const tabLower = String(tabName || '').trim().toLowerCase();
+        if (!tabLower) return null;
+        return products.find((p) => {
+            const categoryFieldLower = String(p.category || '').toLowerCase();
+            const typeFieldLower = String(p.type || '').toLowerCase();
+            const serviceCategoryFieldLower = String(p.serviceCategory || '').toLowerCase();
+            return categoryFieldLower === tabLower ||
+                typeFieldLower === tabLower ||
+                serviceCategoryFieldLower === tabLower ||
+                categoryFieldLower.includes(tabLower) ||
+                typeFieldLower.includes(tabLower) ||
+                serviceCategoryFieldLower.includes(tabLower);
+        }) || null;
+    }
+
+    function toNum(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function getItemQtyForAdjustment(item) {
+        const area = toNum(item?.area || item?.areaM2);
+        if (area > 0) return area;
+        return toNum(item?.quantity || 1);
+    }
+
+    function buildAdjustmentPayload(currentItems, mode) {
+        const changes = [];
+        const maxLen = Math.max(originalInvoiceItems.length, currentItems.length);
+        for (let i = 0; i < maxLen; i++) {
+            const oldItem = originalInvoiceItems[i] || null;
+            const newItem = currentItems[i] || null;
+            const oldQty = oldItem ? getItemQtyForAdjustment(oldItem) : 0;
+            const newQty = newItem ? getItemQtyForAdjustment(newItem) : 0;
+            const delta = Number((newQty - oldQty).toFixed(2));
+
+            if (mode === 'add' && delta > 0 && newItem) {
+                changes.push({
+                    product: newItem.product || oldItem?.product || '',
+                    partName: newItem.partName || oldItem?.partName || '',
+                    quantity: delta,
+                    area: delta,
+                    price: toNum(newItem.price || 0),
+                    total: toNum(newItem.price || 0) * delta
+                });
+            }
+            if (mode === 'cancel' && delta < 0 && oldItem) {
+                changes.push({
+                    lineIndex: i,
+                    product: oldItem.product || newItem?.product || '',
+                    partName: oldItem.partName || newItem?.partName || '',
+                    quantity: Math.abs(delta),
+                    area: Math.abs(delta)
+                });
+            }
+        }
+        return changes;
     }
 
     async function fetchJsonOrThrow(url, options = {}) {
@@ -351,21 +432,6 @@
         }
     }
 
-    async function createDefaultPricingMatrices() {
-        try {
-            const res = await fetch(`${API}/pricing/defaults`, {
-                method: 'POST',
-                headers: authHeaders(true)
-            });
-            if (res.ok) {
-                const data = await res.json();
-                console.log('Default pricing matrices created:', data);
-            }
-        } catch (error) {
-            console.error('Error creating default pricing matrices:', error);
-        }
-    }
-
     window.onload = async () => {
         document.getElementById('date').valueAsDate = new Date();
         await loadData();
@@ -381,7 +447,7 @@
 
     async function loadNextInvoiceNumber() {
         try {
-            const res = await fetch(`${API}/sales/number/next`);
+            const res = await fetch(`${API}/sales/number/next`, { headers: Auth.getHeaders() });
             if (!res.ok) return;
             const data = await res.json();
             const invNumEl = document.getElementById('invNum');
@@ -395,36 +461,51 @@
 
     async function loadAgents() {
         try {
-            const res = await fetch(`${API}/agents`);
+            const res = await fetch(`${API}/agents`, { headers: Auth.getHeaders() });
             if (!res.ok) return;
             const agents = await res.json();
-            
+
             const agentSelect = document.getElementById('salesPerson');
-            if (agentSelect) {
-                agentSelect.innerHTML = '<option value="">-- اختر الوكيل --</option>';
-                agents.forEach(agent => {
-                    const typeLabel = agent.type === 'internal' ? '(موظف)' : '(خارجي)';
-                    agentSelect.innerHTML += `<option value="${agent._id}" data-type="${agent.type}" data-commission-type="${agent.commissionType}" data-commission-value="${agent.commissionValue}">${agent.name} ${typeLabel}</option>`;
-                });
-                
-                // Reinitialize TomSelect after loading agents
-                setTimeout(() => {
-                    if(window.salesSelect) window.salesSelect.destroy();
-                    window.salesSelect = new TomSelect('#salesPerson', { create: false });
-                    
-                    // Add event listener for agent selection
-                    document.getElementById('salesPerson').addEventListener('change', function() {
-                        const selectedOption = this.options[this.selectedIndex];
-                        if (selectedOption && selectedOption.value) {
-                            const commissionType = selectedOption.getAttribute('data-commission-type');
-                            const commissionValue = selectedOption.getAttribute('data-commission-value');
-                            // Store in hidden fields or use directly in save
-                            this.setAttribute('data-selected-commission-type', commissionType);
-                            this.setAttribute('data-selected-commission-value', commissionValue);
-                        }
-                    });
-                }, 100);
+            if (!agentSelect) return;
+
+            // ── 1. دمّر TomSelect الحالي قبل تعديل الـ <select> ──────────
+            if (window.salesSelect) {
+                try { window.salesSelect.destroy(); } catch(_) {}
+                window.salesSelect = null;
             }
+
+            // ── 2. أعد بناء الـ <select> بالبيانات الجديدة ───────────────
+            agentSelect.innerHTML = '<option value="">-- اختر الوكيل --</option>';
+            agents.forEach(agent => {
+                const typeLabel = agent.type === 'internal' ? '(موظف)' : '(خارجي)';
+                const opt = document.createElement('option');
+                opt.value = agent._id;
+                opt.textContent = `${agent.name} ${typeLabel}`;
+                opt.dataset.commissionType  = agent.commissionType  || 'percentage';
+                opt.dataset.commissionValue = agent.commissionValue || 0;
+                agentSelect.appendChild(opt);
+            });
+
+            // ── 3. أعد تهيئة TomSelect بعد ملء الـ <select> ─────────────
+            window.salesSelect = new TomSelect('#salesPerson', {
+                create: false,
+                placeholder: '-- اختر الوكيل --',
+                onChange(value) {
+                    // اقرأ data-* من الـ <option> الأصلي
+                    const opt = agentSelect.querySelector(`option[value="${value}"]`);
+                    if (opt) {
+                        document.getElementById('salesPerson')
+                            .setAttribute('data-selected-commission-type',  opt.dataset.commissionType);
+                        document.getElementById('salesPerson')
+                            .setAttribute('data-selected-commission-value', opt.dataset.commissionValue);
+                        // عرض نسبة العمولة تلقائياً
+                        if (opt.dataset.commissionType === 'percentage') {
+                            document.getElementById('commissionRate').value = opt.dataset.commissionValue;
+                        }
+                    }
+                }
+            });
+
         } catch (e) {
             console.warn('Unable to load agents:', e.message);
         }
@@ -433,9 +514,9 @@
     async function loadData() {
         try {
             const [customers, productList, carsList] = await Promise.all([
-                fetchJsonOrThrow(`${API}/customers`, { headers: authHeaders() }),
-                fetchJsonOrThrow(`${API}/products`, { headers: authHeaders() }),
-                fetchJsonOrThrow(`${API}/cars`, { headers: authHeaders() })
+                fetchJsonOrThrow(`${API}/customers`, { headers: Auth.getHeaders() }),
+                fetchJsonOrThrow(`${API}/products`, { headers: Auth.getHeaders() }),
+                fetchJsonOrThrow(`${API}/cars`, { headers: Auth.getHeaders() })
             ]);
             products = productList;
             carsData = carsList;
@@ -475,13 +556,14 @@
 
     async function refreshCustomers() {
         try {
-            const res = await fetch(`${API}/customers`);
+            const res = await fetch(`${API}/customers`, { headers: Auth.getHeaders() });
             const customers = await res.json();
             const custSel = document.getElementById('customer');
             const prevVal = custSel.value;
             custSel.innerHTML = '<option value="">-- اختر العميل --</option>';
             customers.forEach(c => custSel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
             custSel.value = prevVal;
+            if (window.custSelect) { window.custSelect.destroy(); window.custSelect = new TomSelect('#customer', { create: false }); window.custSelect.setValue(prevVal, true); }
             alert('تم استرجاع التحديثات بنجاح!');
         } catch(e) { console.error(e); }
     }
@@ -563,9 +645,7 @@
         });
 
         if (!match) return 0;
-        const withoutVat = Number(match.pricing?.priceWithoutVat || 0);
-        const withVat = Number(match.pricing?.salePrice || match.pricing?.unitSalePrice || 0);
-        return withoutVat > 0 ? withoutVat : (withVat > 0 ? withVat / (1 + VAT_RATE) : 0);
+        return getPriceWithoutVat(match.pricing || {});
     }
     
     function sanitizeSalesLabel(value) {
@@ -620,7 +700,7 @@
     // Get price from pricing matrix for Window Film
     async function getMatrixPriceForPart(part, vehicleCategory) {
         try {
-            const res = await fetch(`${API}/pricing/calculate?materialType=Window+Film&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(part)}&area=1`, { headers: authHeaders() });
+            const res = await fetch(`${API}/pricing/calculate?materialType=Window+Film&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(part)}&area=1`, { headers: Auth.getHeaders() });
             if (res.ok) {
                 const data = await res.json();
                 return data.totalPrice || 0;
@@ -823,15 +903,36 @@
         // Store product type in row attribute, not visible column
         const productType = d.productType || selectedSalesTab || '';
         
+        // Prepare parts and services dropdowns if in manual mode
+        const partsDropdown = d.isManual ? `
+            <div style="margin-bottom:5px;">
+                <select class="parts-select" onchange="onPartSelect(this)" style="width:100%; font-size:12px;">
+                    ${getPartsOptions()}
+                </select>
+            </div>
+        ` : '';
+        
+        const servicesDropdown = d.isManual ? `
+            <div style="margin-bottom:5px;">
+                <select class="services-select" onchange="onServiceSelect(this)" style="width:100%; font-size:12px;">
+                    ${getServicesOptions()}
+                </select>
+            </div>
+        ` : '';
+        
         tr.innerHTML = `
-            <td><input class="part-name" value="${d.partName||''}" placeholder="اسم القطعة / الباقة" list="parts-datalist"></td>
             <td>
+                ${partsDropdown}
+                <input class="part-name" value="${d.partName||''}" placeholder="اسم القطعة / الباقة" list="parts-datalist" style="width:100%;">
+            </td>
+            <td>
+                ${servicesDropdown}
                 <select class="prod" onchange="onProductChange(this, '${rowId}')" style="width:100%;">${prodOpts}</select>
                 <span class="wf-info" style="color:#666; font-size:11px; display:block; margin-top:2px;">${d.wfGrade ? `درجة ${d.wfGrade}` : ''}</span>
             </td>
-            <td><input type="number" class="len" value="${d.length||0}" oninput="calcArea(this)" style="width:100%;"></td>
-            <td><input type="number" class="wid" value="${d.width||0}" oninput="calcArea(this)" style="width:100%;"></td>
-            <td><input type="number" class="area readonly-input" value="${d.area||0}" readonly style="width:100%;"></td>
+            <td><input type="number" class="len" value="${d.length||0}" oninput="calcArea(this)" style="width:100%;" placeholder="سم"></td>
+            <td><input type="number" class="wid" value="${d.width||0}" oninput="calcArea(this)" style="width:100%;" placeholder="سم"></td>
+            <td><input type="number" class="area readonly-input" value="${d.area||0}" readonly style="width:100%;" placeholder="م²"></td>
             <td><input type="number" class="unit-price" value="${d.priceUnit||0}" readonly style="color:#666; width:100%;"></td>
             <td><input type="number" class="row-total" value="${d.lineTotal||0}" oninput="calcTotal()" style="color:green;font-weight:bold; width:100%;"></td>
             <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
@@ -842,7 +943,8 @@
         
         // Populate product dropdown based on type
         if (productType) {
-            populateProductDropdown(tr.querySelector('.prod'), productType, rowId);
+            // d._isEditMode = true لما بنيجي من loadForEdit — لا نفتح modals
+            populateProductDropdown(tr.querySelector('.prod'), productType, rowId, !!d._isEditMode);
         }
         tbody.appendChild(tr);
         
@@ -858,17 +960,40 @@
         }
         // If other product type selected
         else if (productType && productType !== 'Window Film') {
-            populateProductDropdown(tr.querySelector('.prod'), productType, rowId);
             if (d.product) {
                 const prodSelect = tr.querySelector('.prod');
-                prodSelect.value = typeof d.product === 'object' ? d.product._id : d.product;
+                const pid = typeof d.product === 'object' ? d.product._id : String(d.product || '');
+
+                // حاول ضبط الـ value بالـ _id أولاً
+                prodSelect.value = pid;
+
+                // لو ما اتضبطش — ابحث في products array بالـ slug/code كـ fallback
+                if (prodSelect.value !== pid) {
+                    const fallback = products.find(p =>
+                        String(p.inventorySlug || '') === pid ||
+                        String(p.code || '') === pid ||
+                        String(p.name || '').toLowerCase() === pid.toLowerCase()
+                    );
+                    if (fallback) {
+                        prodSelect.value = fallback._id;
+                    } else {
+                        // أضف option مؤقتة بالـ slug
+                        const opt = document.createElement('option');
+                        opt.value = pid;
+                        opt.textContent = pid;
+                        opt.selected = true;
+                        prodSelect.appendChild(opt);
+                        prodSelect.value = pid;
+                    }
+                }
                 updPrice(prodSelect, false);
             }
         }
     }
 
     // Populate product dropdown based on type
-    function populateProductDropdown(prodSelect, productType, rowId) {
+    // isEditMode = true: لا تفتح modals، فقط ابنِ الـ options وضبط الـ value
+    function populateProductDropdown(prodSelect, productType, rowId, isEditMode = false) {
         const row = prodSelect.closest('tr');
         const wfInfo = row.querySelector('.wf-info');
         
@@ -885,20 +1010,39 @@
             row.querySelector('.wid').readOnly = true;
             row.querySelector('.len').classList.add('readonly-input');
             row.querySelector('.wid').classList.add('readonly-input');
-            if (wfInfo) wfInfo.textContent = 'اختر الدرجة من النافذة';
-            // Open Window Film modal automatically
-            openWindowFilmModal(rowId);
+            if (wfInfo) wfInfo.textContent = isEditMode ? '' : 'اختر الدرجة من النافذة';
+            // فتح Modal فقط في وضع الإنشاء
+            if (!isEditMode) openWindowFilmModal(rowId);
         } else if (productType === 'PPF' || productType === 'MATT' || productType === 'Vinyl') {
-            prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
-            row.querySelector('.len').readOnly = true;
-            row.querySelector('.wid').readOnly = true;
-            row.querySelector('.len').classList.add('readonly-input');
-            row.querySelector('.wid').classList.add('readonly-input');
-            if (wfInfo) wfInfo.textContent = 'اختر الباقة من النافذة';
-            // Open package selector modal
-            openPackageModeModal(rowId, productType);
+            // في وضع التعديل: ابنِ قائمة المنتجات الحقيقية بدل option واحدة
+            if (isEditMode) {
+                const typeKey = productType === 'PPF'   ? ['ppf','paint protection'] :
+                                productType === 'MATT'  ? ['matt'] :
+                                                          ['vinyl'];
+                const matched = products.filter(p => {
+                    const t = (p.type || p.serviceCategory || '').toLowerCase();
+                    return typeKey.some(k => t.includes(k));
+                });
+                if (matched.length > 0) {
+                    let opts = '<option value="">اختر الصنف</option>';
+                    matched.forEach(p => {
+                        const priceWV = getPriceWithoutVat(p);
+                        opts += `<option value="${p._id}" data-price="${priceWV}" data-unit="${p.unit||'رول'}">${p.name}</option>`;
+                    });
+                    prodSelect.innerHTML = opts;
+                } else {
+                    prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
+                }
+            } else {
+                prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
+                row.querySelector('.len').readOnly = true;
+                row.querySelector('.wid').readOnly = true;
+                row.querySelector('.len').classList.add('readonly-input');
+                row.querySelector('.wid').classList.add('readonly-input');
+                if (wfInfo) wfInfo.textContent = 'اختر الباقة من النافذة';
+                openPackageModeModal(rowId, productType);
+            }
         } else if (productType === 'Additional Services') {
-            // Show piece-based products (unit: عدد or قطعة)
             const pieceProducts = products.filter(p => {
                 const unit = p.unit || '';
                 return unit.includes('عدد') || unit.includes('قطعة') || unit.toLowerCase().includes('piece');
@@ -909,29 +1053,22 @@
             } else {
                 let opts = '<option value="">اختر الخدمة</option>';
                 pieceProducts.forEach(p => {
-                    // Use priceWithoutVat if available, otherwise calculate from salePrice
-                    let priceWithVat = p.pricing?.salePrice || p.pricing?.unitSalePrice || 0;
-                    let priceWithoutVat = p.pricing?.priceWithoutVat || 0;
-                    if (!priceWithoutVat && priceWithVat) {
-                        priceWithoutVat = priceWithVat / (1 + VAT_RATE);
-                    }
+                    let priceWithoutVat = getPriceWithoutVat(p);
                     opts += `<option value="${p._id}" data-price="${priceWithoutVat}" data-unit="عدد">${p.name} - ${priceWithoutVat.toFixed(2)} ج.م</option>`;
                 });
                 prodSelect.innerHTML = opts;
             }
             
-            // Piece-based: Disable length/width, use area field for quantity
             row.querySelector('.len').readOnly = true;
             row.querySelector('.wid').readOnly = true;
             row.querySelector('.len').classList.add('readonly-input');
             row.querySelector('.wid').classList.add('readonly-input');
             row.querySelector('.area').readOnly = false;
             row.querySelector('.area').placeholder = 'العدد';
-            row.querySelector('.area').value = '1';
+            if (!isEditMode) row.querySelector('.area').value = '1';
             if (wfInfo) wfInfo.textContent = 'اختر الخدمة وأدخل العدد';
             
         } else if (productType) {
-            // Piece-based products
             const filteredProducts = products.filter(p => p.type === productType);
             if (filteredProducts.length === 0) {
                 prodSelect.innerHTML = `<option value="${productType}" selected>${productType}</option>`;
@@ -940,11 +1077,7 @@
                 filteredProducts.forEach(p => {
                     const unit = p.unit || 'قطعة';
                     const displayLabel = buildSalesDisplayLabel(p, productType);
-                    // Use priceWithoutVat if available, otherwise calculate from salePrice
-                    let priceWithoutVat = p.pricing?.priceWithoutVat || 0;
-                    if (!priceWithoutVat && p.pricing?.salePrice) {
-                        priceWithoutVat = p.pricing.salePrice / (1 + VAT_RATE);
-                    }
+                    let priceWithoutVat = getPriceWithoutVat(p.pricing || {});
                     opts += `<option value="${p._id}" data-price="${priceWithoutVat}" data-unit="${unit}" data-material-type="${p.type}">${displayLabel}</option>`;
                 });
                 prodSelect.innerHTML = opts;
@@ -1019,57 +1152,217 @@
         updPrice(row.querySelector('.prod'));
     }
 
-    function addEmptyRow() { createRow({ isManual: true }); }
+    // Global arrays to store parts and services for dropdowns
+    let allSavedParts = [];
+    let allServices = [];
 
-    // Removed loadRolls function as it is no longer needed
+    // Load all parts from cars data
+    function loadAllParts() {
+        allSavedParts = [];
+        if (carsData && carsData.length > 0) {
+            carsData.forEach(car => {
+                if (car.parts && car.parts.length > 0) {
+                    car.parts.forEach(part => {
+                        // Avoid duplicates
+                        if (!allSavedParts.find(p => p.name === part.name)) {
+                            allSavedParts.push({
+                                name: part.name,
+                                length: part.lengthCM || 0,
+                                width: part.widthCM || 0,
+                                area: part.areaM2 || 0,
+                                carBrand: car.brand || '',
+                                carModel: car.model || ''
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        // Sort alphabetically
+        allSavedParts.sort((a, b) => a.name.localeCompare(b.name));
+    }
 
+    // Load all services from products
+    function loadAllServices() {
+        allServices = [];
+        if (products && products.length > 0) {
+            products.forEach(p => {
+                // Include products that are services or have unit as 'عدد' or 'قطعة'
+                const unit = (p.unit || '').toLowerCase();
+                const isService = unit.includes('عدد') || unit.includes('قطعة') || 
+                                  unit.includes('piece') || unit.includes('service') ||
+                                  p.type === 'Additional Services' || p.serviceCategory;
+                
+                if (isService) {
+                    const priceWithoutVat = getPriceWithoutVat(p);
+                    allServices.push({
+                        _id: p._id,
+                        name: p.name,
+                        type: p.type || p.serviceCategory || 'Service',
+                        unit: p.unit || 'عدد',
+                        price: priceWithoutVat
+                    });
+                }
+            });
+        }
+        // Sort alphabetically
+        allServices.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Get options HTML for parts dropdown
+    function getPartsOptions() {
+        let opts = '<option value="">-- اختر القطعة --</option>';
+        // Group by first letter for easier navigation
+        let currentLetter = '';
+        allSavedParts.forEach(part => {
+            const firstLetter = part.name.charAt(0).toUpperCase();
+            if (firstLetter !== currentLetter) {
+                currentLetter = firstLetter;
+                opts += `<optgroup label="${currentLetter}">`;
+            }
+            const dims = part.length && part.width ? ` (${part.length}×${part.width})` : '';
+            opts += `<option value="${part.name}" data-length="${part.length}" data-width="${part.width}" data-area="${part.area}">${part.name}${dims}</option>`;
+        });
+        if (currentLetter) opts += '</optgroup>';
+        return opts;
+    }
+
+    // Get options HTML for services dropdown
+    function getServicesOptions() {
+        let opts = '<option value="">-- اختر الخدمة --</option>';
+        // Group by type
+        const grouped = {};
+        allServices.forEach(svc => {
+            const type = svc.type || 'خدمات';
+            if (!grouped[type]) grouped[type] = [];
+            grouped[type].push(svc);
+        });
+        
+        Object.keys(grouped).sort().forEach(type => {
+            opts += `<optgroup label="${type}">`;
+            grouped[type].forEach(svc => {
+                opts += `<option value="${svc._id}" data-price="${svc.price}" data-unit="${svc.unit}">${svc.name} - ${svc.price.toFixed(2)} ج.م</option>`;
+            });
+            opts += '</optgroup>';
+        });
+        return opts;
+    }
+
+    // Handle part selection from dropdown
+    function onPartSelect(select) {
+        const row = select.closest('tr');
+        const option = select.options[select.selectedIndex];
+        if (!option.value) return;
+        
+        const length = parseFloat(option.dataset.length) || 0;
+        const width = parseFloat(option.dataset.width) || 0;
+        const area = parseFloat(option.dataset.area) || 0;
+        
+        // Fill the part name input
+        const partInput = row.querySelector('.part-name');
+        if (partInput) partInput.value = option.value;
+        
+        // Fill dimensions
+        if (length > 0) row.querySelector('.len').value = length;
+        if (width > 0) row.querySelector('.wid').value = width;
+        if (area > 0) {
+            row.querySelector('.area').value = area.toFixed(4);
+        } else if (length > 0 && width > 0) {
+            const calculatedArea = (length * width) / 10000;
+            row.querySelector('.area').value = calculatedArea.toFixed(4);
+        }
+        
+        // Trigger price update
+        updPrice(row.querySelector('.prod'));
+    }
+
+    // Handle service selection from dropdown
+    function onServiceSelect(select) {
+        const row = select.closest('tr');
+        const option = select.options[select.selectedIndex];
+        if (!option.value) return;
+        
+        const price = parseFloat(option.dataset.price) || 0;
+        const unit = option.dataset.unit || 'عدد';
+        
+        // Set the product select to match this service
+        const prodSelect = row.querySelector('.prod');
+        if (prodSelect) {
+            // Check if option exists, if not add it
+            let existingOpt = prodSelect.querySelector(`option[value="${option.value}"]`);
+            if (!existingOpt) {
+                existingOpt = document.createElement('option');
+                existingOpt.value = option.value;
+                existingOpt.textContent = option.text.split(' - ')[0]; // Remove price
+                existingOpt.dataset.price = price;
+                existingOpt.dataset.unit = unit;
+                prodSelect.appendChild(existingOpt);
+            }
+            prodSelect.value = option.value;
+        }
+        
+        // Set default quantity to 1 for services
+        const areaInput = row.querySelector('.area');
+        if (areaInput) {
+            areaInput.value = '1';
+            areaInput.placeholder = unit.includes('قطعة') || unit.includes('عدد') ? 'العدد' : 'الكمية';
+        }
+        
+        // Set price
+        const unitPriceInput = row.querySelector('.unit-price');
+        if (unitPriceInput) unitPriceInput.value = price.toFixed(2);
+        
+        const rowTotalInput = row.querySelector('.row-total');
+        if (rowTotalInput) rowTotalInput.value = price.toFixed(2);
+        
+        // For services, disable length/width
+        const lenInput = row.querySelector('.len');
+        const widInput = row.querySelector('.wid');
+        if (lenInput) {
+            lenInput.readOnly = true;
+            lenInput.classList.add('readonly-input');
+        }
+        if (widInput) {
+            widInput.readOnly = true;
+            widInput.classList.add('readonly-input');
+        }
+        
+        calcTotal();
+    }
+
+    function addEmptyRow() { 
+        // Ensure parts and services are loaded
+        if (allSavedParts.length === 0) {
+            loadAllParts();
+        }
+        if (allServices.length === 0) {
+            loadAllServices();
+        }
+        createRow({ isManual: true }); 
+    }
 
     async function getPricingMatrixPrice(materialType, vehicleCategory, carPart, area, grade = null) {
         try {
-            console.log('PricingMatrix request:', { materialType, vehicleCategory, carPart, area, grade });
             let url = `${API}/pricing/calculate?materialType=${encodeURIComponent(materialType)}&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(carPart)}&area=${area || 1}`;
-            if (grade !== null) {
-                url += `&grade=${grade}`;
-            }
-            const res = await fetch(url, { headers: authHeaders() });
-            console.log('PricingMatrix response status:', res.status);
-            if (!res.ok) {
-                const errorText = await res.text();
-                console.error('PricingMatrix error:', errorText);
-                return null;
-            }
-            const data = await res.json();
-            console.log('PricingMatrix response data:', data);
-            return data;
+            if (grade !== null) url += `&grade=${grade}`;
+            const res = await fetch(url, { headers: Auth.getHeaders() });
+            if (!res.ok) return null;
+            return await res.json();
         } catch (error) {
-            console.error('Error fetching pricing matrix:', error);
             return null;
         }
     }
 
-    // Get price from product database (price_list) - uses pricingLogic.js on backend
     async function getProductPrice(serviceName, partName = null, quantity = 1, area = null) {
         try {
-            console.log('Product price request:', { serviceName, partName, quantity, area });
             let url = `${API}/pricing/product-price?serviceName=${encodeURIComponent(serviceName)}`;
-            if (partName) url += `&partName=${encodeURIComponent(partName)}`;
-            if (quantity) url += `&quantity=${quantity}`;
-            if (area) url += `&area=${area}`;
-
-            const res = await fetch(url, { headers: authHeaders() });
-            console.log('Product price response status:', res.status);
-
-            if (!res.ok) {
-                const errorText = await res.text();
-                console.error('Product price error:', errorText);
-                return null;
-            }
-
-            const data = await res.json();
-            console.log('Product price response data:', data);
-            return data;
+            if (partName)  url += `&partName=${encodeURIComponent(partName)}`;
+            if (quantity)  url += `&quantity=${quantity}`;
+            if (area)      url += `&area=${area}`;
+            const res = await fetch(url, { headers: Auth.getHeaders() });
+            if (!res.ok) return null;
+            return await res.json();
         } catch (error) {
-            console.error('Error fetching product price:', error);
             return null;
         }
     }
@@ -1093,8 +1386,6 @@
         const partName = row.querySelector('.part-name')?.value || '';
         const area = parseFloat(row.querySelector('.area')?.value) || 0;
         const prodType = row.getAttribute('data-product-type') || '';
-        
-        console.log('updPrice:', { prodType, wfPart, wfGrade, vehicleCategory, partName, area });
         
         // Handle Window Film with modal selection
         if (prodType === 'Window Film' && wfPart && wfGrade) {
@@ -1249,48 +1540,123 @@
     }
 
     function calcTotal() {
-        let sub = 0;
-        document.querySelectorAll('.row-total').forEach(i => sub += parseFloat(i.value)||0);
-        document.getElementById('subtotal').innerText = sub.toFixed(2);
-
-        const extra = parseFloat(document.getElementById('extraCost').value)||0;
-        const disc = parseFloat(document.getElementById('discount').value)||0;
-
-        // الأسعار بدون ضريبة - نحسب الصافي ثم نضيف الضريبة
-        let netAmount = (sub + extra) - disc; // المبلغ بدون ضريبة
-        let vat = netAmount * VAT_RATE; // الضريبة 14%
-        let totalWithVat = netAmount + vat; // الإجمالي شامل الضريبة
+        let subtotalNet = 0;
+        // جمع إجمالي الأصناف (التي هي الآن صافية بدون ضريبة)
+        document.querySelectorAll('.row-total').forEach(i => subtotalNet += parseFloat(i.value) || 0);
         
-        document.getElementById('totalWithVat').innerText = totalWithVat.toFixed(2);
-        document.getElementById('vatVal').innerText = vat.toFixed(2);
+        document.getElementById('subtotal').innerText = subtotalNet.toFixed(2);
 
-        // رقم استرشادي (قيمة الفاتورة قبل الخصم من المنبع)
+        const extra = parseFloat(document.getElementById('extraCost').value) || 0;
+        const disc = parseFloat(document.getElementById('discount').value) || 0;
+
+        // الصافي النهائي بعد الخصم والإضافات
+        let netAmount = (subtotalNet + extra) - disc; 
+        
+        // حساب الضريبة (14% تضاف فوق الصافي)
+        let vatAmount = netAmount * 0.14;
+        
+        // الإجمالي النهائي الشامل الذي يدفعه العميل
+        let totalWithVat = netAmount + vatAmount;
+
+        document.getElementById('totalWithVat').innerText = totalWithVat.toFixed(2);
+        document.getElementById('vatVal').innerText = vatAmount.toFixed(2);
         document.getElementById('referenceTotal').innerText = totalWithVat.toFixed(2);
 
-        // ضريبة الخصم من المنبع (1% من إجمالي الفاتورة قبل الخصم)
-        let wht = 0;
-        if (document.getElementById('hasWht').checked) {
-            wht = totalWithVat * 0.01;
-        }
+        // حساب الصافي النهائي للتحصيل
+        let wht = document.getElementById('hasWht').checked ? (netAmount * 0.01) : 0;
         document.getElementById('whtVal').innerText = wht.toFixed(2);
-
-        // الصافي بعد الخصم
-        let finalTotal = totalWithVat - wht;
-        document.getElementById('finalTotal').innerText = finalTotal.toFixed(2);
-        
+        document.getElementById('finalTotal').innerText = (totalWithVat - wht).toFixed(2);
     }
+
+    // ── نظام حالة الفاتورة ────────────────────────────────────────────
+    const STATUS_LABELS = {
+        draft:          { ar: '📝 مسودة',           cls: 'inv-status-draft'          },
+        confirmed:      { ar: '✅ مؤكدة',            cls: 'inv-status-confirmed'      },
+        amended:        { ar: '✏️ معدّلة',           cls: 'inv-status-amended'        },
+        add_request:    { ar: '➕ طلب إضافة خدمة',  cls: 'inv-status-add_request'    },
+        cancel_request: { ar: '➖ طلب إلغاء خدمة',  cls: 'inv-status-cancel_request' },
+        cancelled:      { ar: '🚫 ملغاة',            cls: 'inv-status-cancelled'      }
+    };
+
+    function renderStatusBadge(status) {
+        const s = STATUS_LABELS[status] || STATUS_LABELS.draft;
+        const el = document.getElementById('invoiceStatus');
+        if (!el) return;
+        el.className = `inv-status ${s.cls}`;
+        el.textContent = s.ar;
+        el.dataset.status = status || 'draft';
+    }
+
+    // أزرار تغيير الحالة — تظهر فقط في وضع التعديل
+    function renderStatusActions(currentStatus) {
+        const container = document.getElementById('statusActionsBar');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const actions = [];
+        if (currentStatus === 'confirmed' || currentStatus === 'amended') {
+            actions.push({ label: '➕ طلب إضافة خدمة',  status: 'add_request',    color: '#2563eb' });
+            actions.push({ label: '➖ طلب إلغاء خدمة',  status: 'cancel_request', color: '#dc2626' });
+        }
+        if (currentStatus === 'add_request' || currentStatus === 'cancel_request') {
+            actions.push({ label: '✅ تأكيد التعديل',    status: 'amended',        color: '#059669' });
+            actions.push({ label: '↩️ إلغاء الطلب',     status: 'confirmed',      color: '#6b7280' });
+        }
+        if (!['cancelled', 'draft'].includes(currentStatus)) {
+            actions.push({ label: '🚫 إلغاء الفاتورة',  status: 'cancelled',      color: '#991b1b' });
+        }
+
+        actions.forEach(a => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn no-print';
+            btn.style.cssText = `background:${a.color}; font-size:12px; padding:6px 12px; margin-left:6px;`;
+            btn.textContent = a.label;
+            btn.onclick = () => changeInvoiceStatus(a.status);
+            container.appendChild(btn);
+        });
+    }
+
+    async function changeInvoiceStatus(newStatus) {
+        const id = document.getElementById('editId').value;
+        if (!id) { alert('احفظ الفاتورة أولاً'); return; }
+        if (!confirm(`تغيير الحالة إلى: ${STATUS_LABELS[newStatus]?.ar}؟`)) return;
+
+        try {
+            const res = await fetch(`${API}/sales/${id}`, {
+                method: 'PUT',
+                headers: Auth.getHeaders(true),
+                body: JSON.stringify({ invoiceStatus: newStatus })
+            });
+            if (!res.ok) throw new Error((await res.json()).error || 'فشل');
+            renderStatusBadge(newStatus);
+            renderStatusActions(newStatus);
+            // لو طلب إضافة أو إلغاء — أعد فتح الفاتورة للتعديل
+            if (newStatus === 'add_request' || newStatus === 'cancel_request') {
+                alert('يمكنك الآن تعديل بنود الفاتورة ثم اضغط "حفظ التعديل"');
+            }
+        } catch (e) {
+            alert('خطأ: ' + e.message);
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────
 
     async function saveInvoice() {
         const items = [];
         document.querySelectorAll('tbody tr').forEach(tr => {
-            if(tr.querySelector('.prod').value) {
+            const prodEl    = tr.querySelector('.prod');
+            const prodValue = prodEl ? prodEl.value : '';
+            // نحفظ الصف حتى لو الـ product فاضي — المهم إن فيه partName أو lineTotal
+            const partName  = tr.querySelector('.part-name')?.value || '';
+            const lineTotal = parseFloat(tr.querySelector('.row-total')?.value) || 0;
+            if (prodValue || partName || lineTotal > 0) {
                 items.push({
-                    product: tr.querySelector('.prod').value,
-                    partName: tr.querySelector('.part-name').value,
-                    lengthCM: tr.querySelector('.len').value,
-                    widthCM: tr.querySelector('.wid').value,
-                    area: tr.querySelector('.area').value,
-                    price: tr.querySelector('.row-total').value
+                    product:  prodValue,
+                    partName: partName,
+                    lengthCM: tr.querySelector('.len')?.value  || 0,
+                    widthCM:  tr.querySelector('.wid')?.value  || 0,
+                    area:     tr.querySelector('.area')?.value || 0,
+                    price:    tr.querySelector('.row-total')?.value || 0
                 });
             }
         });
@@ -1302,20 +1668,24 @@
         const url = id ? `${API}/sales/${id}` : `${API}/sales`;
 
         const manualInvNum = document.getElementById('invNum').value.trim();
-        
+
+        // ── قراءة الوكيل من TomSelect أو الـ <select> مباشرة ──────────
         const salesPersonSelect = document.getElementById('salesPerson');
-        const salesPersonName = salesPersonSelect?.options[salesPersonSelect.selectedIndex]?.text || '';
-        
-        // Get commission data from selected agent
-        const selectedOption = salesPersonSelect?.options[salesPersonSelect.selectedIndex];
-        const commissionType = selectedOption?.getAttribute('data-commission-type') || 'percentage';
-        const commissionValue = parseFloat(selectedOption?.getAttribute('data-commission-value')) || 0;
+        const agentId = window.salesSelect ? window.salesSelect.getValue() : (salesPersonSelect?.value || '');
+        // اقرأ data-* من الـ <option> الأصلي
+        const agentOpt = salesPersonSelect?.querySelector(`option[value="${agentId}"]`);
+        const commissionType  = agentOpt?.dataset.commissionType  || salesPersonSelect?.getAttribute('data-selected-commission-type')  || 'percentage';
+        const commissionValue = parseFloat(agentOpt?.dataset.commissionValue || salesPersonSelect?.getAttribute('data-selected-commission-value') || 0);
+        // اسم الوكيل من TomSelect أو من الـ option
+        const salesPersonName = agentOpt?.textContent?.trim()
+            || (window.salesSelect ? window.salesSelect.getOption(agentId)?.textContent?.trim() : '')
+            || '';
 
         // Calculate final amounts for backend
         const gross = parseFloat(document.getElementById('referenceTotal')?.innerText || 0) || 0;
-        const vat = parseFloat(document.getElementById('vatVal')?.innerText || 0) || 0;
-        const net = Math.max(0, gross - vat);
-        
+        const vat   = parseFloat(document.getElementById('vatVal')?.innerText || 0) || 0;
+        const net   = Math.max(0, gross - vat);
+
         // Calculate agent commission
         let agentCommissionValue = 0;
         if (String(commissionType).toLowerCase() === 'fixed') {
@@ -1324,44 +1694,70 @@
             agentCommissionValue = net * (commissionValue / 100);
         }
 
+        // حالة الفاتورة: فاتورة جديدة → confirmed، تعديل → amended
+        const currentStatus = document.getElementById('invoiceStatus')?.dataset.status || 'draft';
+        const newStatus = id
+            ? (['add_request','cancel_request'].includes(currentStatus) ? 'amended' : currentStatus)
+            : 'confirmed';
+
         const data = {
-            salesPerson: salesPersonSelect?.value || undefined,
-            salesPersonName: salesPersonName,
-            commissionRate: parseFloat(document.getElementById('commissionRate')?.value) || 0,
-            commissionType: commissionType,
-            commissionValue: commissionValue,
-            invoiceNumber: manualInvNum || undefined,
-            date: document.getElementById('date').value,
-            customer: document.getElementById('customer').value,
-            carModel: document.getElementById('car').value,
-            serviceType: document.getElementById('serviceType').value,
-            items: items,
-            subtotal: parseFloat(document.getElementById('subtotal').innerText),
-            totalExtraCosts: parseFloat(document.getElementById('extraCost').value)||0,
-            totalDiscount: parseFloat(document.getElementById('discount').value)||0,
-            totalTax: parseFloat(document.getElementById('vatVal').innerText)||0,
-            whtAmount: parseFloat(document.getElementById('whtVal').innerText)||0,
-            // Send finalTotal as referenceTotal (before WHT) to match backend GL logic
-            finalTotal: parseFloat(document.getElementById('referenceTotal').innerText),
-            // Extra vehicle and financial fields
-            vehicleType: document.getElementById('vehicleType')?.value || '',
-            vehicleModel: document.getElementById('vehicleModel')?.value || '',
-            vehiclePlate: document.getElementById('vehiclePlate')?.value || '',
-            vehicleColor: document.getElementById('vehicleColor')?.value || '',
-            netAmount: Number(net.toFixed(2)),
-            vatAmount: Number(vat.toFixed(2)),
+            salesPerson:      agentId || undefined,
+            salesPersonName:  salesPersonName,
+            commissionRate:   parseFloat(document.getElementById('commissionRate')?.value) || 0,
+            commissionType,
+            commissionValue,
+            invoiceNumber:    manualInvNum || undefined,
+            invoiceStatus:    newStatus,
+            date:             document.getElementById('date').value,
+            customer:         document.getElementById('customer').value,
+            carModel:         document.getElementById('car').value,
+            serviceType:      document.getElementById('serviceType').value,
+            items,
+            subtotal:         parseFloat(document.getElementById('subtotal').innerText),
+            totalExtraCosts:  parseFloat(document.getElementById('extraCost').value)  || 0,
+            totalDiscount:    parseFloat(document.getElementById('discount').value)   || 0,
+            totalTax:         parseFloat(document.getElementById('vatVal').innerText) || 0,
+            whtAmount:        parseFloat(document.getElementById('whtVal').innerText) || 0,
+            finalTotal:       parseFloat(document.getElementById('referenceTotal').innerText),
+            vehicleType:      document.getElementById('vehicleType')?.value  || '',
+            vehicleModel:     document.getElementById('vehicleModel')?.value || '',
+            vehiclePlate:     document.getElementById('vehiclePlate')?.value || '',
+            vehicleColor:     document.getElementById('vehicleColor')?.value || '',
+            netAmount:        Number(net.toFixed(2)),
+            vatAmount:        Number(vat.toFixed(2)),
             agent_commission_value: Number(agentCommissionValue.toFixed(2))
         };
 
         try {
-            const res = await fetch(url, { method: method, headers: authHeaders(true), body: JSON.stringify(data) });
-            if(res.ok) {
+            let res;
+            const isAdjustmentMode = id && ['add_request','cancel_request'].includes(currentStatus);
+            if (isAdjustmentMode) {
+                const mode = currentStatus === 'add_request' ? 'add' : 'cancel';
+                const adjustmentItems = buildAdjustmentPayload(items, mode);
+                if (!adjustmentItems.length) {
+                    alert('لا توجد تغييرات صافية لتسجيلها في الملحق.');
+                    return;
+                }
+                res = await fetch(`${API}/sales/${id}/service-adjustments`, {
+                    method: 'POST',
+                    headers: Auth.getHeaders(true),
+                    body: JSON.stringify({
+                        mode,
+                        items: adjustmentItems,
+                        notes: mode === 'add' ? 'ملحق إضافة خدمات' : 'ملحق إلغاء خدمات'
+                    })
+                });
+            } else {
+                res = await fetch(url, { method, headers: Auth.getHeaders(true), body: JSON.stringify(data) });
+            }
+            if (res.ok) {
                 const savedInv = await res.json();
-                alert('تم حفظ الفاتورة بنجاح!');
-                window.location.href = '/sales/invoice_print.html?id=' + (savedInv.invoice?._id || savedInv._id);
+                alert(id ? 'تم حفظ التعديل بنجاح!' : 'تم حفظ الفاتورة بنجاح!');
+                window.location.href = '/sales/job_order_print.html?id=' + (savedInv.invoice?._id || savedInv._id || id);
             } else {
                 const err = await res.json();
-                alert('خطأ أثناء الحفظ: ' + (err.message || err.error || JSON.stringify(err) || 'خطأ غير معروف')); console.error('Save Error:', err);
+                alert('خطأ أثناء الحفظ: ' + (err.message || err.error || JSON.stringify(err)));
+                console.error('Save Error:', err);
             }
         } catch(e) {
             alert('خطأ في الاتصال بالخادم: ' + e.message);
@@ -1371,7 +1767,7 @@
     function goToPrint() {
         const id = document.getElementById('editId').value;
         if(id) {
-            window.open('/sales/invoice_print.html?id=' + id, '_blank');
+            window.open('/sales/job_order_print.html?id=' + id, '_blank');
         } else {
             alert('الرجاء حفظ الفاتورة أولاً قبل الطباعة');
         }
@@ -1502,43 +1898,208 @@
     }
 
     async function loadForEdit(id) {
-        const res = await fetch(`${API}/sales/${id}`);
+        // ── 1. جلب بيانات الفاتورة ──────────────────────────────────
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API}/sales/${id}`, { 
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
+            } 
+        });
+        if (!res.ok) { alert('فشل تحميل الفاتورة'); return; }
         const inv = await res.json();
-        
-        document.getElementById('editId').value = inv._id;
-        document.getElementById('invNum').value = inv.invoiceNumber; 
-        document.getElementById('customer').value = inv.customer?._id || inv.customer; 
-        document.getElementById('car').value = inv.carModel?._id || inv.carModel;
-        document.getElementById('serviceType').value = inv.serviceType;
-        document.getElementById('date').value = inv.date.split('T')[0];
-        
-        document.getElementById('extraCost').value = inv.totalExtraCosts || 0;
-        document.getElementById('discount').value = inv.totalDiscount || 0;
-        
-        // Set sales agent/commission
-        if (inv.salesPerson) {
-            document.getElementById('salesPerson').value = inv.salesPerson?._id || inv.salesPerson;
-        }
-        document.getElementById('commissionType').value = inv.commissionType || 'percentage';
-        document.getElementById('commissionValue').value = inv.commissionValue || 0;
-        
-        if(inv.totalTax > 0) document.getElementById('hasVat').checked = true;
-        if(inv.whtAmount > 0) document.getElementById('hasWht').checked = true;
+        originalInvoiceItems = JSON.parse(JSON.stringify(inv.items || []));
 
-        const tbody = document.querySelector('tbody');
-        tbody.innerHTML = '';
-        inv.items.forEach(item => {
+        document.getElementById('editId').value       = inv._id;
+        document.getElementById('invNum').value        = inv.invoiceNumber;
+        document.getElementById('date').value          = (inv.date || '').split('T')[0];
+        document.getElementById('extraCost').value     = inv.totalExtraCosts || 0;
+        document.getElementById('discount').value      = inv.totalDiscount   || 0;
+        document.getElementById('serviceType').value   = inv.serviceType     || '';
+
+        // ── 2. ضبط العميل والسيارة ───────────────────────────────────
+        const custId = inv.customer?._id || inv.customer || '';
+        const carId  = inv.carModel?._id  || inv.carModel  || '';
+        if (window.custSelect) window.custSelect.setValue(custId, true);
+        else document.getElementById('customer').value = custId;
+        if (window.carSelect)  window.carSelect.setValue(carId, true);
+        else document.getElementById('car').value = carId;
+
+        // ── 3. حالة الفاتورة ─────────────────────────────────────────
+        const invStatus = inv.invoiceStatus || 'confirmed';
+        renderStatusBadge(invStatus);
+        renderStatusActions(invStatus);
+        const saveBtn = document.querySelector('.btn-save');
+        if (saveBtn) {
+            saveBtn.textContent = ['add_request','cancel_request'].includes(invStatus)
+                ? '💾 حفظ التعديل على الفاتورة'
+                : '💾 حفظ الفاتورة';
+        }
+
+        // ── 4. ضبط الوكيل ────────────────────────────────────────────
+        if (inv.salesPerson) {
+            const spId = typeof inv.salesPerson === 'object'
+                ? (inv.salesPerson._id || inv.salesPerson)
+                : inv.salesPerson;
+
+            // محاولة فورية
+            const applyAgent = () => {
+                if (window.salesSelect) {
+                    window.salesSelect.setValue(spId, true);
+                } else {
+                    const s = document.getElementById('salesPerson');
+                    if (s) s.value = spId;
+                }
+            };
+            applyAgent();
+            // محاولة مؤجلة بعد 500ms و 1200ms للتأكد من اكتمال TomSelect
+            setTimeout(applyAgent, 500);
+            setTimeout(applyAgent, 1200);
+        }
+        document.getElementById('commissionRate').value = inv.commissionRate || inv.commissionValue || 0;
+
+        const hasVatEl = document.getElementById('hasVat');
+        if (hasVatEl && inv.totalTax  > 0) hasVatEl.checked = true;
+        if (inv.whtAmount > 0) document.getElementById('hasWht').checked = true;
+
+        // Unified rendering path: always use createRow() in edit mode.
+        const unifiedTbody = document.querySelector('tbody');
+        unifiedTbody.innerHTML = '';
+        (inv.items || []).forEach((item) => {
+            const productObj    = typeof item.product === 'object' ? item.product : null;
+            const productId     = productObj?._id || item.product || item.productSlug || '';
+            const areaValue     = Number(item.area || item.quantity || 0);
+            const unitPriceVal  = Number(item.price || 0);
+            // الإجمالي: item.total أولاً، ثم price × area، ثم price كـ fallback
+            const lineTotalValue = Number(
+                item.total ||
+                (unitPriceVal * (areaValue || 1)) ||
+                unitPriceVal
+            );
+            // سعر الوحدة الحقيقي: لو فيه total → price هو سعر الوحدة، لو مفيش total → price هو الإجمالي
+            const realUnitPrice = item.total
+                ? unitPriceVal
+                : (areaValue > 0 ? Number((unitPriceVal / areaValue).toFixed(2)) : unitPriceVal);
+
+            // تحديد نوع المنتج: من item مباشرة أو من product object أو من products array
+            let productType = item.materialCategory
+                || productObj?.type
+                || productObj?.serviceCategory
+                || '';
+
+            // لو ما لقيناش نوع، ابحث في products array بالـ _id
+            if (!productType && productId) {
+                const found = products.find(p =>
+                    String(p._id) === String(productId) ||
+                    String(p.inventorySlug) === String(productId) ||
+                    String(p.code) === String(productId)
+                );
+                if (found) {
+                    productType = found.type || found.serviceCategory || found.category || '';
+                }
+            }
+
+            // Fallback: استخرج النوع من partName (مثال: "PPF - Hood" → "PPF")
+            if (!productType && item.partName) {
+                const pn = String(item.partName).toUpperCase();
+                if (pn.startsWith('PPF'))          productType = 'PPF';
+                else if (pn.startsWith('MATT'))     productType = 'MATT';
+                else if (pn.startsWith('VINYL'))    productType = 'Vinyl';
+                else if (pn.includes('WINDOW FILM') || pn.includes('WINDOW_FILM')) productType = 'Window Film';
+            }
+
             createRow({
-                partName: item.partName,
-                product: item.product?._id || item.product,
-                rollCode: item.rollCode,
-                length: item.lengthCM,
-                width: item.widthCM,
-                area: item.area,
-                priceUnit: 0, 
-                lineTotal: item.price
+                _isEditMode: true,
+                productType,
+                product: productId,
+                partName: item.partName || '',
+                length: item.lengthCM || item.length || 0,
+                width:  item.widthCM  || item.width  || 0,
+                area:   areaValue,
+                priceUnit: realUnitPrice,
+                lineTotal: lineTotalValue
             });
         });
+        calcTotal();
+        return;
+
+        // ── 5. تحميل الخدمات — بناء مباشر بدون createRow ────────────
+        const tbody = document.querySelector('tbody');
+        tbody.innerHTML = '';
+
+        (inv.items || []).forEach((item, idx) => {
+            const productId = typeof item.product === 'object'
+                ? (item.product?._id || item.productSlug || '')
+                : (item.product || item.productSlug || '');
+
+            const partName  = item.partName  || '';
+            const lengthVal = item.lengthCM  || 0;
+            const widthVal  = item.widthCM   || 0;
+            const areaVal   = item.area      || 0;
+            const priceVal  = item.price     || 0;
+
+            const rowId = 'edit_row_' + idx + '_' + Date.now();
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-row-id', rowId);
+
+            tr.innerHTML = `
+                <td><input class="part-name" value="${partName.replace(/"/g,'&quot;')}" placeholder="اسم القطعة / الباقة"></td>
+                <td>
+                    <select class="prod" style="width:100%;">
+                        <option value="${productId}">${productId || 'غير محدد'}</option>
+                    </select>
+                    <span class="wf-info" style="color:#666;font-size:11px;display:block;margin-top:2px;"></span>
+                </td>
+                <td><input type="number" class="len" value="${lengthVal}" oninput="calcArea(this)" style="width:100%;"></td>
+                <td><input type="number" class="wid" value="${widthVal}"  oninput="calcArea(this)" style="width:100%;"></td>
+                <td><input type="number" class="area readonly-input" value="${areaVal}" readonly style="width:100%;"></td>
+                <td><input type="number" class="unit-price" value="0" readonly style="color:#666;width:100%;"></td>
+                <td><input type="number" class="row-total" value="${priceVal}" oninput="calcTotal()" style="color:green;font-weight:bold;width:100%;"></td>
+                <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+            `;
+
+            // بعد إضافة الصف — حاول تبني dropdown حقيقي بدون modal
+            tbody.appendChild(tr);
+            const prodSel = tr.querySelector('.prod');
+
+            // ابنِ options من products array
+            const slug = String(productId).toLowerCase();
+            const cat  = (item.materialCategory || '').toLowerCase();
+            let matchedProducts = [];
+
+            if (slug === 'ppf' || cat.includes('ppf') || cat.includes('paint protection')) {
+                matchedProducts = products.filter(p => {
+                    const t = (p.type||p.serviceCategory||'').toLowerCase();
+                    return t.includes('ppf') || t.includes('paint protection');
+                });
+            } else if (slug === 'matt' || cat.includes('matt')) {
+                matchedProducts = products.filter(p => (p.type||p.serviceCategory||'').toLowerCase().includes('matt'));
+            } else if (slug === 'vinyl' || cat.includes('vinyl')) {
+                matchedProducts = products.filter(p => (p.type||p.serviceCategory||'').toLowerCase().includes('vinyl'));
+            } else if (slug === 'window_film' || cat.includes('window')) {
+                matchedProducts = products.filter(p => (p.type||p.serviceCategory||'').toLowerCase().includes('window'));
+            } else {
+                // ابحث بالـ _id مباشرة
+                const exact = products.find(p => String(p._id) === String(productId));
+                if (exact) matchedProducts = [exact];
+                else matchedProducts = products; // fallback: كل المنتجات
+            }
+
+            if (matchedProducts.length > 0) {
+                let opts = '<option value="">-- اختر --</option>';
+                matchedProducts.forEach(p => {
+                    const sel = String(p._id) === String(productId) ? 'selected' : '';
+                    opts += `<option value="${p._id}" ${sel}>${p.name}</option>`;
+                });
+                // لو مفيش match بالـ _id، أضف option بالـ slug كـ fallback
+                const hasMatch = matchedProducts.some(p => String(p._id) === String(productId));
+                if (!hasMatch && productId) {
+                    opts += `<option value="${productId}" selected>${productId}</option>`;
+                }
+                prodSel.innerHTML = opts;
+            }
+        });
+
         calcTotal();
     }
 
@@ -1598,26 +2159,10 @@
                 
                 // If API returns 0, try direct product search by Tab (category or type or serviceCategory)
                 if (unitPrice === 0) {
-                    const tabLower = String(entry.tab || '').toLowerCase();
-                    const product = products.find(p => {
-                        const categoryFieldLower = String(p.category || '').toLowerCase();
-                        const typeFieldLower = String(p.type || '').toLowerCase();
-                        const serviceCategoryFieldLower = String(p.serviceCategory || '').toLowerCase();
-                        
-                        // مطابقة تامة أو جزئية في category أو type أو serviceCategory
-                        return categoryFieldLower === tabLower || 
-                               typeFieldLower === tabLower ||
-                               serviceCategoryFieldLower === tabLower ||
-                               categoryFieldLower.includes(tabLower) ||
-                               typeFieldLower.includes(tabLower) ||
-                               serviceCategoryFieldLower.includes(tabLower);
-                    });
+                    const product = findProductByTab(entry.tab);
                     
-                    if (product && product.pricing) {
-                        unitPrice = product.pricing.priceWithoutVat || 0;
-                        if (unitPrice === 0 && product.pricing.salePrice) {
-                            unitPrice = product.pricing.salePrice / (1 + VAT_RATE);
-                        }
+                    if (product) {
+                        unitPrice = getPriceWithoutVat(product);
                     }
                 }
                 
@@ -1640,7 +2185,7 @@
         
         // Get price from products directly - search by Tab (category or type or serviceCategory)
         const materialTypeLower = String(materialType || '').toLowerCase();
-        const materialProduct = products.find(p => {
+        const materialProduct = findProductByTab(materialType) || products.find(p => {
             const categoryFieldLower = String(p.category || '').toLowerCase();
             const typeFieldLower = String(p.type || '').toLowerCase();
             const serviceCategoryFieldLower = String(p.serviceCategory || '').toLowerCase();
@@ -1656,11 +2201,8 @@
         
         // Calculate price from product pricing
         let pricePerM2 = 0;
-        if (materialProduct && materialProduct.pricing) {
-            pricePerM2 = materialProduct.pricing.priceWithoutVat || 0;
-            if (pricePerM2 === 0 && materialProduct.pricing.salePrice) {
-                pricePerM2 = materialProduct.pricing.salePrice / (1 + VAT_RATE);
-            }
+        if (materialProduct) {
+            pricePerM2 = getPriceWithoutVat(materialProduct);
         }
         // Fallback to cached package prices
         if (pricePerM2 === 0) {
@@ -1915,7 +2457,7 @@
         if(!name) return alert('أدخل الاسم');
         try {
             const res = await fetch(API+'/customers', {
-                method: 'POST', headers: authHeaders(true),
+                method: 'POST', headers: Auth.getHeaders(true),
                 body: JSON.stringify({ name, phone })
             });
             const c = await res.json();
@@ -1946,7 +2488,7 @@
         
         try {
             const res = await fetch(API+'/agents', {
-                method: 'POST', headers: authHeaders(true),
+                method: 'POST', headers: Auth.getHeaders(true),
                 body: JSON.stringify({ name, type, phone, email, commissionType, commissionValue })
             });
             
@@ -1976,10 +2518,6 @@
         } catch(e) { alert('❌ خطأ: ' + e.message); }
     }
 
-    function rebuildAllRowsOpts() {
-        // Function kept for compatibility but no longer updates prod-type dropdowns
-        // since the column has been removed. Rows now use data-product-type attribute.
-    }
 </script>
 
 </body>

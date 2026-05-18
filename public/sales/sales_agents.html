@@ -210,7 +210,9 @@
             gap: 5px;
         }
     </style>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script></head>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script src="/common-functions.js"></script>
+</head>
 <body>
 
 <div class="container">
@@ -293,20 +295,29 @@
     const API = '/api';
     let agents = [];
     let currentEditId = null;
-    
+
+    function authHeaders(includeJson = false) {
+        const h = {};
+        if (includeJson) h['Content-Type'] = 'application/json';
+        const token = getToken();
+        if (token) h['Authorization'] = `Bearer ${token}`;
+        return h;
+    }
+
     window.onload = async () => {
         await loadAgents();
     };
     
     async function loadAgents() {
         try {
-            const res = await fetch(`${API}/agents`);
+            const res = await fetch(`${API}/agents`, { headers: authHeaders() });
             if (!res.ok) throw new Error('فشل تحميل الوكلاء');
             agents = await res.json();
             renderTable();
         } catch (e) {
             console.error(e);
-            alert('خطأ: ' + e.message);
+            document.getElementById('tableContainer').innerHTML =
+                `<div class="empty-state"><p>⚠️ ${e.message}</p></div>`;
         }
     }
     
@@ -428,15 +439,15 @@
         };
         
         try {
-            const url = currentEditId ? `${API}/agents/${currentEditId}` : `${API}/agents`;
+            const url    = currentEditId ? `${API}/agents/${currentEditId}` : `${API}/agents`;
             const method = currentEditId ? 'PUT' : 'POST';
-            
+
             const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
+                method,
+                headers: authHeaders(true),
                 body: JSON.stringify(data)
             });
-            
+
             if (res.ok) {
                 alert(currentEditId ? '✅ تم التحديث بنجاح' : '✅ تم الإضافة بنجاح');
                 closeModal();
@@ -452,9 +463,12 @@
     
     async function deleteAgent(id) {
         if (!confirm('⚠️ هل تريد حذف هذا الوكيل؟')) return;
-        
+
         try {
-            const res = await fetch(`${API}/agents/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API}/agents/${id}`, {
+                method: 'DELETE',
+                headers: authHeaders()
+            });
             if (res.ok) {
                 alert('✅ تم الحذف بنجاح');
                 await loadAgents();
