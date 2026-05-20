@@ -165,11 +165,38 @@
             <button class="btn btn-import" onclick="document.getElementById('excelFile').click()">📥 استيراد Excel</button>
             <input type="file" id="excelFile" accept=".xlsx, .xls" style="display:none" onchange="importFromExcel(this)">
             <button class="btn btn-print" onclick="goToPrint()">🖨️ طباعة</button>
+            <a href="/sales/service_adjustments.html" class="btn btn-list">تعديلات الفاتورة</a>
             <a href="/sales/sales_list.html" class="btn btn-list">📋 السجل</a>
         </div>
     </h2>
     <div id="msg"></div>
     <input type="hidden" id="editId">
+    <div id="adjustmentPanel" class="no-print" style="display:none; margin:12px 0; padding:12px; border:1px solid #f59e0b; background:#fffbeb; border-radius:8px;">
+        <div style="font-weight:bold; margin-bottom:8px;">وضع تعديل ملحق على فاتورة أصلية</div>
+        <div class="row" style="margin-bottom:0;">
+            <div class="col">
+                <label>نوع التعديل</label>
+                <select id="adjustmentActionType">
+                    <option value="MODIFY_SERVICE">تعديل خدمة</option>
+                    <option value="ADD_SERVICE">إضافة خدمة</option>
+                    <option value="CANCEL_SERVICE">إلغاء خدمة</option>
+                    <option value="DISCOUNT_ONLY">خصم فقط</option>
+                </select>
+            </div>
+            <div class="col">
+                <label>تأكيد عمل المرتجع المخزني (عند وجود صرف)</label>
+                <select id="adjustmentStockReturnConfirmed">
+                    <option value="false">لا</option>
+                    <option value="true">نعم</option>
+                </select>
+            </div>
+            <div class="col">
+                <label>ملاحظات التعديل</label>
+                <input id="adjustmentNotes" placeholder="سبب / ملاحظات">
+            </div>
+        </div>
+        <div id="adjustmentWarn" style="display:none; margin-top:8px; color:#b45309; font-weight:bold;"></div>
+    </div>
 
     <!-- Invoice Header with Company Info -->
     <div class="invoice-header">
@@ -340,6 +367,8 @@
     const VAT_RATE = 0.14; // 14% VAT - prices are without VAT, add VAT to total
     let products = [], carsData = [];
     let originalInvoiceItems = [];
+    let isServiceAdjustmentMode = false;
+    let adjustmentInvoiceId = '';
 
     function getPriceWithoutVat(product) {
         if (!product) return 0;
@@ -442,7 +471,22 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const id = urlParams.get('id');
+        const adjustment = urlParams.get('adjustment');
+        const adjustmentAction = urlParams.get('actionType') || 'MODIFY_SERVICE';
+        if (adjustment === '1' && id) {
+            isServiceAdjustmentMode = true;
+            adjustmentInvoiceId = id;
+            const panel = document.getElementById('adjustmentPanel');
+            if (panel) panel.style.display = 'block';
+            const sel = document.getElementById('adjustmentActionType');
+            if (sel) sel.value = adjustmentAction;
+            const saveBtn = document.querySelector('.btn-save');
+            if (saveBtn) saveBtn.textContent = '💾 حفظ ملحق التعديل';
+        }
         if(id) loadForEdit(id);
+        if (isServiceAdjustmentMode && id) {
+            await refreshAdjustmentIssueStatus(id);
+        }
     };
 
     async function loadNextInvoiceNumber() {
@@ -878,7 +922,7 @@
 
     function createRow(d = {}) {
         // Apply selected tab if no explicit product type
-        if (!d.productType && selectedSalesTab) {
+        if (!d.productType && selectedSalesTab && !isServiceAdjustmentMode) {
             d.productType = selectedSalesTab;
         }
 
@@ -887,6 +931,9 @@
 
         const tr = document.createElement('tr');
         tr.setAttribute('data-row-id', rowId);
+        if (Number.isInteger(Number(d.originalIndex))) {
+            tr.setAttribute('data-original-index', String(d.originalIndex));
+        }
         
         // Get product types for category dropdown
         const productTypes = getProductTypes();
@@ -986,7 +1033,9 @@
                         prodSelect.value = pid;
                     }
                 }
-                updPrice(prodSelect, false);
+                if (!d._isEditMode) {
+                    updPrice(prodSelect, false);
+                }
             }
         }
     }
@@ -1035,12 +1084,23 @@
                 }
             } else {
                 prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
-                row.querySelector('.len').readOnly = true;
-                row.querySelector('.wid').readOnly = true;
-                row.querySelector('.len').classList.add('readonly-input');
-                row.querySelector('.wid').classList.add('readonly-input');
-                if (wfInfo) wfInfo.textContent = 'اختر الباقة من النافذة';
-                openPackageModeModal(rowId, productType);
+                const hasCarParts = Array.isArray(selectedCarParts) && selectedCarParts.length > 0;
+                if (hasCarParts) {
+                    row.querySelector('.len').readOnly = true;
+                    row.querySelector('.wid').readOnly = true;
+                    row.querySelector('.len').classList.add('readonly-input');
+                    row.querySelector('.wid').classList.add('readonly-input');
+                    if (wfInfo) wfInfo.textContent = 'اختر الباقة من النافذة';
+                    openPackageModeModal(rowId, productType);
+                } else {
+                    row.querySelector('.len').readOnly = false;
+                    row.querySelector('.wid').readOnly = false;
+                    row.querySelector('.len').classList.remove('readonly-input');
+                    row.querySelector('.wid').classList.remove('readonly-input');
+                    row.querySelector('.area').readOnly = false;
+                    row.querySelector('.area').classList.remove('readonly-input');
+                    if (wfInfo) wfInfo.textContent = 'لا توجد أجزاء سيارة محملة، أدخل المقاسات يدويًا.';
+                }
             }
         } else if (productType === 'Additional Services') {
             const pieceProducts = products.filter(p => {
@@ -1591,6 +1651,10 @@
     function renderStatusActions(currentStatus) {
         const container = document.getElementById('statusActionsBar');
         if (!container) return;
+        if (!isServiceAdjustmentMode) {
+            container.innerHTML = '';
+            return;
+        }
         container.innerHTML = '';
 
         const actions = [];
@@ -1641,6 +1705,110 @@
     }
     // ─────────────────────────────────────────────────────────────────
 
+    async function refreshAdjustmentIssueStatus(invoiceId) {
+        try {
+            const res = await fetch(`${API}/sales/${invoiceId}/stock-issue-status`, { headers: Auth.getHeaders() });
+            if (!res.ok) return;
+            const data = await res.json();
+            const warn = document.getElementById('adjustmentWarn');
+            if (!warn) return;
+            if (data.hasAnyIssued) {
+                warn.style.display = 'block';
+                warn.textContent = 'تنبيه: يوجد صرف مخزني، الإلغاء/التعديل يحتاج تأكيد المرتجع أولًا.';
+            } else {
+                warn.style.display = 'none';
+                warn.textContent = '';
+            }
+        } catch (_) {}
+    }
+
+    function buildAdjustmentItemsFromEditor(currentItems, actionType) {
+        const original = Array.isArray(originalInvoiceItems) ? originalInvoiceItems : [];
+
+        if (actionType === 'DISCOUNT_ONLY') return [];
+
+        if (actionType === 'ADD_SERVICE') {
+            const added = currentItems.filter((row) => {
+                const oi = Number(row.originalIndex);
+                return !(Number.isInteger(oi) && oi >= 0);
+            });
+            return added.map((row) => ({
+                partName: row.partName,
+                product: row.product,
+                quantity: Number(row.area || 0) || 1,
+                price: Number(row.price || 0),
+                lengthCM: Number(row.lengthCM || 0),
+                widthCM: Number(row.widthCM || 0),
+                area: Number(row.area || 0)
+            }));
+        }
+
+        const changes = [];
+        const currentByOriginalIndex = new Map();
+        currentItems.forEach((row) => {
+            const oi = Number(row.originalIndex);
+            if (Number.isInteger(oi) && oi >= 0) currentByOriginalIndex.set(oi, row);
+        });
+
+        for (let i = 0; i < original.length; i++) {
+            const prev = original[i];
+            const curr = currentByOriginalIndex.get(i);
+
+            if (!curr) {
+                changes.push({
+                    itemIndex: i,
+                    partName: prev?.partName || '',
+                    quantity: 0,
+                    price: 0,
+                    reason: 'تم حذف السطر من شاشة التعديل'
+                });
+                continue;
+            }
+
+            const changed =
+                String(prev.partName || '') !== String(curr.partName || '') ||
+                Number(prev.lengthCM || 0) !== Number(curr.lengthCM || 0) ||
+                Number(prev.widthCM || 0) !== Number(curr.widthCM || 0) ||
+                Number(prev.area || prev.quantity || 0) !== Number(curr.area || 0) ||
+                Number(prev.price || 0) !== Number(curr.price || 0);
+
+            if (changed) {
+                changes.push({
+                    itemIndex: i,
+                    partName: curr.partName,
+                    product: curr.product,
+                    quantity: Number(curr.area || 0),
+                    price: Number(curr.price || 0),
+                    lengthCM: Number(curr.lengthCM || 0),
+                    widthCM: Number(curr.widthCM || 0),
+                    area: Number(curr.area || 0),
+                    reason: actionType === 'CANCEL_SERVICE' ? 'إلغاء بند' : 'تعديل بند'
+                });
+            }
+        }
+        return changes;
+    }
+
+    function lockBaseInvoiceEditing() {
+        const saveBtn = document.querySelector('.btn-save');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.6';
+            saveBtn.style.cursor = 'not-allowed';
+            saveBtn.textContent = 'عرض فقط - استخدم صفحة تعديلات الفاتورة';
+        }
+        const addBtn = document.querySelector('.btn-add');
+        if (addBtn) addBtn.style.display = 'none';
+
+        document.querySelectorAll('tbody tr').forEach((tr) => {
+            tr.querySelectorAll('input, select').forEach((el) => {
+                el.disabled = true;
+            });
+            const delBtn = tr.querySelector('.btn-del');
+            if (delBtn) delBtn.style.display = 'none';
+        });
+    }
+
     async function saveInvoice() {
         const items = [];
         document.querySelectorAll('tbody tr').forEach(tr => {
@@ -1651,6 +1819,7 @@
             const lineTotal = parseFloat(tr.querySelector('.row-total')?.value) || 0;
             if (prodValue || partName || lineTotal > 0) {
                 items.push({
+                    originalIndex: tr.getAttribute('data-original-index'),
                     product:  prodValue,
                     partName: partName,
                     lengthCM: tr.querySelector('.len')?.value  || 0,
@@ -1730,23 +1899,38 @@
 
         try {
             let res;
-            const isAdjustmentMode = id && ['add_request','cancel_request'].includes(currentStatus);
-            if (isAdjustmentMode) {
-                const mode = currentStatus === 'add_request' ? 'add' : 'cancel';
-                const adjustmentItems = buildAdjustmentPayload(items, mode);
-                if (!adjustmentItems.length) {
-                    alert('لا توجد تغييرات صافية لتسجيلها في الملحق.');
+            if (isServiceAdjustmentMode && adjustmentInvoiceId) {
+                const actionType = document.getElementById('adjustmentActionType')?.value || 'MODIFY_SERVICE';
+                const stockReturnConfirmed = document.getElementById('adjustmentStockReturnConfirmed')?.value === 'true';
+                const notes = document.getElementById('adjustmentNotes')?.value || '';
+                const adjustmentItems = buildAdjustmentItemsFromEditor(items, actionType);
+                if (actionType !== 'DISCOUNT_ONLY' && !adjustmentItems.length) {
+                    alert('لا توجد فروقات فعلية للتسجيل.');
                     return;
                 }
-                res = await fetch(`${API}/sales/${id}/service-adjustments`, {
+                res = await fetch(`${API}/service-adjustments`, {
                     method: 'POST',
                     headers: Auth.getHeaders(true),
                     body: JSON.stringify({
-                        mode,
-                        items: adjustmentItems,
-                        notes: mode === 'add' ? 'ملحق إضافة خدمات' : 'ملحق إلغاء خدمات'
+                        invoiceId: adjustmentInvoiceId,
+                        actionType,
+                        stockReturnConfirmed,
+                        discountAmount: actionType === 'DISCOUNT_ONLY' ? (parseFloat(document.getElementById('discount').value) || 0) : 0,
+                        notes,
+                        items: adjustmentItems
                     })
                 });
+                if (res.status === 404) {
+                    res = await fetch(`${API}/sales/${adjustmentInvoiceId}/service-adjustments`, {
+                        method: 'POST',
+                        headers: Auth.getHeaders(true),
+                        body: JSON.stringify({
+                            mode: actionType === 'ADD_SERVICE' ? 'add' : 'cancel',
+                            items: adjustmentItems,
+                            notes
+                        })
+                    });
+                }
             } else {
                 res = await fetch(url, { method, headers: Auth.getHeaders(true), body: JSON.stringify(data) });
             }
@@ -1965,7 +2149,7 @@
         // Unified rendering path: always use createRow() in edit mode.
         const unifiedTbody = document.querySelector('tbody');
         unifiedTbody.innerHTML = '';
-        (inv.items || []).forEach((item) => {
+        (inv.items || []).forEach((item, idx) => {
             const productObj    = typeof item.product === 'object' ? item.product : null;
             const productId     = productObj?._id || item.product || item.productSlug || '';
             const areaValue     = Number(item.area || item.quantity || 0);
@@ -2010,6 +2194,7 @@
 
             createRow({
                 _isEditMode: true,
+                originalIndex: idx,
                 productType,
                 product: productId,
                 partName: item.partName || '',
@@ -2021,6 +2206,9 @@
             });
         });
         calcTotal();
+        if (!isServiceAdjustmentMode) {
+            lockBaseInvoiceEditing();
+        }
         return;
 
         // ── 5. تحميل الخدمات — بناء مباشر بدون createRow ────────────
@@ -2522,3 +2710,4 @@
 
 </body>
 </html>
+

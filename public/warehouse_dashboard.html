@@ -3,243 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة مستودع الصرف - Wrapstyle ERP</title>
+    <title>لوحة المستودع - Wrapstyle ERP</title>
     <link rel="stylesheet" href="/improved-styles.css">
     <style>
-        :root { 
-            --primary: #163a5f; 
-            --secondary: #526277; 
-            --accent: #b98918; 
-            --success: #1f6f5f; 
-            --danger: #9f3a38; 
-            --border: rgba(22, 58, 95, 0.12); 
-            --surface: rgba(255, 255, 255, 0.97); 
-            --background: #f4f7fb;
+        :root {
+            --p:#163a5f; --s:#526277; --a:#b98918;
+            --ok:#1f6f5f; --er:#9f3a38;
+            --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97);
         }
-        body { 
-            margin: 0; 
-            font-family: "Segoe UI", Tahoma, sans-serif; 
-            background: radial-gradient(circle at top left, rgba(185, 137, 24, 0.08), transparent 400px), var(--background); 
-            color: var(--primary); 
-        }
-        .shell { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
-        .hero { 
-            background: linear-gradient(135deg, var(--primary), #244c73); 
-            color: #fff; padding: 2.5rem; border-radius: 24px; margin-bottom: 2rem;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-        .hero h1 { margin: 0; font-size: 2.5rem; }
-        .hero p { opacity: 0.8; margin-top: 0.5rem; }
-        
-        .card { background: var(--surface); padding: 2rem; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        
-        .job-list { display: grid; gap: 1rem; }
-        .job-item { 
-            background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center; transition: 0.3s;
-        }
-        .job-item:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        .job-info h3 { margin: 0; font-size: 1.25rem; }
-        .job-info p { margin: 5px 0 0; color: var(--secondary); font-size: 0.9rem; }
-        
-        .btn { 
-            border: none; border-radius: 12px; padding: 0.8rem 1.5rem; font-weight: 700; cursor: pointer;
-            transition: all 0.2s; font-size: 0.95rem;
-        }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: #1a4570; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--primary); }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1300px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; border-radius:24px; padding:2rem; margin-bottom:1.5rem; box-shadow:0 18px 38px rgba(22,58,95,.15); }
+        .hero h1 { margin:0 0 .4rem; font-size:2rem; }
+        .hero p { margin:0; color:rgba(255,255,255,.85); }
 
-        /* Modal */
-        .modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; 
-            align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px);
-        }
-        .modal-content { 
-            background: #fff; width: 90%; max-width: 800px; border-radius: 24px; padding: 2.5rem;
-            max-height: 90vh; overflow-y: auto; position: relative;
-        }
-        .close-btn { position: absolute; top: 1rem; left: 1rem; background: none; border: none; font-size: 2rem; cursor: pointer; color: var(--secondary); }
-        
-        .req-products { background: var(--background); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; }
-        .req-products h4 { margin: 0 0 0.5rem; }
-        .req-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
-        
-        .issue-row { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; align-items: center; }
-        input { padding: 0.8rem; border-radius: 10px; border: 1px solid var(--border); outline: none; }
-        input:focus { border-color: var(--primary); }
-        
-        .status-pill { padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; background: #e0e7ff; color: #4338ca; }
-        .empty-state { text-align: center; padding: 3rem; color: var(--secondary); }
+        /* Stats */
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .stat { background:var(--sf); border:1px solid var(--bd); border-radius:18px; padding:1.25rem; text-align:center; box-shadow:0 6px 16px rgba(22,58,95,.06); }
+        .stat .num { font-size:2rem; font-weight:800; color:var(--p); }
+        .stat .lbl { font-size:.85rem; color:var(--s); margin-top:.25rem; }
+        .stat.warn .num { color:#d97706; }
+        .stat.ok .num { color:var(--ok); }
+
+        /* Toolbar */
+        .toolbar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+        .toolbar input, .toolbar select { border:1px solid var(--bd); border-radius:12px; padding:.7rem .95rem; font-size:.9rem; background:#fff; color:var(--p); }
+        .toolbar input { min-width:220px; }
+
+        /* Card */
+        .card { background:var(--sf); border:1px solid var(--bd); border-radius:22px; box-shadow:0 10px 24px rgba(22,58,95,.07); padding:1.5rem; margin-bottom:1.5rem; }
+        .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:.75rem; }
+        .card-header h2 { margin:0; font-size:1.1rem; }
+
+        /* Table */
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:.85rem .7rem; border-bottom:1px solid var(--bd); font-size:.87rem; white-space:nowrap; }
+        tbody td { padding:.7rem .6rem; border-bottom:1px solid rgba(82,98,119,.09); font-size:.88rem; text-align:center; vertical-align:middle; }
+        tbody tr:hover { background:#f8fafc; }
+
+        /* Badges */
+        .badge { display:inline-flex; padding:.28rem .65rem; border-radius:999px; font-size:.78rem; font-weight:700; white-space:nowrap; }
+        .badge.pending  { background:rgba(217,119,6,.12);  color:#b45309; }
+        .badge.partial  { background:rgba(37,99,235,.12);  color:#1d4ed8; }
+        .badge.full     { background:rgba(31,111,95,.12);  color:var(--ok); }
+        .badge.warranty { background:rgba(109,40,217,.12); color:#6d28d9; }
+        .badge.reissue  { background:rgba(159,58,56,.12);  color:var(--er); }
+        .badge.sales    { background:rgba(22,58,95,.1);    color:var(--p); }
+
+        /* Progress bar */
+        .prog-wrap { background:#e2e8f0; border-radius:999px; height:7px; min-width:80px; overflow:hidden; }
+        .prog-fill  { height:100%; border-radius:999px; background:var(--ok); transition:width .3s; }
+        .prog-fill.warn { background:#d97706; }
+        .prog-fill.none { background:#e2e8f0; }
+
+        /* Buttons */
+        .btn { border:none; border-radius:10px; padding:.55rem .9rem; font-size:.83rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .btn.issue  { background:var(--p);  color:#fff; }
+        .btn.inward { background:var(--ok); color:#fff; }
+        .btn.refresh { background:#fff; color:var(--p); border:1px solid var(--bd); padding:.65rem 1rem; font-size:.9rem; }
+
+        .empty { text-align:center; padding:3rem; color:#738396; }
+        .msg { display:none; padding:.9rem 1rem; border-radius:12px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
     </style>
 </head>
 <body>
-    <div class="shell">
-        <div class="hero">
-            <h1>لوحة صرف المواد</h1>
-            <p>إدارة طلبات الصرف لأوامر الشغل المحولة من قسم العمليات.</p>
+<div class="shell">
+    <section class="hero">
+        <h1>لوحة المستودع</h1>
+        <p>أوامر التشغيل المطلوب صرفها — اضغط على "إذن صرف" لفتح الصرف محمّلاً ببيانات الأمر مباشرة.</p>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat warn">
+            <div class="num" id="statPending">-</div>
+            <div class="lbl">⏳ ينتظر الصرف</div>
         </div>
-
-        <div class="card">
-            <div class="section-header">
-                <h2>طلبات بانتظار الصرف</h2>
-                <button class="btn btn-outline" onclick="loadJobs()">تحديث</button>
-            </div>
-            <div id="jobsList" class="job-list">
-                <div class="empty-state">جاري التحميل...</div>
-            </div>
+        <div class="stat">
+            <div class="num" id="statPartial">-</div>
+            <div class="lbl">🔄 صرف جزئي</div>
         </div>
-    </div>
-
-    <!-- Issuance Modal -->
-    <div id="issueModal" class="modal">
-        <div class="modal-content">
-            <button class="close-btn" onclick="closeModal()">&times;</button>
-            <h2 id="modalTitle">صرف مواد أمر الشغل</h2>
-            
-            <div class="req-products">
-                <h4>المواد المطلوبة (من العمليات):</h4>
-                <div id="reqProductsList"></div>
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-                <h4>المواد المصروفة فعلياً (امسح الباركود):</h4>
-                <div id="issueRows"></div>
-                <button class="btn btn-outline" onclick="addIssueRow()" style="margin-top: 0.5rem; width: 100%;">+ إضافة باركود يدوياً</button>
-            </div>
-
-            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-                <button class="btn btn-primary" onclick="submitIssuance()">إتمام الصرف وتحويل المهمة</button>
-            </div>
+        <div class="stat ok">
+            <div class="num" id="statDone">-</div>
+            <div class="lbl">✅ مكتمل اليوم</div>
+        </div>
+        <div class="stat">
+            <div class="num" id="statTotal">-</div>
+            <div class="lbl">📋 إجمالي الأوامر</div>
         </div>
     </div>
 
-    <script>
-        const API = '/api';
-        const token = getToken() || '';
-        let currentJob = null;
-        let products = [];
-        let technicians = [];
+    <div id="globalMsg" class="msg"></div>
 
-        function authHeaders(includeJson = false) {
-            const h = {};
-            if (includeJson) h['Content-Type'] = 'application/json';
-            if (token) h['Authorization'] = `Bearer ${token}`;
-            return h;
-        }
+    <!-- Filters -->
+    <div class="toolbar">
+        <input id="searchInput" placeholder="🔍 بحث بالأمر أو العميل أو السيارة..." oninput="filterTable()">
+        <select id="typeFilter" onchange="filterTable()">
+            <option value="">كل الأنواع</option>
+            <option value="SALES">مبيعات</option>
+            <option value="WARRANTY">ضمان</option>
+            <option value="REISSUE">إعادة صرف</option>
+        </select>
+        <select id="issueFilter" onchange="filterTable()">
+            <option value="">كل الحالات</option>
+            <option value="none">لم يُصرف</option>
+            <option value="partial">صرف جزئي</option>
+        </select>
+        <button class="btn refresh" onclick="loadAll()">🔄 تحديث</button>
+        <a class="btn issue" href="/inventory/stock_out.html">➕ إذن صرف جديد</a>
+        <a class="btn inward" href="/inventory/stock_in.html">📥 إذن وارد جديد</a>
+    </div>
 
-        async function loadData() {
-            try {
-                const [prodRes, techRes] = await Promise.all([
-                    fetch(`${API}/products`, { headers: authHeaders() }),
-                    fetch(`${API}/hr/employees?activeOnly=true&technicianOnly=true`, { headers: authHeaders() })
-                ]);
-                products = await prodRes.json();
-                technicians = await techRes.json();
-                loadJobs();
-            } catch (e) {
-                console.error('Failed to load metadata', e);
+    <!-- Jobs Table -->
+    <div class="card">
+        <div class="card-header">
+            <h2>أوامر التشغيل المطلوب صرفها</h2>
+            <span id="rowCount" style="color:var(--s);font-size:.88rem;"></span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم الأمر</th>
+                        <th>النوع</th>
+                        <th>العميل</th>
+                        <th>السيارة</th>
+                        <th>الفني</th>
+                        <th>البنود</th>
+                        <th>نسبة الصرف</th>
+                        <th>حالة الصرف</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="jobsTbody">
+                    <tr><td colspan="9" class="empty">جارٍ التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let allJobs = [];
+    let stockTxns = [];
+
+    function auth(j = false) {
+        const h = {};
+        if (j) h['Content-Type'] = 'application/json';
+        const t = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('token') || '';
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+
+    function showMsg(text, ok = true) {
+        const d = document.getElementById('globalMsg');
+        d.className = 'msg ' + (ok ? 'ok' : 'er');
+        d.textContent = text;
+        setTimeout(() => { d.style.display = 'none'; }, 4000);
+    }
+
+    // ── حساب نسبة الصرف لأمر تشغيل ──────────────────────────────────────────
+    function calcIssueRatio(job) {
+        const items = job.items || [];
+        if (!items.length) return { pct: 0, issued: 0, total: 0, label: 'none' };
+
+        // جمع المصروف من الـ transactions
+        const consumedPerPart = {};
+        const relatedTxns = stockTxns.filter(t =>
+            !t.isReversed &&
+            t.type === 'Outbound' &&
+            (String(t.jobOrder) === String(job.jobOrder) ||
+             String(t.jobOrderId) === String(job._id))
+        );
+        for (const txn of relatedTxns) {
+            for (const item of txn.items || []) {
+                const key = item.partName || String(item.product || '');
+                consumedPerPart[key] = (consumedPerPart[key] || 0) + Number(item.consumedArea || item.area || 0);
             }
         }
 
-        function resolveProductName(id) {
-            const p = products.find(prod => String(prod._id) === String(id));
-            return p ? p.name : id;
+        let issuedCount = 0;
+        let totalCount = 0;
+
+        for (const item of items) {
+            const rawArea = Number(item.area || 0);
+            const l = Number(item.lengthCM || item.length || 0);
+            const w = Number(item.widthCM  || item.width  || 0);
+            const originalArea = rawArea > 100 ? rawArea / 10000 : rawArea > 0 ? rawArea : (l * w) / 10000;
+            if (originalArea < 0.001) continue; // بند بدون مساحة → تجاهل
+
+            totalCount++;
+            const key = item.partName || String(item.product?._id || item.product || '');
+            const consumed = consumedPerPart[key] || 0;
+            if (consumed >= originalArea - 0.001) issuedCount++;
         }
 
-        async function loadJobs() {
-            const list = document.getElementById('jobsList');
-            try {
-                const res = await fetch(`${API}/service-jobs`, { headers: authHeaders() });
-                const jobs = await res.json();
-                const filtered = Array.isArray(jobs) ? jobs.filter(j => j.status === 'PENDING_WAREHOUSE') : [];
-                
-                if (filtered.length === 0) {
-                    list.innerHTML = '<div class="empty-state">لا يوجد طلبات صرف حالياً.</div>';
-                    return;
-                }
+        if (totalCount === 0) return { pct: 0, issued: 0, total: 0, label: 'none' };
+        const pct = Math.round((issuedCount / totalCount) * 100);
+        const label = pct === 0 ? 'none' : pct >= 100 ? 'full' : 'partial';
+        return { pct, issued: issuedCount, total: totalCount, label };
+    }
 
-                list.innerHTML = filtered.map(j => `
-                    <div class="job-item">
-                        <div class="job-info">
-                            <h3>أمر شغل #${j.jobOrder}</h3>
-                            <p>${j.customerName} | ${j.carName}</p>
-                            <span class="status-pill">${(j.requiredProducts || []).length} مواد مطلوبة</span>
-                        </div>
-                        <button class="btn btn-primary" onclick='openModal(${JSON.stringify(j)})'>صرف المواد</button>
+    function typeLabel(type) {
+        const map = { SALES: ['مبيعات','sales'], WARRANTY: ['ضمان','warranty'], REISSUE: ['إعادة صرف','reissue'] };
+        const [ar, cls] = map[String(type).toUpperCase()] || ['أخرى','sales'];
+        return `<span class="badge ${cls}">${ar}</span>`;
+    }
+
+    function issueLabel(label, pct) {
+        if (label === 'full')    return `<span class="badge full">✅ مكتمل</span>`;
+        if (label === 'partial') return `<span class="badge partial">🔄 ${pct}%</span>`;
+        return `<span class="badge pending">⏳ لم يُصرف</span>`;
+    }
+
+    function renderTable(jobs) {
+        const tbody = document.getElementById('jobsTbody');
+        document.getElementById('rowCount').textContent = `${jobs.length} أمر`;
+
+        if (!jobs.length) {
+            tbody.innerHTML = '<tr><td colspan="9" class="empty">لا توجد أوامر تشغيل تنتظر الصرف.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = jobs.map(job => {
+            const ratio = calcIssueRatio(job);
+            const invoice = job.salesInvoiceId;
+            const car = invoice?.carModel
+                ? `${invoice.carModel.brand || ''} ${invoice.carModel.model || ''}`.trim()
+                : (job.carName || '-');
+            const techName = job.technician?.name || job.technicianName
+                || (job.technicianAssignments?.length ? job.technicianAssignments[0]?.name || job.technicianAssignments[0]?.technicianName : '-')
+                || '-';
+
+            const progClass = ratio.label === 'full' ? '' : ratio.label === 'partial' ? 'warn' : 'none';
+            const progressBar = `
+                <div style="display:flex;align-items:center;gap:.5rem;">
+                    <div class="prog-wrap" style="flex:1;">
+                        <div class="prog-fill ${progClass}" style="width:${ratio.pct}%;"></div>
                     </div>
-                `).join('');
-            } catch (e) {
-                list.innerHTML = '<div class="empty-state">حدث خطأ أثناء تحميل البيانات.</div>';
-            }
-        }
+                    <span style="font-size:.8rem;color:var(--s);min-width:35px;">${ratio.issued}/${ratio.total}</span>
+                </div>`;
 
-        function openModal(job) {
-            currentJob = job;
-            document.getElementById('modalTitle').textContent = `صرف مواد أمر الشغل #${job.jobOrder}`;
-            document.getElementById('reqProductsList').innerHTML = (job.requiredProducts || []).map(rp => `
-                <div class="req-item">
-                    <span>${resolveProductName(rp.productId)}</span>
-                    <strong>${rp.quantity} قطعة</strong>
-                </div>
-            `).join('');
-            
-            document.getElementById('issueRows').innerHTML = '';
-            addIssueRow();
-            document.getElementById('issueModal').style.display = 'flex';
-        }
+            // زر إذن الصرف — يفتح stock_out.html محمّل بـ jobOrder
+            const stockOutUrl = `/inventory/stock_out.html?jobOrder=${encodeURIComponent(job.jobOrder)}`;
 
-        function closeModal() {
-            document.getElementById('issueModal').style.display = 'none';
-        }
+            return `
+            <tr data-type="${String(job.type||'SALES').toUpperCase()}" data-label="${ratio.label}"
+                data-search="${(job.jobOrder+' '+job.customerName+' '+car).toLowerCase()}">
+                <td style="font-weight:700;">${job.jobOrder || '-'}</td>
+                <td>${typeLabel(job.type || 'SALES')}</td>
+                <td style="text-align:right;">${job.customerName || '-'}</td>
+                <td>${car}</td>
+                <td>${techName}</td>
+                <td style="text-align:center;">${(job.items||[]).length}</td>
+                <td style="min-width:120px;">${progressBar}</td>
+                <td>${issueLabel(ratio.label, ratio.pct)}</td>
+                <td>
+                    <div style="display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap;">
+                        ${ratio.label !== 'full'
+                            ? `<a class="btn issue" href="${stockOutUrl}" title="فتح إذن الصرف محمّلاً ببيانات هذا الأمر">📦 إذن صرف</a>`
+                            : `<span style="color:var(--ok);font-size:.82rem;font-weight:700;">✅ مكتمل</span>`
+                        }
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
 
-        function addIssueRow() {
-            const div = document.createElement('div');
-            div.className = 'issue-row';
-            div.innerHTML = `
-                <input type="text" class="barcode-input" placeholder="باركود القطعة" style="flex: 2;">
-                <input type="number" class="qty-input" placeholder="الكمية" value="1" style="flex: 1;">
-                <button class="btn" onclick="this.parentElement.remove()" style="color:red; background:none;">&times;</button>
-            `;
-            document.getElementById('issueRows').appendChild(div);
-            div.querySelector('.barcode-input').focus();
-        }
+    function filterTable() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const type   = document.getElementById('typeFilter').value.toUpperCase();
+        const issue  = document.getElementById('issueFilter').value;
 
-        async function submitIssuance() {
-            const rows = Array.from(document.querySelectorAll('.issue-row'));
-            const issuedInventory = rows.map(r => ({
-                barcode: r.querySelector('.barcode-input').value,
-                quantity: Number(r.querySelector('.qty-input').value)
-            })).filter(i => i.barcode);
+        const rows = document.querySelectorAll('#jobsTbody tr[data-type]');
+        let visible = 0;
+        rows.forEach(row => {
+            const matchSearch = !search || row.dataset.search.includes(search);
+            const matchType   = !type  || row.dataset.type === type;
+            const matchIssue  = !issue || row.dataset.label === issue;
+            const show = matchSearch && matchType && matchIssue;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        document.getElementById('rowCount').textContent = `${visible} أمر`;
+    }
 
-            if (issuedInventory.length === 0) {
-                alert('يرجى إضافة باركود واحد على الأقل.');
-                return;
-            }
+    async function loadAll() {
+        document.getElementById('jobsTbody').innerHTML = '<tr><td colspan="9" class="empty">جارٍ التحميل...</td></tr>';
 
-            try {
-                const res = await fetch(`${API}/inventory/issue-job/${currentJob._id}`, {
-                    method: 'PUT',
-                    headers: authHeaders(true),
-                    body: JSON.stringify({ issuedInventory })
-                });
+        try {
+            const [jobsRes, txnRes] = await Promise.all([
+                fetch(`${API}/service-jobs`, { headers: auth() }),
+                fetch(`${API}/stock?type=Outbound`, { headers: auth() })
+            ]);
 
-                if (res.ok) {
-                    alert('تم الصرف بنجاح! المهمة الآن قيد التنفيذ لدى الفنيين.');
-                    closeModal();
-                    loadJobs();
-                } else {
-                    const err = await res.json();
-                    alert('خطأ: ' + err.message);
+            allJobs   = jobsRes.ok  ? await jobsRes.json()  : [];
+            stockTxns = txnRes.ok   ? await txnRes.json()   : [];
+
+            // فلتر: أوامر التشغيل اللي لسه ما اتصرفتش بالكامل
+            // نشمل: PENDING_WAREHOUSE, IN_PROGRESS, PENDING_OPS, AwaitingTechnician, IssuedToTechnician
+            // نستثني: COMPLETED فقط لو نسبة الصرف 100%
+            const relevant = allJobs.filter(j => {
+                const status = String(j.status || '').toUpperCase();
+                if (status === 'COMPLETED') {
+                    const ratio = calcIssueRatio(j);
+                    return ratio.label !== 'full'; // مكتمل بس ما اتصرفش كله
                 }
-            } catch (e) {
-                alert('فشل الاتصال بالسيرفر.');
-            }
-        }
+                return true; // كل الأوامر غير المكتملة
+            });
 
-        document.addEventListener('DOMContentLoaded', loadData);
-    </script>
+            // ترتيب: الأقدم أولاً (الأكثر إلحاحاً)
+            relevant.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+            // Stats
+            const pending = relevant.filter(j => calcIssueRatio(j).label === 'none').length;
+            const partial = relevant.filter(j => calcIssueRatio(j).label === 'partial').length;
+            const today   = new Date().toDateString();
+            const done    = allJobs.filter(j => {
+                const r = calcIssueRatio(j);
+                return r.label === 'full' && new Date(j.updatedAt || j.createdAt || 0).toDateString() === today;
+            }).length;
+
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statPartial').textContent = partial;
+            document.getElementById('statDone').textContent    = done;
+            document.getElementById('statTotal').textContent   = relevant.length;
+
+            renderTable(relevant);
+        } catch (e) {
+            console.error(e);
+            document.getElementById('jobsTbody').innerHTML = '<tr><td colspan="9" class="empty">فشل تحميل البيانات.</td></tr>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAll);
+</script>
+<script src="/global-navigation.js"></script>
 </body>
 </html>

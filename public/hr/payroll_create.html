@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء مسير رواتب جديد</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 800px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h1 { color: #1e293b; margin-top: 0; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #334155; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
+        .form-group input[type="month"] { width: 100%; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .actions { display: flex; gap: 10px; justify-content: center; margin-top: 30px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        
+        .alert { padding: 15px; border-radius: 5px; margin-bottom: 20px; display: none; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        
+        .step-info { background: #f0f9ff; padding: 15px; border-radius: 5px; border-right: 4px solid #0284c7; margin-bottom: 20px; }
+        .step-info p { margin: 5px 0; color: #0c4a6e; font-size: 14px; }
+        
+        .loading { display: none; text-align: center; padding: 20px; }
+        .spinner { border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>📋 إنشاء مسير رواتب جديد</h1>
+    
+    <div id="successAlert" class="alert alert-success"></div>
+    <div id="errorAlert" class="alert alert-error"></div>
+    <div id="infoAlert" class="alert alert-info"></div>
+    
+    <div class="step-info">
+        <p><strong>ℹ️ المعلومات:</strong></p>
+        <p>• سيتم إنشاء مسير جديد للشهر المحدد</p>
+        <p>• يمكن تحميل بيانات البصمات والسلف لاحقاً</p>
+        <p>• سيتم جلب جميع الموظفين النشطين تلقائياً</p>
+    </div>
+
+    <form id="payrollForm" onsubmit="handleSubmit(event)">
+        <div class="grid">
+            <div class="form-group">
+                <label for="payrollMonth">🗓️ شهر الصرف <span style="color:red;">*</span></label>
+                <input type="month" id="payrollMonth" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="payrollYear">📅 السنة المالية</label>
+                <input type="text" id="payrollYear" readonly placeholder="تلقائي">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="department">👥 القسم / الإدارة (اختياري)</label>
+            <select id="department">
+                <option value="">-- الكل --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">📝 ملاحظات (اختياري)</label>
+            <textarea id="notes" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; min-height: 80px; font-family: inherit;" placeholder="أي ملاحظات إضافية عن هذا المسير..."></textarea>
+        </div>
+        
+        <div class="actions">
+            <button type="button" class="btn btn-secondary" onclick="goBack()">← رجوع</button>
+            <button type="submit" class="btn btn-primary">✅ إنشاء المسير</button>
+        </div>
+    </form>
+    
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>جاري إنشاء المسير...</p>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let allDepartments = [];
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        // Set current month as default
+        const today = new Date();
+        const monthString = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        document.getElementById('payrollMonth').value = monthString;
+        
+        // Load departments
+        await loadDepartments();
+    });
+
+    async function loadDepartments() {
+        try {
+            const res = await fetch(`${API}/hr/employees`, { 
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') }
+            });
+            if (!res.ok) throw new Error('Failed to load employees');
+            
+            const employees = await res.json();
+            const depts = [...new Set(employees.map(e => e.department).filter(d => d))];
+            
+            const select = document.getElementById('department');
+            depts.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading departments:', error);
+        }
+    }
+
+    async function handleSubmit(event) {
+        event.preventDefault();
+        
+        const monthValue = document.getElementById('payrollMonth').value;
+        if (!monthValue) {
+            showAlert('errorAlert', '❌ الرجاء اختيار الشهر');
+            return;
+        }
+
+        const [year, month] = monthValue.split('-');
+        const department = document.getElementById('department').value || null;
+        const notes = document.getElementById('notes').value || '';
+
+        // Show loading
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('payrollForm').style.display = 'none';
+
+        try {
+            const payload = {
+                month: parseInt(month),
+                year: parseInt(year),
+                department,
+                notes,
+                status: 'draft'
+            };
+
+            const res = await fetch(`${API}/hr/payroll`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'فشل في إنشاء المسير');
+            }
+
+            const data = await res.json();
+            showAlert('successAlert', `✅ تم إنشاء المسير بنجاح! رقم المسير: ${data._id || data.id}`);
+            
+            setTimeout(() => {
+                window.location.href = `/hr/payroll.html?id=${data._id || data.id}`;
+            }, 1500);
+
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('errorAlert', `❌ ${error.message}`);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('payrollForm').style.display = 'block';
+        }
+    }
+
+    function showAlert(alertId, message) {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => alert.style.display = 'none');
+        
+        const alert = document.getElementById(alertId);
+        alert.textContent = message;
+        alert.style.display = 'block';
+        alert.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function goBack() {
+        window.history.back();
+    }
+</script>
+<script src="/common-functions.js"></script>
+</body>
+</html>

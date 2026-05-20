@@ -28,25 +28,30 @@
                 { href: "/inventory/roll_status.html", label: "حالة الرولات" },
                 { href: "/inventory/stock_balance_tree.html", label: "شجرة الأرصدة" },
                 { href: "/inventory/stock_verification.html", label: "التحقق المخزني" },
-                { href: "/warehouse_dashboard.html", label: "داشبورد المخزن" }
+                { href: "/warehouse_dashboard.html", label: "داشبورد المخزن" },
+                { href: "/service/reissue_execution.html", label: "تنفيذ إعادة الصرف" }
             ]
         },
         {
             label: "المبيعات",
             children: [
                 { href: "/sales/sales_invoice.html", label: "فاتورة مبيعات" },
+                { href: "/sales/service_adjustments.html", label: "تعديلات الفاتورة" },
                 { href: "/sales/sales_list.html", label: "سجل الفواتير" },
                 { href: "/sales/customers.html", label: "العملاء" },
                 { href: "/sales/pricing_matrix.html", label: "ماتريكس الأسعار" },
                 { href: "/sales/sales_agents.html", label: "مناديب المبيعات" },
-                { href: "/sales/customer_statement.html", label: "كشف حساب عميل" }
+                { href: "/sales/customer_statement.html", label: "كشف حساب عميل" },
+                { href: "/service/warranty_request.html", label: "طلبات الضمان" }
             ]
         },
         {
             label: "التشغيل",
             children: [
                 { href: "/service/service_jobs.html", label: "أوامر التشغيل" },
-                { href: "/service/car_coding.html", label: "ترميز السيارات" }
+                { href: "/sales/service_adjustments.html", label: "تعديلات الفواتير" },
+                { href: "/service/car_coding.html", label: "ترميز السيارات" },
+                { href: "/service/reissue_request.html", label: "طلبات إعادة الصرف" }
             ]
         },
         {
@@ -66,8 +71,10 @@
                 { href: "/financial/accounts.html", label: "الحسابات" },
                 { href: "/financial/cost_centers.html", label: "مراكز التكلفة" },
                 { href: "/financial/financial_reports.html", label: "التقارير المالية" },
+                { href: "/sales/service_adjustments.html", label: "متابعة تعديلات الفواتير" },
                 { href: "/reports/smart_reports.html", label: "📊 BI Dashboard" },
-                { href: "/financial_settings.html", label: "إعدادات مالية" }
+                { href: "/financial_settings.html", label: "إعدادات مالية" },
+                { href: "/service/reissue_accounting.html", label: "تسجيل محاسبي - إعادة الصرف" }
             ]
         },
         {

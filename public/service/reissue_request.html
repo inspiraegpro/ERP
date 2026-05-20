@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلب إعادة صرف - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1000px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; border-radius:24px; padding:2rem; margin-bottom:1.5rem; box-shadow:0 18px 38px rgba(22,58,95,.15); }
+        .hero h1 { margin:0 0 .5rem; font-size:1.8rem; }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.8; }
+        .card { background:var(--sf); border:1px solid var(--bd); border-radius:22px; box-shadow:0 12px 28px rgba(22,58,95,.07); padding:1.5rem; margin-bottom:1.25rem; }
+        .card h2 { margin:0 0 1.25rem; font-size:1.05rem; color:var(--p); border-bottom:1px solid var(--bd); padding-bottom:.75rem; display:flex; align-items:center; gap:.5rem; }
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        .field { display:flex; flex-direction:column; gap:.4rem; }
+        .field label { font-size:.88rem; font-weight:700; color:var(--s); }
+        .field input, .field select, .field textarea { border:1px solid rgba(82,98,119,.2); border-radius:12px; padding:.8rem .95rem; font-size:.93rem; background:#fff; color:var(--p); width:100%; box-sizing:border-box; font-family:inherit; }
+        .field input[readonly] { background:#f4f7fb; color:#526277; }
+        .field textarea { resize:vertical; min-height:90px; }
+        .field.full { grid-column:1/-1; }
+        .lookup-row { display:flex; gap:.75rem; align-items:flex-end; }
+        .lookup-row .field { flex:1; }
+        .btn { border:none; border-radius:12px; padding:.8rem 1.3rem; font-size:.93rem; font-weight:800; cursor:pointer; box-shadow:0 6px 14px rgba(22,58,95,.1); white-space:nowrap; }
+        .btn.primary { background:var(--p); color:#fff; }
+        .btn.accent { background:var(--a); color:#fff; }
+        .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); }
+        .btn.lookup { background:var(--a); color:#fff; padding:.8rem 1.1rem; }
+        .actions { display:flex; gap:1rem; justify-content:flex-end; margin-top:1.25rem; }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:14px; font-weight:700; margin-top:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        .info-strip { background:rgba(22,58,95,.05); border:1px solid rgba(22,58,95,.1); border-radius:14px; padding:1rem 1.1rem; margin-bottom:1rem; display:none; }
+        .info-strip.show { display:block; }
+        .info-strip p { margin:.25rem 0; font-size:.9rem; }
+        .info-strip strong { color:var(--p); }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:.8rem .65rem; border-bottom:1px solid var(--bd); font-size:.87rem; }
+        tbody td { padding:.65rem .55rem; border-bottom:1px solid rgba(82,98,119,.08); text-align:center; font-size:.88rem; vertical-align:middle; }
+        .item-check { width:18px; height:18px; cursor:pointer; accent-color:var(--p); }
+        .badge { display:inline-flex; padding:.25rem .6rem; border-radius:999px; font-size:.78rem; font-weight:700; }
+        .badge.issued { background:rgba(31,111,95,.12); color:var(--ok); }
+        .badge.pending { background:rgba(185,137,24,.12); color:#a07010; }
+        .type-badge { display:inline-flex; padding:.3rem .75rem; border-radius:999px; font-size:.82rem; font-weight:700; cursor:pointer; border:2px solid transparent; }
+        .type-badge.mistake { background:rgba(22,58,95,.08); color:var(--p); }
+        .type-badge.defective { background:rgba(185,137,24,.1); color:#a07010; }
+        .type-badge.installation { background:rgba(159,58,56,.1); color:var(--er); }
+        .type-badge.selected { border-color:currentColor; }
+        .technician-info { background:rgba(31,111,95,.07); border:1px solid rgba(31,111,95,.15); border-radius:12px; padding:.75rem 1rem; font-size:.88rem; color:var(--ok); display:none; }
+        .technician-info.show { display:block; }
+        @media(max-width:640px){ .grid{grid-template-columns:1fr;} .lookup-row{flex-direction:column;} }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>طلب إعادة صرف</h1>
+        <p>أدخل رقم أمر التشغيل لاستدعاء بياناته، ثم اختر البنود المراد إعادة صرفها وحدد نوع الطلب.</p>
+    </section>
+
+    <!-- Step 1: Job Lookup -->
+    <div class="card">
+        <h2>1️⃣ استدعاء أمر التشغيل</h2>
+        <div class="lookup-row">
+            <div class="field">
+                <label for="jobOrderInput">رقم أمر التشغيل</label>
+                <input id="jobOrderInput" placeholder="مثال: JOB-001 أو الـ ID" oninput="clearJobData()">
+            </div>
+            <button class="btn lookup" onclick="lookupJob()">🔍 استدعاء</button>
+        </div>
+        <div id="jobInfo" class="info-strip">
+            <p>👤 <strong>العميل:</strong> <span id="infoCustomer">-</span></p>
+            <p>📞 <strong>الهاتف:</strong> <span id="infoPhone">-</span></p>
+            <p>🚗 <strong>السيارة:</strong> <span id="infoCar">-</span></p>
+            <p>📋 <strong>حالة الأمر:</strong> <span id="infoStatus">-</span></p>
+        </div>
+        <div id="technicianInfo" class="technician-info">
+            🔧 <strong>الفني المسؤول:</strong> <span id="infoTechnician">-</span>
+        </div>
+    </div>
+
+    <!-- Step 2: Select Items -->
+    <div class="card" id="itemsCard" style="display:none;">
+        <h2>2️⃣ اختيار البنود المراد إعادة صرفها</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:40px;">اختيار</th>
+                    <th>البند</th>
+                    <th>الصنف</th>
+                    <th>المقاس</th>
+                    <th>المساحة (م²)</th>
+                    <th>حالة الصرف</th>
+                    <th>نوع الطلب</th>
+                </tr>
+            </thead>
+            <tbody id="itemsTbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Step 3: Reason & Submit -->
+    <div class="card" id="reasonCard" style="display:none;">
+        <h2>3️⃣ سبب الطلب والإرسال</h2>
+        <div class="grid">
+            <div class="field full">
+                <label for="reason">سبب الطلب</label>
+                <textarea id="reason" placeholder="اشرح سبب طلب إعادة الصرف بالتفصيل..."></textarea>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn light" onclick="history.back()">رجوع</button>
+            <button class="btn primary" onclick="submitReq()">📤 إرسال الطلب</button>
+        </div>
+        <div id="msg" class="msg"></div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let currentJob = null;
+    // TYPE_CUTOFF: فواتير من 1 يناير 2026 فما بعد → نظام جديد
+    const TYPE_LABELS = {
+        mistake:      { ar: 'خطأ في الصرف',       cls: 'mistake'      },
+        defective:    { ar: 'مادة معيبة',           cls: 'defective'    },
+        installation: { ar: 'عيب تركيب من الفني',  cls: 'installation' }
+    };
+
+    function auth(j = false) {
+        const h = {};
+        if (j) h['Content-Type'] = 'application/json';
+        const t = localStorage.getItem('token');
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+
+    function show(text, ok = true) {
+        const d = document.getElementById('msg');
+        d.className = 'msg ' + (ok ? 'ok' : 'er');
+        d.textContent = text;
+        d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function clearJobData() {
+        currentJob = null;
+        document.getElementById('jobInfo').classList.remove('show');
+        document.getElementById('technicianInfo').classList.remove('show');
+        document.getElementById('itemsCard').style.display = 'none';
+        document.getElementById('reasonCard').style.display = 'none';
+    }
+
+    // Pre-fill from URL params (when opened from service_jobs.html)
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('originalJobId')) {
+        document.getElementById('jobOrderInput').value = qs.get('originalJobId');
+        document.addEventListener('DOMContentLoaded', () => lookupJob());
+    }
+
+    async function lookupJob() {
+        const val = document.getElementById('jobOrderInput').value.trim();
+        if (!val) return;
+
+        // Try by-order first, then by ID
+        let job = null;
+        const r1 = await fetch(`${API}/service-jobs/by-order/${encodeURIComponent(val)}`, { headers: auth() });
+        if (r1.ok) {
+            job = await r1.json();
+        } else {
+            const r2 = await fetch(`${API}/service-jobs/${encodeURIComponent(val)}`, { headers: auth() });
+            if (r2.ok) job = await r2.json();
+        }
+
+        if (!job) {
+            show('لم يتم العثور على أمر التشغيل. تأكد من الرقم.', false);
+            document.getElementById('msg').style.display = 'block';
+            return;
+        }
+
+        currentJob = job;
+
+        // Fill info strip
+        document.getElementById('infoCustomer').textContent = job.customerName || '-';
+        document.getElementById('infoPhone').textContent = job.customerPhone || '-';
+        const car = job.salesInvoiceId?.carModel
+            ? `${job.salesInvoiceId.carModel.brand || ''} ${job.salesInvoiceId.carModel.model || ''}`.trim()
+            : (job.carName || '-');
+        document.getElementById('infoCar').textContent = car;
+        document.getElementById('infoStatus').textContent = translateStatus(job.status);
+        document.getElementById('jobInfo').classList.add('show');
+
+        // Technician info
+        const techName = job.technicianName
+            || (job.technicianAssignments?.length ? job.technicianAssignments.map(t => t.name || t.technicianName).join('، ') : null);
+        if (techName) {
+            document.getElementById('infoTechnician').textContent = techName;
+            document.getElementById('technicianInfo').classList.add('show');
+        }
+
+        // Render items
+        renderItems(job.items || []);
+        document.getElementById('itemsCard').style.display = 'block';
+        document.getElementById('reasonCard').style.display = 'block';
+    }
+
+    function translateStatus(s) {
+        const map = {
+            PENDING_OPS: 'قيد التجهيز', PENDING_WAREHOUSE: 'قيد الصرف',
+            IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل',
+            AwaitingTechnician: 'ينتظر فني', IssuedToTechnician: 'صُرف للفني'
+        };
+        return map[s] || s || '-';
+    }
+
+    function renderItems(items) {
+        const tbody = document.getElementById('itemsTbody');
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:1.5rem;color:#738396;">لا توجد بنود في هذا الأمر.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((item, idx) => {
+            const partName = item.partName || `بند ${idx + 1}`;
+            const productName = item.productData?.name || item.product?.name || item.materialCategory || '-';
+            const length = Number(item.lengthCM || item.length || 0).toFixed(0);
+            const width = Number(item.widthCM || item.width || 0).toFixed(0);
+            const dims = (length > 0 && width > 0) ? `${length}×${width}` : '-';
+            const rawArea = Number(item.area || 0);
+            const area = rawArea > 100 ? (rawArea / 10000).toFixed(2) : rawArea.toFixed(2);
+            const issued = item.issueStatus === 'Issued' || item.issueStatus === 'PartiallyIssued';
+            const issuedBadge = issued
+                ? `<span class="badge issued">✅ صُرف</span>`
+                : `<span class="badge pending">⏳ لم يُصرف</span>`;
+
+            return `
+            <tr id="item-row-${idx}">
+                <td><input type="checkbox" class="item-check" id="chk-${idx}" value="${idx}" onchange="toggleItemRow(${idx})"></td>
+                <td style="font-weight:700;text-align:right;">${partName}</td>
+                <td>${productName}</td>
+                <td>${dims}</td>
+                <td>${area}</td>
+                <td>${issuedBadge}</td>
+                <td id="type-cell-${idx}" style="display:none;">
+                    ${Object.entries(TYPE_LABELS).map(([val, info]) =>
+                        `<label style="display:inline-flex;align-items:center;gap:.3rem;margin:.2rem;cursor:pointer;">
+                            <input type="radio" name="type-${idx}" value="${val}" ${val === 'mistake' ? 'checked' : ''}>
+                            <span class="type-badge ${info.cls}">${info.ar}</span>
+                        </label>`
+                    ).join('')}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function toggleItemRow(idx) {
+        const chk = document.getElementById(`chk-${idx}`);
+        const typeCell = document.getElementById(`type-cell-${idx}`);
+        typeCell.style.display = chk.checked ? 'table-cell' : 'none';
+    }
+
+    async function submitReq() {
+        if (!currentJob) { show('يرجى استدعاء أمر التشغيل أولاً.', false); return; }
+
+        const reason = document.getElementById('reason').value.trim();
+        if (!reason) { show('يرجى كتابة سبب الطلب.', false); return; }
+
+        const selectedItems = [];
+        document.querySelectorAll('.item-check:checked').forEach(chk => {
+            const idx = Number(chk.value);
+            const typeRadio = document.querySelector(`input[name="type-${idx}"]:checked`);
+            selectedItems.push({ itemIndex: idx, type: typeRadio?.value || 'mistake' });
+        });
+
+        if (!selectedItems.length) { show('يرجى اختيار بند واحد على الأقل.', false); return; }
+
+        // Get technician info from job
+        const technicianName = currentJob.technicianName
+            || (currentJob.technicianAssignments?.length ? currentJob.technicianAssignments[0]?.name || currentJob.technicianAssignments[0]?.technicianName : null)
+            || '';
+        const technicianId = currentJob.technicianId
+            || (currentJob.technicianAssignments?.length ? currentJob.technicianAssignments[0]?.technicianId : null)
+            || '';
+
+        let successCount = 0;
+        const requestNumbers = [];
+        for (const sel of selectedItems) {
+            const payload = {
+                originalJobId: currentJob._id,
+                originalItemIndex: sel.itemIndex,
+                type: sel.type,
+                reason,
+                technicianName,
+                technicianId,
+                jobOrder: currentJob.jobOrder
+            };
+            const res = await fetch(`${API}/reissue-requests`, { method: 'POST', headers: auth(true), body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (res.ok) {
+                successCount++;
+                // Extract requestNumber (REI-xxx-xxx format) from response
+                const reqNum = data.requestNumber || data._id;
+                requestNumbers.push(reqNum);
+            }
+            else { show(`فشل إرسال البند ${sel.itemIndex + 1}: ${data.message}`, false); return; }
+        }
+
+        // Show success message with all request numbers
+        let successMsg = `✅ تم تسجيل ${successCount} طلب إعادة صرف بنجاح.`;
+        if (requestNumbers.length > 0) {
+            successMsg += ` أرقام الطلبات: ${requestNumbers.join(', ')}`;
+        }
+        show(successMsg);
+        // Reset
+        document.getElementById('reason').value = '';
+        document.querySelectorAll('.item-check:checked').forEach(chk => { chk.checked = false; toggleItemRow(Number(chk.value)); });
+    }
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

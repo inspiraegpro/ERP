@@ -39,7 +39,7 @@
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center;">
         <h2>💰 سجل مسيرات الرواتب</h2>
-        <button onclick="window.location.href='payroll_create.html'" style="background:#0f172a; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">+ إنشاء مسير جديد</button>
+        <button onclick="window.location.href='/hr/payroll_create.html'" style="background:#0f172a; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">+ إنشاء مسير جديد</button>
     </div>
 
     <table>
@@ -94,6 +94,25 @@
 
         <button class="btn btn btn-confirm" onclick="confirmPost()">✅ اعتماد وترحيل القيد</button>
     </div>
+</div>
+
+<div class="payroll-upload-section" style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+    <h3>رفع البصمات والسلف</h3>
+    <form id="payrollUploadForm" enctype="multipart/form-data">
+        <div style="margin-bottom: 15px;">
+            <label for="fingerprintFile" style="display: block; margin-bottom: 5px; font-weight: bold;">ملف البصمات (Excel):</label>
+            <input type="file" id="fingerprintFile" name="fingerprintFile" accept=".xlsx, .xls" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label for="advanceDate" style="display: block; margin-bottom: 5px; font-weight: bold;">تاريخ السلفة:</label>
+            <input type="date" id="advanceDate" name="advanceDate" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label for="advanceAmount" style="display: block; margin-bottom: 5px; font-weight: bold;">مبلغ السلفة:</label>
+            <input type="number" id="advanceAmount" name="advanceAmount" step="0.01" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box;">
+        </div>
+        <button type="submit" class="btn btn-post">رفع البيانات</button>
+    </form>
 </div>
 
 <script>

@@ -616,22 +616,57 @@
 
             try {
                 let isAssigned = true;
+
+                // ── جلب كل الـ outbound transactions المرتبطة بهذا الأمر ──────
                 const stockResponse = await fetch(`${API}/stock?type=Outbound`, { headers: authHeaders() });
                 const allOutbounds = stockResponse.ok ? await stockResponse.json() : [];
-                const jobOutbounds = allOutbounds.filter(t => String(t.jobOrder) === jobOrder);
+
+                // مطابقة بـ jobOrder أو jobOrderId أو invoiceNumber
+                const jobOutbounds = allOutbounds.filter(t =>
+                    !t.isReversed &&
+                    (String(t.jobOrder) === jobOrder ||
+                     String(t.jobOrderId) === jobOrder ||
+                     String(t.invoiceNumber) === jobOrder)
+                );
 
                 const consumedPerPart = {};
-                for(const txn of jobOutbounds) {
-                    for(const item of txn.items || []) {
+                for (const txn of jobOutbounds) {
+                    for (const item of txn.items || []) {
                         const partName = item.partName || '';
-                        if(!consumedPerPart[partName]) consumedPerPart[partName] = { area: 0 };
-                        consumedPerPart[partName].area += Number(item.consumedArea || 0);
+                        if (!consumedPerPart[partName]) consumedPerPart[partName] = { area: 0 };
+                        consumedPerPart[partName].area += Number(item.consumedArea || item.area || 0);
                     }
                 }
 
-                const jobResponse = await fetch(`${API}/service-jobs/by-order/${encodeURIComponent(jobOrder)}`, { headers: authHeaders() });
-                if (jobResponse.ok) {
-                    const job = await jobResponse.json();
+                // ── محاولة إيجاد أمر التشغيل بأي طريقة ──────────────────────
+                let job = null;
+
+                // 1. by-order (jobOrder string مثل JOB-001 أو WAR-xxx أو WJ-xxx)
+                const r1 = await fetch(`${API}/service-jobs/by-order/${encodeURIComponent(jobOrder)}`, { headers: authHeaders() });
+                if (r1.ok) job = await r1.json();
+
+                // 2. by ID (لو الرقم هو الـ _id مباشرة)
+                if (!job) {
+                    const r2 = await fetch(`${API}/service-jobs/${encodeURIComponent(jobOrder)}`, { headers: authHeaders() });
+                    if (r2.ok) job = await r2.json();
+                }
+
+                // 3. بحث في كل الأوامر بـ invoiceNumber أو salesInvoiceId
+                if (!job) {
+                    const r3 = await fetch(`${API}/service-jobs`, { headers: authHeaders() });
+                    if (r3.ok) {
+                        const allJobs = await r3.json();
+                        job = allJobs.find(j =>
+                            String(j.jobOrder) === jobOrder ||
+                            String(j.salesInvoiceId?._id || j.salesInvoiceId) === jobOrder ||
+                            String(j.salesInvoiceId?.invoiceNumber) === jobOrder ||
+                            String(j.warrantyInfo?.originalInvoiceId) === jobOrder ||
+                            String(j.reissueInfo?.originalJobId) === jobOrder
+                        ) || null;
+                    }
+                }
+
+                if (job) {
                     console.log('Service job data:', job);
                     console.log('First item productData:', job.items?.[0]?.productData);
                     currentJobId = job._id || null;
@@ -694,17 +729,36 @@
                         const originalLength = Number(item.lengthCM || item.length || 0);
                         const originalWidth  = Number(item.widthCM  || item.width  || 0);
                         let rawArea = Number(item.area || 0);
-                        const originalArea = rawArea > 100 ? (rawArea / 10000) : (rawArea || ((originalLength * originalWidth) / 10000));
+                        // تحويل المساحة: لو أكبر من 100 → بالسم² → نحوّل لمتر²
+                        const originalArea = rawArea > 100
+                            ? (rawArea / 10000)
+                            : rawArea > 0
+                                ? rawArea
+                                : (originalLength * originalWidth) / 10000;
+
                         const partName = item.partName || 'قطعة';
                         const consumedArea = consumedPerPart[partName]?.area || 0;
                         const remainingArea = originalArea - consumedArea;
-                        const isCompleted = remainingArea <= 0.001;
+
+                        // لو المساحة الأصلية = 0 (بيانات ناقصة) → لا نعتبره مكتمل
+                        const isCompleted = originalArea > 0.001 && remainingArea <= 0.001;
+
+                        console.log(`[stock_out] item="${partName}" originalArea=${originalArea.toFixed(4)} consumed=${consumedArea.toFixed(4)} remaining=${remainingArea.toFixed(4)} isCompleted=${isCompleted}`);
+
                         if (isCompleted) fullyIssuedCount++;
                         else itemsWithRemaining.push({ item, originalLength, originalWidth, originalArea, partName, remainingArea });
                     }
 
-                    // ── لو كل البنود اتصرفت → ارفض ──────────────────────────────
-                    if (fullyIssuedCount === totalItems) {
+                    // ── لو كل البنود اتصرفت فعلاً → ارفض ────────────────────────
+                    // لكن لو المساحات كلها 0 (بيانات ناقصة) → اعرض البنود كلها
+                    const hasValidAreas = sortedItems.some(item => {
+                        const rawArea = Number(item.area || 0);
+                        const l = Number(item.lengthCM || item.length || 0);
+                        const w = Number(item.widthCM  || item.width  || 0);
+                        return rawArea > 0.001 || (l * w) > 0.001;
+                    });
+
+                    if (hasValidAreas && fullyIssuedCount === totalItems) {
                         const saveBtn = document.getElementById('saveButton');
                         saveBtn.disabled = true;
                         saveBtn.style.opacity = '0.5';
@@ -770,6 +824,7 @@
                     return;
                 }
 
+                // ── لو ما لقاش job → دور في الفواتير ────────────────────────
                 await loadFromInvoice(jobOrder);
             } catch (error) {
                 console.error(error);
@@ -836,17 +891,31 @@
                     const originalLength = Number(item.lengthCM || item.length || 0);
                     const originalWidth  = Number(item.widthCM  || item.width  || 0);
                     let rawArea = Number(item.area || 0);
-                    const originalArea = rawArea > 100 ? (rawArea / 10000) : (rawArea || ((originalLength * originalWidth) / 10000));
+                    const originalArea = rawArea > 100
+                        ? (rawArea / 10000)
+                        : rawArea > 0
+                            ? rawArea
+                            : (originalLength * originalWidth) / 10000;
+
                     const partName = item.partName || 'قطعة';
                     const consumedArea = consumedPerPart[partName]?.area || 0;
                     const remainingArea = originalArea - consumedArea;
-                    const isCompleted = remainingArea <= 0.001;
+                    const isCompleted = originalArea > 0.001 && remainingArea <= 0.001;
+
                     if (isCompleted) fullyIssuedInvCount++;
                     else invItemsWithRemaining.push({ item, originalLength, originalWidth, originalArea, partName, remainingArea });
                 }
 
+                // لو المساحات كلها 0 → اعرض البنود كلها بدون رفض
+                const hasValidInvAreas = sortedInvoiceItems.some(item => {
+                    const rawArea = Number(item.area || 0);
+                    const l = Number(item.lengthCM || item.length || 0);
+                    const w = Number(item.widthCM  || item.width  || 0);
+                    return rawArea > 0.001 || (l * w) > 0.001;
+                });
+
                 // ── لو كل البنود اتصرفت → ارفض ──────────────────────────────
-                if (fullyIssuedInvCount === totalInvItems) {
+                if (hasValidInvAreas && fullyIssuedInvCount === totalInvItems) {
                     const saveBtn = document.getElementById('saveButton');
                     saveBtn.disabled = true;
                     saveBtn.style.opacity = '0.5';
@@ -953,14 +1022,14 @@
                 <td><input class="table-input readonly" value="${originalDimsText}" readonly style="text-align:center;"></td>
                 <td><input class="table-input readonly" value="${originalAreaText}" readonly style="text-align:center;"></td>
                 <td><input class="table-input len-input" type="number" min="0" step="0.1"
-                    value="${Number(originalLengthCm || lengthCm || 0).toFixed(2)}"
-                    title="المساحة الأصلية المطلوبة — يمكن تعديلها"></td>
+                    value="${Number(lengthCm || 0).toFixed(2)}"
+                    title="الطول المصروف — يساوي الأصلي افتراضياً ويمكن تعديله"></td>
                 <td><input class="table-input wid-input" type="number" min="0" step="0.1"
-                    value="${Number(originalWidthCm || widthCm || 0).toFixed(2)}"
-                    title="العرض الأصلي — يمكن تعديله"></td>
+                    value="${Number(widthCm || 0).toFixed(2)}"
+                    title="العرض المصروف — يساوي الأصلي افتراضياً ويمكن تعديله"></td>
                 <td><input class="table-input area-output" type="number"
-                    value="${Number(originalArea || area || 0).toFixed(4)}"
-                    title="المساحة المصروفة — تُحسب تلقائياً أو يمكن تعديلها يدوياً"
+                    value="${Number(area || 0).toFixed(4)}"
+                    title="المساحة المصروفة — تُحسب تلقائياً من الطول × العرض أو يمكن تعديلها"
                     oninput="updateSummary()"></td>
                 <td><button type="button" class="remove-btn">حذف</button></td>
             `;

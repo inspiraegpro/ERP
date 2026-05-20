@@ -3,740 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التحقق والمراجعة - Wrapstyle ERP</title>
+    <title>التحقق من المخزون - Wrapstyle ERP</title>
     <link rel="stylesheet" href="/improved-styles.css">
     <style>
-        .verification {
-            padding: 20px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .page-header h1 {
-            color: #1f2937;
-            margin: 0;
-        }
-
-        .page-header p {
-            color: #6b7280;
-            margin: 5px 0 0 0;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .verification-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .verification-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-right: 4px solid #e5e7eb;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .verification-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .verification-card.success {
-            border-right-color: #10b981;
-        }
-
-        .verification-card.warning {
-            border-right-color: #f59e0b;
-        }
-
-        .verification-card.error {
-            border-right-color: #ef4444;
-        }
-
-        .verification-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .verification-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #1f2937;
-        }
-
-        .verification-status {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .status-success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .status-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .status-error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .verification-details {
-            margin-bottom: 15px;
-        }
-
-        .verification-detail {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        .verification-detail-label {
-            color: #6b7280;
-        }
-
-        .verification-detail-value {
-            font-weight: 500;
-            color: #1f2937;
-        }
-
-        .verification-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 0.85rem;
-        }
-
-        .progress-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .progress-title {
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 12px;
-            background: #e5e7eb;
-            border-radius: 6px;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #10b981);
-            transition: width 0.5s ease;
-        }
-
-        .progress-text {
-            text-align: center;
-            font-size: 0.9rem;
-            color: #6b7280;
-        }
-
-        .issues-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .issues-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .issues-title {
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .issues-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .issue-item {
-            display: flex;
-            align-items: start;
-            padding: 12px;
-            border-bottom: 1px solid #f3f4f6;
-            gap: 12px;
-        }
-
-        .issue-item:last-child {
-            border-bottom: none;
-        }
-
-        .issue-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        .issue-icon.error {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        .issue-icon.warning {
-            background: #fef3c7;
-            color: #d97706;
-        }
-
-        .issue-content {
-            flex: 1;
-        }
-
-        .issue-title {
-            font-weight: 500;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-
-        .issue-description {
-            font-size: 0.9rem;
-            color: #6b7280;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-        }
-
-        .error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background: #f0fdf4;
-            border: 1px solid #dcfce7;
-            color: #16a34a;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
+        body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f6f8fc; margin: 0; padding: 20px; color: #163a5f; }
+        .wrap { max-width: 1300px; margin: 0 auto; }
+        .card { background: #fff; border: 1px solid #dbe4ef; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .btn { border: none; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+        .btn-primary { background: #163a5f; color: #fff; }
+        .btn-warn { background: #b98918; color: #fff; }
+        .btn-light { background: #eef3f8; color: #163a5f; }
+        .kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 14px; }
+        .kpi .box { background: #fff; border: 1px solid #e6edf5; border-radius: 12px; padding: 12px; }
+        .kpi .v { font-size: 1.4rem; font-weight: 800; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #eef2f7; padding: 10px; text-align: right; }
+        th { background: #f8fbff; }
+        .ok { color: #0f766e; font-weight: 700; }
+        .warn { color: #b45309; font-weight: 700; }
+        .err { color: #b91c1c; font-weight: 700; }
+        #issues li { padding: 8px 0; border-bottom: 1px dashed #e5e7eb; }
     </style>
 </head>
 <body>
-    <div class="verification">
-        <div class="page-header">
-            <div>
-                <h1>🔍 التحقق والمراجعة</h1>
-                <p>مراجعة سلامة بيانات المخزون والتحقق من الاتساق</p>
-            </div>
-            <div class="header-actions">
-                <button class="btn btn-primary" onclick="runFullVerification()">تشغيل التحقق الكامل</button>
-                <button class="btn btn-secondary" onclick="exportReport()">تصدير التقرير</button>
-            </div>
-        </div>
-
-        <!-- Success/Error Messages -->
-        <div id="messageContainer"></div>
-
-        <!-- Progress Section -->
-        <div class="progress-section">
-            <div class="progress-header">
-                <div class="progress-title">تقدم التحقق</div>
-                <div id="progressPercentage">0%</div>
-            </div>
-            <div class="progress-bar">
-                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
-            </div>
-            <div id="progressText" class="progress-text">جاهز للبدء</div>
-        </div>
-
-        <!-- Verification Cards -->
-        <div class="verification-grid" id="verificationGrid">
-            <!-- Verification cards will be generated here -->
-        </div>
-
-        <!-- Issues Section -->
-        <div class="issues-section">
-            <div class="issues-header">
-                <div class="issues-title">المشاكل المكتشفة</div>
-                <div id="issuesCount">0 مشكلة</div>
-            </div>
-            <ul id="issuesList" class="issues-list">
-                <li class="loading">قم بتشغيل التحقق لعرض المشاكل</li>
-            </ul>
+<div class="wrap">
+    <div class="card">
+        <h2 style="margin: 0 0 10px;">شاشة التحقق من المخزون</h2>
+        <div class="row">
+            <button class="btn btn-primary" onclick="runVerification()">تشغيل التحقق</button>
+            <button class="btn btn-warn" onclick="fixIssues('rolls')">إصلاح مشاكل الرولات</button>
+            <button class="btn btn-light" onclick="fixIssues('products')">مزامنة المنتجات من المخزون</button>
+            <span id="statusText" style="color: #526277;">جاهز</span>
         </div>
     </div>
 
-    <script src="/common-functions.js"></script>
-    <script>
-        let verificationResults = [];
-        let currentProgress = 0;
+    <div class="kpi">
+        <div class="box"><div>المنتجات</div><div class="v" id="kProducts">0</div></div>
+        <div class="box"><div>الرولات</div><div class="v" id="kRolls">0</div></div>
+        <div class="box"><div>حركات المخزون</div><div class="v" id="kTrx">0</div></div>
+        <div class="box"><div>المشاكل</div><div class="v" id="kIssues">0</div></div>
+    </div>
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
-            loadInitialData();
-        });
+    <div class="card">
+        <h3 style="margin-top: 0;">نتائج الفحص</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>الفحص</th>
+                    <th>الحالة</th>
+                    <th>التفاصيل</th>
+                    <th>المشاكل</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody"><tr><td colspan="4">لم يتم التشغيل بعد</td></tr></tbody>
+        </table>
+    </div>
 
-        // Load initial data
-        async function loadInitialData() {
-            try {
-                // Load some basic data to prepare for verification
-                await apiCall('/api/products');
-                await apiCall('/api/stock');
-                await apiCall('/api/roll-balances');
-                
-                // Show ready state
-                updateProgress(0, 'جاهز للتحقق');
-                
-            } catch (error) {
-                handleError(error, 'فشل تحميل البيانات الأولية');
-            }
+    <div class="card">
+        <h3 style="margin-top: 0;">المشاكل المكتشفة</h3>
+        <ul id="issues"><li>لا توجد بيانات بعد.</li></ul>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top: 0;">رفع شيت جرد أول المدة بالتكلفة</h3>
+        <div class="row">
+            <a class="btn btn-light" href="/templates/stock_opening_template.csv" download>تحميل تمبلت الجرد</a>
+            <input id="openingFile" type="file" accept=".xlsx,.xls,.csv">
+            <button class="btn btn-light" onclick="previewOpeningSheet()">معاينة</button>
+            <button class="btn btn-primary" onclick="importOpeningSheet()">استيراد فعلي</button>
+        </div>
+        <div id="previewBox" style="margin-top: 10px; color: #526277;"></div>
+    </div>
+</div>
+
+<script src="/common-functions.js"></script>
+<script>
+    let allResults = [];
+
+    function setStatus(text) {
+        document.getElementById("statusText").textContent = text;
+    }
+
+    function badge(status) {
+        if (status === "success") return '<span class="ok">سليم</span>';
+        if (status === "warning") return '<span class="warn">تحذير</span>';
+        return '<span class="err">خطأ</span>';
+    }
+
+    function getTokenSafe() {
+        return (window.Auth && Auth.getToken && Auth.getToken()) || localStorage.getItem("token") || "";
+    }
+
+    function getAuthHeaders(isJson = false) {
+        const token = getTokenSafe();
+        const headers = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (isJson) headers["Content-Type"] = "application/json";
+        return headers;
+    }
+
+    async function runVerification() {
+        try {
+            setStatus("جاري التحقق...");
+            const [products, rolls, trx] = await Promise.all([
+                apiCall("/api/products"),
+                apiCall("/api/inventory/rolls"),
+                apiCall("/api/stock")
+            ]);
+
+            const p = Array.isArray(products) ? products : (products.data || []);
+            const r = Array.isArray(rolls) ? rolls : (rolls.data || []);
+            const t = Array.isArray(trx) ? trx : (trx.data || []);
+
+            const productIssues = p
+                .filter((x) => !x.name || String(x.name).trim() === "")
+                .map((x) => ({ title: "منتج بلا اسم", description: `ID: ${x._id || "-"}` }));
+
+            const rollIssues = [];
+            r.forEach((x) => {
+                const rem = Number(x.remainingArea || 0);
+                const tot = Number(x.totalArea || x.currentArea || 0);
+                if (rem < 0) rollIssues.push({ title: "مساحة سالبة", description: `${x.rollCode || x._id}` });
+                if (tot > 0 && rem > tot) rollIssues.push({ title: "المتبقي أكبر من الإجمالي", description: `${x.rollCode || x._id}` });
+            });
+
+            const trxIssues = t
+                .filter((x) => !x.type || !x.date)
+                .map((x) => ({ title: "حركة غير مكتملة", description: `${x.serialNumber || x._id}` }));
+
+            allResults = [
+                { name: "المنتجات", status: productIssues.length ? "warning" : "success", details: `${p.length} إجمالي`, issues: productIssues },
+                { name: "أرصدة الرولات", status: rollIssues.length ? "warning" : "success", details: `${r.length} رول`, issues: rollIssues },
+                { name: "حركات المخزون", status: trxIssues.length ? "warning" : "success", details: `${t.length} حركة`, issues: trxIssues }
+            ];
+
+            renderResults(p.length, r.length, t.length);
+            setStatus("اكتمل التحقق");
+        } catch (e) {
+            setStatus("فشل التحقق");
+            alert("فشل التحقق: " + (e.message || e));
+        }
+    }
+
+    function renderResults(productsCount, rollsCount, trxCount) {
+        const body = document.getElementById("resultsBody");
+        const issues = allResults.flatMap((x) => x.issues || []);
+
+        document.getElementById("kProducts").textContent = productsCount;
+        document.getElementById("kRolls").textContent = rollsCount;
+        document.getElementById("kTrx").textContent = trxCount;
+        document.getElementById("kIssues").textContent = issues.length;
+
+        body.innerHTML = allResults.map((row) => `
+            <tr>
+                <td>${row.name}</td>
+                <td>${badge(row.status)}</td>
+                <td>${row.details}</td>
+                <td>${(row.issues || []).length}</td>
+            </tr>
+        `).join("");
+
+        const ul = document.getElementById("issues");
+        if (!issues.length) {
+            ul.innerHTML = "<li>لا توجد مشاكل مكتشفة.</li>";
+            return;
         }
 
-        // Run full verification
-        async function runFullVerification() {
-            try {
-                showMessage('جاري تشغيل التحقق الكامل...', 'info');
-                
-                verificationResults = [];
-                currentProgress = 0;
-                
-                // Verification checks
-                const checks = [
-                    { name: 'التحقق من المنتجات', action: verifyProducts },
-                    { name: 'التحقق من أرصدة الرولات', action: verifyRollBalances },
-                    { name: 'التحقق من حركات المخزون', action: verifyStockTransactions },
-                    { name: 'التحقق من اتساق البيانات', action: verifyDataConsistency },
-                    { name: 'التحقق من الأرقام المسلسلة', action: verifySerialNumbers },
-                    { name: 'التحقق من التكاليف', action: verifyCosts }
-                ];
+        ul.innerHTML = issues.map((issue) => `<li><strong>${issue.title}</strong> - ${issue.description}</li>`).join("");
+    }
 
-                for (let i = 0; i < checks.length; i++) {
-                    const check = checks[i];
-                    updateProgress((i / checks.length) * 100, `جاري ${check.name}...`);
-                    
-                    const result = await check.action();
-                    verificationResults.push({
-                        name: check.name,
-                        ...result
-                    });
-                }
-
-                updateProgress(100, 'اكتمل التحقق');
-                displayResults();
-                
-                showMessage('اكتمل التحقق بنجاح', 'success');
-                
-            } catch (error) {
-                handleError(error, 'فشل تشغيل التحقق');
-            }
-        }
-
-        // Verify products
-        async function verifyProducts() {
-            try {
-                const response = await apiCall('/api/products');
-                const products = Array.isArray(response) ? response : (response.data || []);
-                
-                const issues = [];
-                let validCount = 0;
-                
-                products.forEach(product => {
-                    if (!product.name || product.name.trim() === '') {
-                        issues.push({
-                            type: 'error',
-                            title: 'منتج بدون اسم',
-                            description: `المنتج ${product._id} لا يوجد له اسم`
-                        });
-                    } else {
-                        validCount++;
-                    }
+    async function fixIssues(type) {
+        try {
+            setStatus("جاري الإصلاح...");
+            if (type === "rolls" || type === "products") {
+                const response = await fetch("/api/inventory/sync-products-from-stock", {
+                    method: "POST",
+                    headers: getAuthHeaders(true),
+                    body: JSON.stringify({ dryRun: false })
                 });
-                
-                return {
-                    status: issues.length === 0 ? 'success' : (issues.length > 5 ? 'error' : 'warning'),
-                    total: products.length,
-                    valid: validCount,
-                    issues: issues.length,
-                    details: `${validCount}/${products.length} منتج صحيح`
-                };
-                
-            } catch (error) {
-                return {
-                    status: 'error',
-                    total: 0,
-                    valid: 0,
-                    issues: 1,
-                    details: 'فشل التحقق من المنتجات'
-                };
-            }
-        }
-
-        // Verify roll balances
-        async function verifyRollBalances() {
-            try {
-                const response = await apiCall('/api/roll-balances');
-                const rolls = Array.isArray(response) ? response : (response.data || []);
-                
-                const issues = [];
-                let validCount = 0;
-                
-                rolls.forEach(roll => {
-                    const remainingArea = parseFloat(roll.remainingArea) || 0;
-                    const totalArea = parseFloat(roll.totalArea) || 0;
-                    
-                    if (remainingArea < 0) {
-                        issues.push({
-                            type: 'error',
-                            title: 'مساحة سالبة',
-                            description: `الرول ${roll.rollNumber || roll._id} به مساحة سالبة`
-                        });
-                    } else if (remainingArea > totalArea) {
-                        issues.push({
-                            type: 'warning',
-                            title: 'مساحة متبقية أكبر من الكلية',
-                            description: `الرول ${roll.rollNumber || roll._id}`
-                        });
-                    } else {
-                        validCount++;
-                    }
-                });
-                
-                return {
-                    status: issues.length === 0 ? 'success' : (issues.length > 3 ? 'error' : 'warning'),
-                    total: rolls.length,
-                    valid: validCount,
-                    issues: issues.length,
-                    details: `${validCount}/${rolls.length} رول صحيح`
-                };
-                
-            } catch (error) {
-                return {
-                    status: 'error',
-                    total: 0,
-                    valid: 0,
-                    issues: 1,
-                    details: 'فشل التحقق من أرصدة الرولات'
-                };
-            }
-        }
-
-        // Verify stock transactions
-        async function verifyStockTransactions() {
-            try {
-                const response = await apiCall('/api/stock');
-                const transactions = Array.isArray(response) ? response : (response.data || []);
-                
-                const issues = [];
-                let validCount = 0;
-                
-                transactions.forEach(transaction => {
-                    if (!transaction.type || !['inbound', 'outbound', 'adjustment'].includes(transaction.type.toLowerCase())) {
-                        issues.push({
-                            type: 'warning',
-                            title: 'نوع حركة غير صحيح',
-                            description: `الحركة ${transaction._id} بها نوع غير صحيح: ${transaction.type}`
-                        });
-                    } else if (!transaction.date) {
-                        issues.push({
-                            type: 'warning',
-                            title: 'حركة بدون تاريخ',
-                            description: `الحركة ${transaction._id} لا يوجد لها تاريخ`
-                        });
-                    } else {
-                        validCount++;
-                    }
-                });
-                
-                return {
-                    status: issues.length === 0 ? 'success' : (issues.length > 10 ? 'error' : 'warning'),
-                    total: transactions.length,
-                    valid: validCount,
-                    issues: issues.length,
-                    details: `${validCount}/${transactions.length} حركة صحيحة`
-                };
-                
-            } catch (error) {
-                return {
-                    status: 'error',
-                    total: 0,
-                    valid: 0,
-                    issues: 1,
-                    details: 'فشل التحقق من حركات المخزون'
-                };
-            }
-        }
-
-        // Verify data consistency
-        async function verifyDataConsistency() {
-            try {
-                // Mock implementation - would check consistency between different data sources
-                const issues = [];
-                
-                // Check for duplicate serial numbers
-                issues.push({
-                    type: 'warning',
-                    title: 'تحقق من الأرقام المكررة',
-                    description: 'يجب التحقق من عدم وجود أرقام مسلسلة مكررة'
-                });
-                
-                return {
-                    status: issues.length === 0 ? 'success' : 'warning',
-                    total: 10,
-                    valid: 9,
-                    issues: issues.length,
-                    details: '9/10 فحوصات اتساق نجحت'
-                };
-                
-            } catch (error) {
-                return {
-                    status: 'error',
-                    total: 0,
-                    valid: 0,
-                    issues: 1,
-                    details: 'فشل التحقق من اتساق البيانات'
-                };
-            }
-        }
-
-        // Verify serial numbers
-        async function verifySerialNumbers() {
-            try {
-                // Mock implementation
-                return {
-                    status: 'success',
-                    total: 50,
-                    valid: 50,
-                    issues: 0,
-                    details: '50/50 رقم مسلسل صحيح'
-                };
-                
-            } catch (error) {
-                return {
-                    status: 'error',
-                    total: 0,
-                    valid: 0,
-                    issues: 1,
-                    details: 'فشل التحقق من الأرقام المسلسلة'
-                };
-            }
-        }
-
-        // Verify costs
-        async function verifyCosts() {
-            try {
-                // Mock implementation
-                return {
-                    status: 'warning',
-                    total: 30,
-                    valid: 28,
-                    issues: 2,
-                    details: '28/30 تكلفة صحيحة'
-                };
-                
-            } catch (error) {
-                return {
-                    status: 'error',
-                    total: 0,
-                    valid: 0,
-                    issues: 1,
-                    details: 'فشل التحقق من التكاليف'
-                };
-            }
-        }
-
-        // Display results
-        function displayResults() {
-            displayVerificationCards();
-            displayIssues();
-        }
-
-        // Display verification cards
-        function displayVerificationCards() {
-            const container = document.getElementById('verificationGrid');
-            
-            container.innerHTML = verificationResults.map(result => {
-                const statusClass = result.status;
-                const statusText = getStatusText(result.status);
-                
-                return `
-                    <div class="verification-card ${statusClass}">
-                        <div class="verification-header">
-                            <div class="verification-title">${result.name}</div>
-                            <div class="verification-status status-${result.status}">${statusText}</div>
-                        </div>
-                        
-                        <div class="verification-details">
-                            <div class="verification-detail">
-                                <span class="verification-detail-label">الإجمالي:</span>
-                                <span class="verification-detail-value">${result.total}</span>
-                            </div>
-                            <div class="verification-detail">
-                                <span class="verification-detail-label">صحيح:</span>
-                                <span class="verification-detail-value">${result.valid}</span>
-                            </div>
-                            <div class="verification-detail">
-                                <span class="verification-detail-label">مشاكل:</span>
-                                <span class="verification-detail-value">${result.issues}</span>
-                            </div>
-                            <div class="verification-detail">
-                                <span class="verification-detail-label">التفاصيل:</span>
-                                <span class="verification-detail-value">${result.details}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="verification-actions">
-                            <button class="btn btn-secondary btn-small" onclick="viewDetails('${result.name}')">عرض التفاصيل</button>
-                            ${result.issues > 0 ? `<button class="btn btn-warning btn-small" onclick="fixIssues('${result.name}')">إصلاح المشاكل</button>` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Display issues
-        function displayIssues() {
-            const container = document.getElementById('issuesList');
-            const countElement = document.getElementById('issuesCount');
-            
-            const allIssues = verificationResults.flatMap(result => result.issues || []);
-            
-            countElement.textContent = `${allIssues.length} مشكلة`;
-            
-            if (allIssues.length === 0) {
-                container.innerHTML = '<li class="loading">✅ لا توجد مشاكل</li>';
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || data.message || "فشل الإصلاح");
+                setStatus("تم الإصلاح بنجاح");
+                await runVerification();
                 return;
             }
-            
-            container.innerHTML = allIssues.map(issue => `
-                <li class="issue-item">
-                    <div class="issue-icon ${issue.type}">${issue.type === 'error' ? '✕' : '!'}</div>
-                    <div class="issue-content">
-                        <div class="issue-title">${issue.title}</div>
-                        <div class="issue-description">${issue.description}</div>
-                    </div>
-                </li>
-            `).join('');
+            setStatus("لا يوجد إصلاح تلقائي لهذا النوع");
+        } catch (e) {
+            setStatus("فشل الإصلاح");
+            alert("فشل الإصلاح: " + (e.message || e));
         }
+    }
 
-        // Get status text
-        function getStatusText(status) {
-            switch (status) {
-                case 'success': return 'نجح';
-                case 'warning': return 'تحذير';
-                case 'error': return 'خطأ';
-                default: return 'غير محدد';
-            }
+    function getFileOrAlert() {
+        const file = document.getElementById("openingFile").files[0];
+        if (!file) {
+            alert("اختر ملف أولاً");
+            return null;
         }
+        return file;
+    }
 
-        // Update progress
-        function updateProgress(percentage, text) {
-            currentProgress = percentage;
-            document.getElementById('progressFill').style.width = percentage + '%';
-            document.getElementById('progressPercentage').textContent = Math.round(percentage) + '%';
-            document.getElementById('progressText').textContent = text;
-        }
+    async function previewOpeningSheet() {
+        const file = getFileOrAlert();
+        if (!file) return;
 
-        // View details
-        function viewDetails(name) {
-            const result = verificationResults.find(r => r.name === name);
-            if (result) {
-                alert(`تفاصيل ${name}:\n\n${result.details}\n\nالحالة: ${getStatusText(result.status)}\nالإجمالي: ${result.total}\nصحيح: ${result.valid}\nمشاكل: ${result.issues}`);
-            }
-        }
+        const fd = new FormData();
+        fd.append("file", file);
 
-        // Fix issues
-        function fixIssues(name) {
-            alert(`سيتم فتح شاشة إصلاح مشاكل ${name}`);
-        }
+        try {
+            const token = getTokenSafe();
+            const response = await fetch("/api/data/preview-import/stock_transactions", {
+                method: "POST",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: fd
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || data.error || "فشل المعاينة");
 
-        // Export report
-        function exportReport() {
-            if (verificationResults.length === 0) {
-                alert('قم بتشغيل التحقق أولاً');
-                return;
-            }
-            
-            const report = {
-                date: new Date().toISOString(),
-                results: verificationResults,
-                summary: {
-                    totalChecks: verificationResults.length,
-                    passed: verificationResults.filter(r => r.status === 'success').length,
-                    warnings: verificationResults.filter(r => r.status === 'warning').length,
-                    errors: verificationResults.filter(r => r.status === 'error').length
-                }
-            };
-            
-            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `verification-report-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            document.getElementById("previewBox").innerHTML =
+                `المعاينة: ${data.rowCount || 0} سطر - صالح للاستيراد: ${data.canImport ? "نعم" : "لا"}` +
+                ((data.missingRequiredColumns || []).length
+                    ? `<br>أعمدة ناقصة: ${data.missingRequiredColumns.join(", ")}`
+                    : "");
+        } catch (e) {
+            alert("فشل المعاينة: " + (e.message || e));
         }
+    }
 
-        // Show message
-        function showMessage(message, type) {
-            const container = document.getElementById('messageContainer');
-            container.innerHTML = `<div class="${type}">${message}</div>`;
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
+    async function importOpeningSheet() {
+        const file = getFileOrAlert();
+        if (!file) return;
+        if (!confirm("تأكيد استيراد الشيت كرصيد أول مدة بالتكلفة؟")) return;
+
+        const fd = new FormData();
+        fd.append("file", file);
+
+        try {
+            const token = getTokenSafe();
+            const response = await fetch("/api/data/import/stock_transactions", {
+                method: "POST",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: fd
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || data.error || "فشل الاستيراد");
+            alert(data.message || "تم الاستيراد بنجاح");
+            await runVerification();
+        } catch (e) {
+            alert("فشل الاستيراد: " + (e.message || e));
         }
-    </script>
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        checkAuth();
+    });
+</script>
+<script src="/global-navigation.js"></script>
 </body>
 </html>

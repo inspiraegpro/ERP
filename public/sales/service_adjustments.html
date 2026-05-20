@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تعديلات الفاتورة</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8fafc; padding: 20px; }
+    .card { max-width: 760px; margin: auto; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 220px; }
+    label { display: block; margin-bottom: 6px; font-weight: 700; color: #334155; }
+    select, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
+    button { background: #1d4ed8; color: #fff; font-weight: 700; cursor: pointer; }
+    .hint { margin-top: 10px; background: #eff6ff; padding: 10px; border-radius: 8px; color: #1e3a8a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>فتح تعديل على فاتورة</h2>
+    <div class="row">
+      <div class="col">
+        <label>الفاتورة</label>
+        <select id="invoiceSelect"></select>
+      </div>
+      <div class="col">
+        <label>نوع التعديل</label>
+        <select id="actionType">
+          <option value="MODIFY_SERVICE">تعديل خدمة</option>
+          <option value="ADD_SERVICE">إضافة خدمة</option>
+          <option value="CANCEL_SERVICE">إلغاء خدمة</option>
+          <option value="DISCOUNT_ONLY">خصم فقط</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <div class="col">
+        <button onclick="openEditor()">فتح شاشة التعديل بنفس نموذج الفاتورة</button>
+      </div>
+    </div>
+    <div class="hint">سيتم فتح نفس شاشة فاتورة المبيعات بكل البنود والتفاصيل والماتريكس والمعادلات، ولكن في وضع تعديل ملحق.</div>
+  </div>
+  <script>
+    const API = '/api';
+    function auth() {
+      const h = {};
+      const t = localStorage.getItem('token') || '';
+      if (t) h['Authorization'] = 'Bearer ' + t;
+      return h;
+    }
+    async function loadInvoices() {
+      const res = await fetch(`${API}/sales`, { headers: auth() });
+      const rows = await res.json();
+      const s = document.getElementById('invoiceSelect');
+      s.innerHTML = rows.map(r => `<option value="${r._id}">${r.invoiceNumber || r._id} - ${(r.customer && r.customer.name) || r.customerName || '-'}</option>`).join('');
+    }
+    function openEditor() {
+      const id = document.getElementById('invoiceSelect').value;
+      const actionType = document.getElementById('actionType').value;
+      if (!id) return;
+      location.href = `/sales/sales_invoice.html?id=${encodeURIComponent(id)}&adjustment=1&actionType=${encodeURIComponent(actionType)}`;
+    }
+    loadInvoices();
+  </script>
+  <script src="/common-functions.js"></script>
+  <script src="/global-navigation.js"></script>
+</body>
+</html>

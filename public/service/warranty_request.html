@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلب ضمان - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1000px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero { background:linear-gradient(135deg,#065f46,#047857); color:#fff; border-radius:24px; padding:2rem; margin-bottom:1.5rem; box-shadow:0 18px 38px rgba(6,95,70,.2); }
+        .hero h1 { margin:0 0 .5rem; font-size:1.8rem; }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.8; }
+        .card { background:var(--sf); border:1px solid var(--bd); border-radius:22px; box-shadow:0 12px 28px rgba(22,58,95,.07); padding:1.5rem; margin-bottom:1.25rem; }
+        .card h2 { margin:0 0 1.25rem; font-size:1.05rem; color:var(--p); border-bottom:1px solid var(--bd); padding-bottom:.75rem; }
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        .field { display:flex; flex-direction:column; gap:.4rem; }
+        .field label { font-size:.88rem; font-weight:700; color:var(--s); }
+        .field input, .field textarea { border:1px solid rgba(82,98,119,.2); border-radius:12px; padding:.8rem .95rem; font-size:.93rem; background:#fff; color:var(--p); width:100%; box-sizing:border-box; font-family:inherit; }
+        .field input[readonly] { background:#f4f7fb; color:#526277; }
+        .field textarea { resize:vertical; min-height:90px; }
+        .field.full { grid-column:1/-1; }
+        .lookup-row { display:flex; gap:.75rem; align-items:flex-end; }
+        .lookup-row .field { flex:1; }
+        .btn { border:none; border-radius:12px; padding:.8rem 1.3rem; font-size:.93rem; font-weight:800; cursor:pointer; box-shadow:0 6px 14px rgba(22,58,95,.1); white-space:nowrap; }
+        .btn.primary { background:#047857; color:#fff; }
+        .btn.light { background:#fff; color:var(--p); border:1px solid var(--bd); }
+        .btn.lookup { background:var(--a); color:#fff; padding:.8rem 1.1rem; }
+        .btn.add-row { background:rgba(22,58,95,.07); color:var(--p); border:1px solid var(--bd); font-size:.85rem; padding:.55rem .9rem; box-shadow:none; }
+        .actions { display:flex; gap:1rem; justify-content:flex-end; margin-top:1.25rem; }
+        .msg { display:none; padding:1rem 1.1rem; border-radius:14px; font-weight:700; margin-top:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+        .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+        .info-item { background:rgba(22,58,95,.04); border-radius:12px; padding:.75rem 1rem; }
+        .info-item .lbl { font-size:.8rem; color:var(--s); font-weight:700; margin-bottom:.25rem; }
+        .info-item .val { font-size:.95rem; color:var(--p); font-weight:700; }
+        .technician-strip { background:rgba(4,120,87,.07); border:1px solid rgba(4,120,87,.18); border-radius:12px; padding:.75rem 1rem; margin-top:.75rem; font-size:.9rem; color:#065f46; font-weight:700; }
+        .warranty-banner { border-radius:14px; padding:1rem 1.1rem; margin-bottom:1rem; font-size:.9rem; font-weight:700; }
+        .warranty-banner.auto { background:rgba(4,120,87,.08); border:1px solid rgba(4,120,87,.2); color:#065f46; }
+        .warranty-banner.manual { background:rgba(185,137,24,.08); border:1px solid rgba(185,137,24,.2); color:#92400e; }
+        table { width:100%; border-collapse:collapse; margin-top:.75rem; }
+        thead th { background:#eef2f7; color:var(--p); padding:.75rem .65rem; border-bottom:1px solid var(--bd); font-size:.88rem; }
+        tbody td { padding:.6rem .65rem; border-bottom:1px solid rgba(82,98,119,.08); text-align:center; vertical-align:middle; }
+        .table-input { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.18); border-radius:10px; padding:.6rem .7rem; font-size:.9rem; background:#fff; color:var(--p); font-family:inherit; }
+        .remove-btn { border:none; background:rgba(159,58,56,.1); color:var(--er); border-radius:8px; padding:.4rem .65rem; cursor:pointer; font-weight:700; }
+        .item-check { width:18px; height:18px; cursor:pointer; accent-color:#047857; }
+        .mode-toggle { display:flex; gap:.75rem; margin-bottom:1.25rem; }
+        .mode-btn { flex:1; padding:.75rem; border:2px solid var(--bd); border-radius:14px; background:#fff; color:var(--s); font-weight:700; cursor:pointer; font-size:.9rem; transition:all .18s; }
+        .mode-btn.active { border-color:#047857; background:rgba(4,120,87,.07); color:#047857; }
+        @media(max-width:640px){ .grid{grid-template-columns:1fr;} .info-grid{grid-template-columns:1fr;} .lookup-row{flex-direction:column;} }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>طلب ضمان</h1>
+        <p>أدخل رقم أمر التشغيل لاستدعاء بيانات العميل والفني والأصناف تلقائياً، ثم اختر البنود المطلوب إصلاحها.</p>
+    </section>
+
+    <!-- Mode Selection -->
+    <div class="card">
+        <h2>1️⃣ نوع البيانات</h2>
+        <div class="mode-toggle">
+            <button class="mode-btn active" id="modeAutoBtn" onclick="setMode('auto')">
+                🔍 أمر تشغيل موجود في النظام (من 2026 فما بعد)
+            </button>
+            <button class="mode-btn" id="modeManualBtn" onclick="setMode('manual')">
+                ✏️ إدخال يدوي (قبل 2026)
+            </button>
+        </div>
+
+        <!-- AUTO: lookup by job order -->
+        <div id="autoSection">
+            <div class="warranty-banner auto">
+                🛡️ أدخل رقم أمر التشغيل وسيتم استدعاء جميع البيانات تلقائياً.
+            </div>
+            <div class="lookup-row">
+                <div class="field">
+                    <label for="jobOrderInput">رقم أمر التشغيل</label>
+                    <input id="jobOrderInput" placeholder="مثال: JOB-001" oninput="clearJobData()">
+                </div>
+                <button class="btn lookup" onclick="lookupJob()">🔍 استدعاء</button>
+            </div>
+        </div>
+
+        <!-- MANUAL -->
+        <div id="manualSection" style="display:none;">
+            <div class="warranty-banner manual">
+                ✏️ بيانات قبل 2026 — أدخل المعلومات يدوياً.
+            </div>
+            <div class="grid" style="margin-top:.75rem;">
+                <div class="field">
+                    <label for="manualInvoiceId">رقم الفاتورة</label>
+                    <input id="manualInvoiceId" placeholder="رقم الفاتورة الورقية">
+                </div>
+                <div class="field">
+                    <label for="manualJobId">رقم أمر التشغيل</label>
+                    <input id="manualJobId" placeholder="رقم أمر التشغيل">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Info (auto-filled) -->
+    <div class="card" id="jobInfoCard" style="display:none;">
+        <h2>2️⃣ بيانات أمر التشغيل</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="lbl">👤 العميل</div>
+                <div class="val" id="infoCustomer">-</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">📞 الهاتف</div>
+                <div class="val" id="infoPhone">-</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">🚗 السيارة</div>
+                <div class="val" id="infoCar">-</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">📋 رقم الفاتورة</div>
+                <div class="val" id="infoInvoice">-</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">📅 تاريخ الفاتورة</div>
+                <div class="val" id="infoDate">-</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">📊 حالة الأمر</div>
+                <div class="val" id="infoStatus">-</div>
+            </div>
+        </div>
+        <div class="technician-strip" id="techStrip" style="display:none;">
+            🔧 الفني المسؤول: <span id="infoTechnician">-</span>
+        </div>
+    </div>
+
+    <!-- Customer Info (manual mode) -->
+    <div class="card" id="manualCustomerCard" style="display:none;">
+        <h2>2️⃣ بيانات العميل</h2>
+        <div class="grid">
+            <div class="field">
+                <label for="customerName">اسم العميل</label>
+                <input id="customerName" placeholder="الاسم الكامل">
+            </div>
+            <div class="field">
+                <label for="customerPhone">رقم الهاتف</label>
+                <input id="customerPhone" placeholder="01xxxxxxxxx">
+            </div>
+            <div class="field">
+                <label for="originalInvoiceDate">تاريخ الفاتورة الأصلية</label>
+                <input id="originalInvoiceDate" type="date">
+            </div>
+            <div class="field">
+                <label for="customerId">كود العميل (اختياري)</label>
+                <input id="customerId" placeholder="كود العميل">
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Selection (auto mode) -->
+    <div class="card" id="itemsSelectCard" style="display:none;">
+        <h2>3️⃣ اختيار البنود المطلوب إصلاحها</h2>
+        <p style="color:#738396;font-size:.88rem;margin-bottom:.75rem;">اختر الأصناف التي يشكو منها العميل:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:40px;">اختيار</th>
+                    <th>البند</th>
+                    <th>الصنف</th>
+                    <th>المقاس (سم)</th>
+                    <th>المساحة (م²)</th>
+                    <th>حالة الصرف</th>
+                </tr>
+            </thead>
+            <tbody id="jobItemsTbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Items Manual (manual mode) -->
+    <div class="card" id="manualItemsCard" style="display:none;">
+        <h2>3️⃣ البنود المطلوب إصلاحها</h2>
+        <table id="itemsTable">
+            <thead>
+                <tr>
+                    <th>وصف البند</th>
+                    <th>الكمية</th>
+                    <th>حذف</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div style="margin-top:.75rem;">
+            <button class="btn add-row" onclick="addManualItemRow()">➕ إضافة بند</button>
+        </div>
+    </div>
+
+    <!-- Complaint & Submit -->
+    <div class="card">
+        <h2>4️⃣ وصف الشكوى والإرسال</h2>
+        <div class="field">
+            <label for="complaint">وصف الشكوى</label>
+            <textarea id="complaint" placeholder="اشرح المشكلة أو العيب بالتفصيل..."></textarea>
+        </div>
+        <div class="actions">
+            <button class="btn light" onclick="history.back()">رجوع</button>
+            <button class="btn primary" onclick="submitWarranty()">🛡️ إرسال طلب الضمان</button>
+        </div>
+        <div id="msg" class="msg"></div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    const CUTOFF = new Date('2026-01-01');
+    let currentMode = 'auto';
+    let currentJob = null;   // the fetched service job
+
+    function auth(json = false) {
+        const h = {};
+        if (json) h['Content-Type'] = 'application/json';
+        const t = localStorage.getItem('token');
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+
+    function show(text, ok = true) {
+        const m = document.getElementById('msg');
+        m.className = 'msg ' + (ok ? 'ok' : 'er');
+        m.textContent = text;
+        m.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('modeAutoBtn').classList.toggle('active', mode === 'auto');
+        document.getElementById('modeManualBtn').classList.toggle('active', mode === 'manual');
+        document.getElementById('autoSection').style.display        = mode === 'auto'   ? 'block' : 'none';
+        document.getElementById('manualSection').style.display      = mode === 'manual' ? 'block' : 'none';
+        document.getElementById('jobInfoCard').style.display        = 'none';
+        document.getElementById('itemsSelectCard').style.display    = 'none';
+        document.getElementById('manualCustomerCard').style.display = mode === 'manual' ? 'block' : 'none';
+        document.getElementById('manualItemsCard').style.display    = mode === 'manual' ? 'block' : 'none';
+        if (mode === 'manual' && !document.querySelector('#itemsTable tbody tr')) addManualItemRow();
+    }
+
+    function clearJobData() {
+        currentJob = null;
+        document.getElementById('jobInfoCard').style.display     = 'none';
+        document.getElementById('itemsSelectCard').style.display = 'none';
+    }
+
+    // ── Lookup job by order number ──────────────────────────────────────────
+    async function lookupJob() {
+        const val = document.getElementById('jobOrderInput').value.trim();
+        if (!val) return;
+
+        let job = null;
+        // Try by-order first (job order number), then by ID
+        const r1 = await fetch(`${API}/service-jobs/by-order/${encodeURIComponent(val)}`, { headers: auth() });
+        if (r1.ok) {
+            job = await r1.json();
+        } else {
+            const r2 = await fetch(`${API}/service-jobs/${encodeURIComponent(val)}`, { headers: auth() });
+            if (r2.ok) job = await r2.json();
+        }
+
+        if (!job) {
+            show('لم يتم العثور على أمر التشغيل. تأكد من الرقم.', false);
+            document.getElementById('msg').style.display = 'block';
+            return;
+        }
+
+        // Check invoice date — if before 2026 suggest manual
+        const invoice = job.salesInvoiceId;
+        const invDate = invoice?.date ? new Date(invoice.date) : null;
+        if (invDate && invDate < CUTOFF) {
+            show(`فاتورة هذا الأمر بتاريخ ${invDate.toLocaleDateString('ar-EG')} — قبل 2026. يُنصح باستخدام وضع الإدخال اليدوي.`, false);
+            document.getElementById('msg').style.display = 'block';
+        }
+
+        currentJob = job;
+
+        // ── Fill info strip ──────────────────────────────────────────────────
+        document.getElementById('infoCustomer').textContent = job.customerName || '-';
+        document.getElementById('infoPhone').textContent    = job.customerPhone || '-';
+
+        // Car from invoice
+        const car = invoice?.carModel
+            ? `${invoice.carModel.brand || ''} ${invoice.carModel.model || ''}`.trim()
+            : (job.carName || '-');
+        document.getElementById('infoCar').textContent = car || '-';
+
+        document.getElementById('infoInvoice').textContent = invoice?.invoiceNumber || '-';
+        document.getElementById('infoDate').textContent    = invDate ? invDate.toLocaleDateString('ar-EG') : '-';
+        document.getElementById('infoStatus').textContent  = translateStatus(job.status);
+
+        // Technician
+        const techName = job.technician?.name
+            || job.technicianName
+            || (job.technicianAssignments?.length
+                ? job.technicianAssignments.map(t => t.name || t.technicianName).filter(Boolean).join('، ')
+                : null);
+        if (techName) {
+            document.getElementById('infoTechnician').textContent = techName;
+            document.getElementById('techStrip').style.display = 'block';
+        } else {
+            document.getElementById('techStrip').style.display = 'none';
+        }
+
+        document.getElementById('jobInfoCard').style.display = 'block';
+
+        // ── Render items ─────────────────────────────────────────────────────
+        renderJobItems(job.items || []);
+        document.getElementById('itemsSelectCard').style.display = 'block';
+    }
+
+    function translateStatus(s) {
+        const map = {
+            PENDING_OPS: 'قيد التجهيز', PENDING_WAREHOUSE: 'قيد الصرف',
+            IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل',
+            AwaitingTechnician: 'ينتظر فني', IssuedToTechnician: 'صُرف للفني'
+        };
+        return map[s] || s || '-';
+    }
+
+    function renderJobItems(items) {
+        const tbody = document.getElementById('jobItemsTbody');
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:1.5rem;color:#738396;">لا توجد بنود في هذا الأمر.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((item, idx) => {
+            const partName    = item.partName || `بند ${idx + 1}`;
+            const productName = item.productData?.name || item.materialCategory || '-';
+            const length = Number(item.lengthCM || item.length || 0).toFixed(0);
+            const width  = Number(item.widthCM  || item.width  || 0).toFixed(0);
+            const dims   = (length > 0 && width > 0) ? `${length} × ${width}` : '-';
+            const rawArea = Number(item.area || 0);
+            const area    = rawArea > 100 ? (rawArea / 10000).toFixed(2) : rawArea.toFixed(2);
+            const issued  = item.issueStatus === 'Issued' || item.issueStatus === 'PartiallyIssued';
+            const badge   = issued
+                ? `<span style="background:rgba(31,111,95,.12);color:#1f6f5f;padding:.25rem .6rem;border-radius:999px;font-size:.78rem;font-weight:700;">✅ صُرف</span>`
+                : `<span style="background:rgba(185,137,24,.12);color:#a07010;padding:.25rem .6rem;border-radius:999px;font-size:.78rem;font-weight:700;">⏳ لم يُصرف</span>`;
+            return `
+            <tr>
+                <td><input type="checkbox" class="item-check job-item-chk" value="${idx}" id="jchk-${idx}"></td>
+                <td style="font-weight:700;text-align:right;">${partName}</td>
+                <td>${productName}</td>
+                <td>${dims}</td>
+                <td>${area}</td>
+                <td>${badge}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Manual items ─────────────────────────────────────────────────────────
+    function addManualItemRow(data = { description: '', quantity: 1 }) {
+        const tb = document.querySelector('#itemsTable tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input class="table-input" value="${data.description || ''}" placeholder="وصف البند المعيب"></td>
+            <td><input class="table-input" type="number" min="0.01" step="0.01" value="${data.quantity || 1}" style="width:90px;"></td>
+            <td><button class="remove-btn" onclick="this.closest('tr').remove()">حذف</button></td>`;
+        tb.appendChild(tr);
+    }
+
+    function collectManualItems() {
+        return [...document.querySelectorAll('#itemsTable tbody tr')].map(r => {
+            const inputs = r.querySelectorAll('input');
+            return { description: inputs[0].value.trim(), quantity: Number(inputs[1].value || 0) };
+        }).filter(i => i.description && i.quantity > 0);
+    }
+
+    // ── Submit ────────────────────────────────────────────────────────────────
+    async function submitWarranty() {
+        const complaint = document.getElementById('complaint').value.trim();
+        if (!complaint) { show('يرجى كتابة وصف الشكوى.', false); return; }
+
+        let payload = {};
+
+        if (currentMode === 'auto') {
+            if (!currentJob) { show('يرجى استدعاء أمر التشغيل أولاً.', false); return; }
+
+            const selectedIdxs = [...document.querySelectorAll('.job-item-chk:checked')].map(c => Number(c.value));
+            if (!selectedIdxs.length) { show('يرجى اختيار بند واحد على الأقل.', false); return; }
+
+            const invoice = currentJob.salesInvoiceId;
+            const invDate = invoice?.date ? invoice.date.split('T')[0] : '';
+
+            // التحقق من البيانات الأساسية
+            const customerName  = currentJob.customerName || '';
+            const customerPhone = currentJob.customerPhone || '';
+            const invoiceId     = typeof invoice === 'object' ? (invoice?._id || '') : (invoice || '');
+
+            if (!customerName) { show('بيانات العميل غير مكتملة في أمر التشغيل (اسم العميل مفقود).', false); return; }
+            if (!invoiceId && !currentJob._id) { show('لم يتم ربط أمر التشغيل بفاتورة. يرجى استخدام الإدخال اليدوي.', false); return; }
+
+            const selectedItems = selectedIdxs.map(idx => {
+                const item = currentJob.items[idx];
+                return {
+                    description: item.partName || item.materialCategory || `بند ${idx + 1}`,
+                    quantity: Number(item.area || item.quantity || 1)
+                };
+            });
+
+            payload = {
+                originalInvoiceId:   invoiceId || currentJob._id,
+                originalJobId:       currentJob._id,
+                originalJobOrder:    currentJob.jobOrder || '',
+                customerId:          currentJob.customer || '',
+                customerName,
+                customerPhone,
+                complaint,
+                originalInvoiceDate: invDate || '',
+                items: selectedItems
+            };
+
+        } else {
+            // Manual
+            const customerName       = document.getElementById('customerName').value.trim();
+            const customerPhone      = document.getElementById('customerPhone').value.trim();
+            const originalInvoiceDate = document.getElementById('originalInvoiceDate').value;
+            const manualInvoiceId    = document.getElementById('manualInvoiceId').value.trim();
+            const manualJobId        = document.getElementById('manualJobId').value.trim();
+
+            if (!customerName || !customerPhone || !originalInvoiceDate || !manualInvoiceId) {
+                show('يرجى تعبئة جميع الحقول المطلوبة.', false); return;
+            }
+            const items = collectManualItems();
+            if (!items.length) { show('يرجى إضافة بند واحد على الأقل.', false); return; }
+
+            payload = {
+                originalInvoiceId:   manualInvoiceId,
+                originalJobId:       manualJobId || manualInvoiceId,
+                customerId:          document.getElementById('customerId').value.trim(),
+                customerName,
+                customerPhone,
+                complaint,
+                originalInvoiceDate,
+                items
+            };
+        }
+
+        const res  = await fetch(`${API}/warranty-requests`, { method: 'POST', headers: auth(true), body: JSON.stringify(payload) });
+        const data = await res.json();
+
+        if (!res.ok) {
+            console.error('Warranty request failed:', payload, data);
+            show(data.message || 'حدث خطأ أثناء الإرسال.', false);
+            return;
+        }
+
+        if (data.serviceJob) {
+            show(`✅ تم اعتماد طلب الضمان وإنشاء أمر تشغيل: ${data.serviceJob.jobOrder || data.serviceJob._id}`);
+        } else {
+            show(data.message || '✅ تم تسجيل الطلب.');
+        }
+
+        // Reset
+        document.getElementById('complaint').value = '';
+        clearJobData();
+        document.getElementById('jobOrderInput').value = '';
+        document.querySelectorAll('.job-item-chk').forEach(c => c.checked = false);
+    }
+
+    // Init
+    setMode('auto');
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

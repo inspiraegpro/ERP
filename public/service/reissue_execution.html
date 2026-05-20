@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تنفيذ إعادة الصرف - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1200px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero { background:linear-gradient(135deg,var(--p),#244c73); color:#fff; border-radius:24px; padding:2rem; margin-bottom:1.5rem; box-shadow:0 18px 38px rgba(22,58,95,.15); }
+        .hero h1 { margin:0 0 .5rem; font-size:1.8rem; }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.8; }
+        .card { background:var(--sf); border:1px solid var(--bd); border-radius:22px; box-shadow:0 12px 28px rgba(22,58,95,.07); padding:1.5rem; margin-bottom:1.25rem; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:.9rem .75rem; border-bottom:1px solid var(--bd); font-size:.88rem; white-space:nowrap; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.1); text-align:center; font-size:.9rem; }
+        tbody tr:hover { background:#fbfcfe; }
+        .badge { display:inline-flex; padding:.3rem .7rem; border-radius:999px; font-size:.8rem; font-weight:700; }
+        .badge.mistake { background:rgba(185,137,24,.12); color:#a07010; }
+        .badge.defective { background:rgba(159,58,56,.12); color:var(--er); }
+        .btn { border:none; border-radius:10px; padding:.6rem 1rem; font-size:.88rem; font-weight:700; cursor:pointer; }
+        .btn.exec { background:var(--ok); color:#fff; }
+        .btn.exec:hover { background:#185f50; }
+        .empty { text-align:center; padding:3rem; color:#738396; }
+
+        /* Modal */
+        .modal { display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:1300; align-items:center; justify-content:center; }
+        .modal.open { display:flex; }
+        .modal-card { width:min(560px,92vw); background:#fff; border-radius:22px; border:1px solid var(--bd); box-shadow:0 18px 38px rgba(22,58,95,.18); }
+        .modal-header { padding:1rem 1.25rem; border-bottom:1px solid var(--bd); display:flex; justify-content:space-between; align-items:center; }
+        .modal-header h3 { margin:0; font-size:1.05rem; }
+        .modal-body { padding:1.25rem; display:flex; flex-direction:column; gap:.9rem; }
+        .modal-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; justify-content:flex-end; gap:.75rem; }
+        .field label { display:block; font-size:.88rem; font-weight:700; color:var(--s); margin-bottom:.35rem; }
+        .field input, .field select { width:100%; box-sizing:border-box; border:1px solid rgba(82,98,119,.2); border-radius:12px; padding:.75rem .9rem; font-size:.93rem; background:#fff; color:var(--p); font-family:inherit; }
+        .close-btn { background:none; border:none; font-size:22px; cursor:pointer; color:var(--s); }
+        .msg { display:none; padding:.9rem 1rem; border-radius:12px; font-weight:700; margin-top:.75rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>تنفيذ إعادة الصرف</h1>
+        <p>قائمة طلبات إعادة الصرف المعلقة (pending_execution) — اختر الطلب ونفّذ الصرف من المخزن.</p>
+    </section>
+
+    <div id="globalMsg" class="msg"></div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الطلب</th>
+                    <th>أمر التشغيل</th>
+                    <th>رقم البند</th>
+                    <th>النوع</th>
+                    <th>السبب</th>
+                    <th>تاريخ الطلب</th>
+                    <th>تنفيذ</th>
+                </tr>
+            </thead>
+            <tbody id="rows">
+                <tr><td colspan="7" class="empty">جارٍ التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Execute Modal -->
+<div id="execModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>⚙️ تنفيذ إعادة الصرف</h3>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="field">
+                <label>باركود المادة الجديدة</label>
+                <input id="m_barcode" placeholder="امسح أو اكتب الباركود">
+            </div>
+            <div class="field">
+                <label>الكمية / المساحة (م²)</label>
+                <input id="m_quantity" type="number" min="0.01" step="0.01" value="1">
+            </div>
+            <div class="field">
+                <label>المخزن</label>
+                <input id="m_warehouse" value="main_warehouse">
+            </div>
+            <div class="field">
+                <label>حالة المادة المُعادة</label>
+                <select id="m_returnedStatus">
+                    <option value="none">لا يوجد إعادة</option>
+                    <option value="partial_usable">جزء صالح للاستخدام</option>
+                    <option value="full_waste">هالك بالكامل</option>
+                </select>
+            </div>
+            <div id="returnQtyFields" style="display:none; gap:.9rem; flex-direction:column;">
+                <div class="field">
+                    <label>الكمية الصالحة (م²)</label>
+                    <input id="m_usable" type="number" min="0" step="0.01" value="0">
+                </div>
+                <div class="field">
+                    <label>الكمية الهالكة (م²)</label>
+                    <input id="m_waste" type="number" min="0" step="0.01" value="0">
+                </div>
+            </div>
+            <div id="modalMsg" class="msg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" style="background:#fff;color:var(--p);border:1px solid var(--bd);" onclick="closeModal()">إلغاء</button>
+            <button class="btn exec" onclick="confirmExecute()">✅ تأكيد التنفيذ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let currentId = null;
+
+    function auth(j = false) {
+        const h = {};
+        if (j) h['Content-Type'] = 'application/json';
+        const t = localStorage.getItem('token');
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+
+    function showGlobal(text, ok = true) {
+        const d = document.getElementById('globalMsg');
+        d.className = 'msg ' + (ok ? 'ok' : 'er');
+        d.textContent = text;
+        setTimeout(() => { d.style.display = 'none'; }, 5000);
+    }
+
+    function showModal(text, ok = true) {
+        const d = document.getElementById('modalMsg');
+        d.className = 'msg ' + (ok ? 'ok' : 'er');
+        d.textContent = text;
+    }
+
+    document.getElementById('m_returnedStatus').addEventListener('change', function () {
+        const fields = document.getElementById('returnQtyFields');
+        fields.style.display = this.value !== 'none' ? 'flex' : 'none';
+    });
+
+    async function load() {
+        const r = await fetch(`${API}/reissue-requests?status=pending_execution`, { headers: auth() });
+        const arr = r.ok ? await r.json() : [];
+        const tb = document.getElementById('rows');
+        if (!arr.length) {
+            tb.innerHTML = '<tr><td colspan="7" class="empty">لا توجد طلبات معلقة حالياً.</td></tr>';
+            return;
+        }
+        tb.innerHTML = arr.map(x => `
+            <tr>
+                <td style="font-size:.8rem;color:#738396;">${x._id}</td>
+                <td style="font-weight:700;">${x.originalJobId || '-'}</td>
+                <td>${x.originalItemIndex ?? '-'}</td>
+                <td><span class="badge ${x.type}">${x.type === 'defective' ? 'مادة معيبة' : 'خطأ صرف'}</span></td>
+                <td style="max-width:200px;text-align:right;font-size:.85rem;">${x.reason || '-'}</td>
+                <td style="font-size:.85rem;">${x.requestedAt ? new Date(x.requestedAt).toLocaleDateString('ar-EG') : '-'}</td>
+                <td><button class="btn exec" onclick="openModal('${x._id}')">⚙️ تنفيذ</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function openModal(id) {
+        currentId = id;
+        document.getElementById('m_barcode').value = '';
+        document.getElementById('m_quantity').value = '1';
+        document.getElementById('m_warehouse').value = 'main_warehouse';
+        document.getElementById('m_returnedStatus').value = 'none';
+        document.getElementById('returnQtyFields').style.display = 'none';
+        document.getElementById('m_usable').value = '0';
+        document.getElementById('m_waste').value = '0';
+        document.getElementById('modalMsg').className = 'msg';
+        document.getElementById('execModal').classList.add('open');
+    }
+
+    function closeModal() {
+        document.getElementById('execModal').classList.remove('open');
+        currentId = null;
+    }
+
+    async function confirmExecute() {
+        const barcode = document.getElementById('m_barcode').value.trim();
+        const quantity = Number(document.getElementById('m_quantity').value || 0);
+        const warehouseId = document.getElementById('m_warehouse').value.trim();
+        const returnedStatus = document.getElementById('m_returnedStatus').value;
+        const usableQuantity = Number(document.getElementById('m_usable').value || 0);
+        const wasteQuantity = Number(document.getElementById('m_waste').value || 0);
+
+        if (!barcode || quantity <= 0) {
+            showModal('يرجى إدخال الباركود والكمية.', false);
+            return;
+        }
+
+        const payload = { warehouseId, issuedItems: [{ barcode, quantity }], returnedStatus, usableQuantity, wasteQuantity };
+        const r = await fetch(`${API}/reissue-requests/${currentId}/execute`, { method: 'POST', headers: auth(true), body: JSON.stringify(payload) });
+        const d = await r.json();
+        if (!r.ok) { showModal(d.message || 'فشل التنفيذ.', false); return; }
+        closeModal();
+        showGlobal(`✅ تم التنفيذ. رقم أمر التشغيل الجديد: ${d.serviceJob?.jobOrder || d.serviceJob?._id || '-'}`);
+        load();
+    }
+
+    load();
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

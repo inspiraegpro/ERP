@@ -97,6 +97,13 @@
         <button class="tab" data-status="COMPLETED">✅ مكتمل</button>
     </div>
     
+    <div class="tabs no-print" id="typeTabs">
+        <button class="tab active" data-type="ALL">الكل</button>
+        <button class="tab" data-type="SALES">فواتير مبيعات</button>
+        <button class="tab" data-type="WARRANTY">طلبات ضمان</button>
+        <button class="tab" data-type="REISSUE">إعادة صرف</button>
+    </div>
+    
     <div class="stats">
         <div class="stat-card"><h3>📊 إجمالي الأوامر</h3><div class="number" id="statAll">0</div></div>
         <div class="stat-card"><h3>⏳ بانتظار العمليات</h3><div class="number" id="statPendingOps">0</div></div>
@@ -161,6 +168,7 @@
     let products = [];
     let technicians = [];
     let currentStatus = 'PENDING_OPS';
+    let currentType = 'ALL';
     function authHeaders(includeJson = false) {
         const headers = {};
         if (includeJson) headers['Content-Type'] = 'application/json';
@@ -273,7 +281,32 @@
         const serviceFilter = document.getElementById('serviceFilter')?.value || '';
         
         let filtered = allJobs.filter(job => {
-            if (job.status !== currentStatus) return false;
+            // normalize status — بعض الأوامر بتيجي بـ status مختلف
+            const jobStatus = String(job.status || '').toUpperCase()
+                .replace('AWAITINGTECHNICIAN', 'PENDING_OPS')
+                .replace('AWAITING_TECHNICIAN', 'PENDING_OPS');
+            const normalizedCurrent = currentStatus.toUpperCase();
+            
+            const jobType = String(job.type || 'SALES').toUpperCase();
+
+            // Special filtering for REISSUE type
+            if (currentType === 'REISSUE') {
+                if (jobType !== 'REISSUE') return false;
+                // REISSUE jobs shown regardless of status when REISSUE tab is selected
+            } else {
+                // For other types or 'ALL', filter by status
+                if (jobStatus !== normalizedCurrent) return false;
+                // Additionally, if currentType is SALES or WARRANTY, filter out REISSUE jobs
+                if (currentType !== 'ALL' && jobType === 'REISSUE') return false;
+                // For 'ALL' tab, show all job types with matching status
+                if (currentType === 'ALL' && jobType !== currentType) {
+                    // currentType is 'ALL', so don't filter by specific type
+                } else if (currentType !== 'ALL' && jobType !== currentType) {
+                    // currentType is specific (SALES/WARRANTY), so filter by type
+                    return false;
+                }
+            }
+
             if (search && !job.customerName?.toLowerCase().includes(search) && !job.jobOrder?.includes(search)) return false;
             if (serviceFilter && job.serviceType !== serviceFilter) return false;
             return true;
@@ -305,6 +338,7 @@
                     ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician') ? `<button class="btn btn-primary" onclick="openSetupModal('${job._id}')">🔧 تجهيز المهمة</button>` : ''}
                     ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician' || job.status === 'PENDING_WAREHOUSE') ? `<button class="btn btn-warning" onclick="openSetupModal('${job._id}')">✏️ تعديل</button>` : ''}
                     ${job.status === 'IN_PROGRESS' ? `<button class="btn btn-success" onclick="openRatingModal('${job._id}')">⭐ تقييم وإنهاء</button>` : ''}
+                    ${String(job.type || 'SALES').toUpperCase() !== 'REISSUE' ? `<button class="btn btn-light" onclick="openReissueRequestFromJob('${job._id}')">📤 طلب إعادة صرف</button>` : ''}
                     <button class="btn btn-light" onclick="printJob('${job._id}')">🖨️ طباعة</button>
                 </div>
             </div>
@@ -728,6 +762,10 @@
         printWindow.print();
     }
     
+    function openReissueRequestFromJob(jobId) {
+        window.open(`/service/reissue_request.html?originalJobId=${encodeURIComponent(jobId)}`, '_blank');
+    }
+
     function showMessage(msg, type) {
         const container = document.getElementById('jobsContainer');
         const msgDiv = document.createElement('div');
@@ -738,11 +776,20 @@
     }
     
     // تبويبات
-    document.querySelectorAll('.tab').forEach(tab => {
+    document.querySelectorAll('.tabs.no-print:not(#typeTabs) .tab').forEach(tab => {
         tab.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tabs.no-print:not(#typeTabs) .tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             currentStatus = tab.dataset.status;
+            renderJobs();
+        });
+    });
+
+    document.querySelectorAll('#typeTabs .tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('#typeTabs .tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentType = tab.dataset.type || 'ALL';
             renderJobs();
         });
     });

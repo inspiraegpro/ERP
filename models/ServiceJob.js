@@ -18,8 +18,63 @@ class ServiceJob {
          */
     }
 
+    normalizeJobType(type) {
+        const allowed = ['SALES', 'WARRANTY', 'REISSUE'];
+        const normalized = String(type || 'SALES').toUpperCase();
+        return allowed.includes(normalized) ? normalized : 'SALES';
+    }
+
+    normalizeSourceType(sourceType) {
+        const allowed = ['INVOICE', 'WARRANTY_REQUEST', 'REISSUE_REQUEST'];
+        const normalized = String(sourceType || '').toUpperCase();
+        return allowed.includes(normalized) ? normalized : 'INVOICE';
+    }
+
+    normalizeItem(item = {}) {
+        const returnedQuantity = Number(item.returnedQuantity || 0);
+        const usableQuantity = Number(item.usableQuantity || 0);
+        const wasteQuantity = Number(item.wasteQuantity || 0);
+        const status = String(item.returnedStatus || 'none').toLowerCase();
+        const allowedStatus = ['none', 'partial_usable', 'full_waste'];
+
+        return {
+            ...item,
+            returnedQuantity: Number.isFinite(returnedQuantity) ? returnedQuantity : 0,
+            returnedStatus: allowedStatus.includes(status) ? status : 'none',
+            usableQuantity: Number.isFinite(usableQuantity) ? usableQuantity : 0,
+            wasteQuantity: Number.isFinite(wasteQuantity) ? wasteQuantity : 0
+        };
+    }
+
+    normalizePayload(data = {}) {
+        const items = Array.isArray(data.items) ? data.items.map((item) => this.normalizeItem(item)) : [];
+        return {
+            ...data,
+            type: this.normalizeJobType(data.type),
+            sourceType: this.normalizeSourceType(data.sourceType),
+            sourceId: data.sourceId || '',
+            warrantyInfo: data.warrantyInfo || null,
+            reissueInfo: data.reissueInfo || null,
+            items
+        };
+    }
+
+    normalizeUpdatePayload(data = {}) {
+        const payload = { ...data };
+        if (Object.prototype.hasOwnProperty.call(payload, 'type')) {
+            payload.type = this.normalizeJobType(payload.type);
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'sourceType')) {
+            payload.sourceType = this.normalizeSourceType(payload.sourceType);
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'items') && Array.isArray(payload.items)) {
+            payload.items = payload.items.map((item) => this.normalizeItem(item));
+        }
+        return payload;
+    }
+
     async create(data) {
-        return await this.db.create('servicejobs', data);
+        return await this.db.create('servicejobs', this.normalizePayload(data));
     }
 
     async find(query = {}) {
@@ -35,7 +90,7 @@ class ServiceJob {
     }
 
     async updateOne(query, updateData) {
-        return await this.db.updateOne('servicejobs', query, updateData);
+        return await this.db.updateOne('servicejobs', query, this.normalizeUpdatePayload(updateData));
     }
 
     // --- Potentially Unused/Deprecated Methods ---

@@ -541,6 +541,16 @@ router.post('/technicians/batch-remove', mutationAuth, async (req, res) => {
     }
 });
 
+// GET /api/hr/payroll-management - Serve the payroll management HTML page
+router.get('/payroll-management', authenticateToken, authorizeRoles('admin', 'hr_manager'), (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/hr', 'payroll_management.html'));
+});
+
+// GET /api/hr/payroll-create - Serve the payroll creation HTML page
+router.get('/payroll-create', authenticateToken, authorizeRoles('admin', 'hr_manager'), (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/hr', 'payroll_create.html'));
+});
+
 // ==========================================
 // 2. Payroll & GL Integration
 // ==========================================
@@ -831,13 +841,13 @@ router.post('/technicians/batch-add', authenticateToken, authorizeRoles('admin',
         if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
             return res.status(400).json({ message: 'يجب إرسال قائمة بمعرفات الموظفين' });
         }
-
+        
         let updatedCount = 0;
         for (const id of employeeIds) {
             const result = await db.updateOne('employees', { _id: id }, { isTechnician: true });
             if (result) updatedCount++;
         }
-
+        
         res.json({ 
             message: `تم تحويل ${updatedCount} موظف إلى فني بنجاح`,
             updatedCount 
@@ -853,13 +863,13 @@ router.post('/technicians/batch-remove', authenticateToken, authorizeRoles('admi
         if (!ids || !Array.isArray(ids) || ids.length === 0) {
             return res.status(400).json({ message: 'يجب إرسال قائمة بمعرفات الفنيين' });
         }
-
+        
         let updatedCount = 0;
         for (const id of ids) {
             const result = await db.updateOne('employees', { _id: id }, { isTechnician: false });
             if (result) updatedCount++;
         }
-
+        
         res.json({ 
             message: `تم إلغاء صفة الفني من ${updatedCount} موظف`,
             updatedCount 

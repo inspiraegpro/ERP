@@ -1,0 +1,2 @@
+serialNumber,type,date,warehouse,productName,rollCode,length,width,quantity,unitCost,partName,supplierDoc,jobOrder,InventoryAccountCode,CreditAccountCode,COGSAccountCode,notes
+OPEN-2026-0001,Inbound,2026-01-01,Main Warehouse,,,,,0,0,,,,,,,Opening Balance

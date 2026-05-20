@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التسجيل المحاسبي - إعادة الصرف - Wrapstyle ERP</title>
+    <link rel="stylesheet" href="/improved-styles.css">
+    <style>
+        :root { --p:#163a5f; --s:#526277; --a:#b98918; --ok:#1f6f5f; --er:#9f3a38; --bd:rgba(22,58,95,.12); --sf:rgba(255,255,255,.97); }
+        body { margin:0; font-family:"Segoe UI",Tahoma,sans-serif; background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%); color:var(--p); }
+        .shell { max-width:1200px; margin:0 auto; padding:2rem 1.25rem 3rem; }
+        .hero { background:linear-gradient(135deg,#4c1d95,#6d28d9); color:#fff; border-radius:24px; padding:2rem; margin-bottom:1.5rem; box-shadow:0 18px 38px rgba(76,29,149,.2); }
+        .hero h1 { margin:0 0 .5rem; font-size:1.8rem; }
+        .hero p { margin:0; color:rgba(255,255,255,.85); line-height:1.8; }
+        .card { background:var(--sf); border:1px solid var(--bd); border-radius:22px; box-shadow:0 12px 28px rgba(22,58,95,.07); padding:1.5rem; margin-bottom:1.25rem; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; }
+        thead th { background:#eef2f7; color:var(--p); padding:.9rem .75rem; border-bottom:1px solid var(--bd); font-size:.88rem; white-space:nowrap; }
+        tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.1); text-align:center; font-size:.9rem; vertical-align:middle; }
+        tbody tr:hover { background:#fbfcfe; }
+        .badge { display:inline-flex; padding:.3rem .7rem; border-radius:999px; font-size:.8rem; font-weight:700; }
+        .badge.pending { background:rgba(185,137,24,.12); color:#a07010; }
+        .badge.posted { background:rgba(31,111,95,.12); color:var(--ok); }
+        select, input[type="number"] { border:1px solid rgba(82,98,119,.2); border-radius:10px; padding:.55rem .75rem; font-size:.88rem; background:#fff; color:var(--p); font-family:inherit; }
+        .btn { border:none; border-radius:10px; padding:.6rem 1rem; font-size:.88rem; font-weight:700; cursor:pointer; }
+        .btn.post { background:#6d28d9; color:#fff; }
+        .btn.post:hover { background:#5b21b6; }
+        .empty { text-align:center; padding:3rem; color:#738396; }
+        .msg { display:none; padding:.9rem 1rem; border-radius:12px; font-weight:700; margin-bottom:1rem; }
+        .msg.ok { display:block; background:rgba(31,111,95,.1); color:var(--ok); border:1px solid rgba(31,111,95,.18); }
+        .msg.er { display:block; background:rgba(159,58,56,.1); color:var(--er); border:1px solid rgba(159,58,56,.18); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <h1>التسجيل المحاسبي — إعادة الصرف</h1>
+        <p>طلبات إعادة الصرف المنفّذة والتي تنتظر التسجيل المحاسبي. حدد مركز التكلفة ومبلغ الخصم ثم سجّل القيد.</p>
+    </section>
+
+    <div id="globalMsg" class="msg"></div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الطلب</th>
+                    <th>أمر التشغيل الجديد</th>
+                    <th>النوع</th>
+                    <th>حالة المحاسبة</th>
+                    <th>مركز التكلفة</th>
+                    <th>مبلغ الخصم</th>
+                    <th>تسجيل</th>
+                </tr>
+            </thead>
+            <tbody id="rows">
+                <tr><td colspan="7" class="empty">جارٍ التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+
+    function auth(j = false) {
+        const h = {};
+        if (j) h['Content-Type'] = 'application/json';
+        const t = localStorage.getItem('token');
+        if (t) h['Authorization'] = 'Bearer ' + t;
+        return h;
+    }
+
+    function showGlobal(text, ok = true) {
+        const d = document.getElementById('globalMsg');
+        d.className = 'msg ' + (ok ? 'ok' : 'er');
+        d.textContent = text;
+        setTimeout(() => { d.style.display = 'none'; }, 5000);
+    }
+
+    async function load() {
+        const r = await fetch(`${API}/reissue-requests`, { headers: auth() });
+        const arr = r.ok ? await r.json() : [];
+        const ready = arr.filter(x => x.status === 'completed' && (x.accounting?.status || 'pending') === 'pending');
+        const tb = document.getElementById('rows');
+        if (!ready.length) {
+            tb.innerHTML = '<tr><td colspan="7" class="empty">لا توجد طلبات تنتظر التسجيل المحاسبي.</td></tr>';
+            return;
+        }
+        tb.innerHTML = ready.map(x => {
+            const ded = x.accounting?.deductionAmount || 50;
+            return `
+            <tr>
+                <td style="font-size:.8rem;color:#738396;">${x._id}</td>
+                <td style="font-weight:700;">${x.execution?.newJobId || '-'}</td>
+                <td>${x.type === 'defective' ? 'مادة معيبة' : 'خطأ صرف'}</td>
+                <td><span class="badge ${x.accounting?.status || 'pending'}">${x.accounting?.status === 'posted' ? '✅ مسجّل' : '⏳ معلق'}</span></td>
+                <td>
+                    <select id="cc-${x._id}">
+                        <option value="waste">هالك (waste)</option>
+                        <option value="warranty">ضمان (warranty)</option>
+                        <option value="technician" selected>فني (technician)</option>
+                    </select>
+                </td>
+                <td>
+                    <input id="am-${x._id}" type="number" min="0" step="0.01" value="${ded}" style="width:100px;">
+                </td>
+                <td>
+                    <button class="btn post" onclick="postAcc('${x._id}')">📒 تسجيل</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function postAcc(id) {
+        const costCenter = document.getElementById(`cc-${id}`).value;
+        const deductionAmount = Number(document.getElementById(`am-${id}`).value || 0);
+        const r = await fetch(`${API}/reissue-requests/${id}/post-accounting`, {
+            method: 'POST',
+            headers: auth(true),
+            body: JSON.stringify({ costCenter, deductionAmount })
+        });
+        const d = await r.json();
+        if (!r.ok) { showGlobal(d.message || 'فشل التسجيل المحاسبي.', false); return; }
+        showGlobal('✅ تم التسجيل المحاسبي بنجاح.');
+        load();
+    }
+
+    load();
+</script>
+<script src="/global-navigation.js"></script>
+</body>
+</html>

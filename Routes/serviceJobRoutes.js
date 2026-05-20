@@ -6,6 +6,8 @@ const Employee = require('../models/Employee');
 const Customer = require('../models/Customer');
 const Car = require('../models/Car');
 const Product = require('../models/Product');
+const WarrantyRequest = require('../models/WarrantyRequest');
+const ReissueRequest = require('../models/ReissueRequest');
 const inventoryService = require('../services/inventoryService');
 const FileDatabaseManager = require('../file_db_manager');
 const { authenticateToken } = require('../middleware/auth');
@@ -143,6 +145,7 @@ const hydrateServiceJob = async (job) => {
 router.get('/', async (req, res) => {
     try {
         const jobs = await ServiceJob.find();
+        const typeFilter = String(req.query.type || '').toUpperCase().trim();
         console.log('GET /service-jobs - raw jobs count:', jobs.length);
         if (jobs.length > 0) {
             console.log('First job ID:', jobs[0]._id);
@@ -152,8 +155,11 @@ router.get('/', async (req, res) => {
                 console.log('First item raw productData:', jobs[0].items[0].productData);
             }
         }
-        jobs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-        const hydrated = await Promise.all(jobs.map(hydrateServiceJob));
+        const filteredJobs = typeFilter
+            ? jobs.filter((job) => String(job.type || 'SALES').toUpperCase() === typeFilter)
+            : jobs;
+        filteredJobs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        const hydrated = await Promise.all(filteredJobs.map(hydrateServiceJob));
         console.log('After hydration - first job hydrated items count:', hydrated[0]?.items?.length);
         if (hydrated[0] && hydrated[0].items && hydrated[0].items.length > 0) {
             console.log('First item hydrated product:', hydrated[0].items[0].product);
@@ -166,6 +172,85 @@ router.get('/', async (req, res) => {
     } catch (error) {
         console.error('Error in GET /service-jobs:', error);
         res.status(500).json({ message: 'فشل تحميل أوامر التشغيل.' });
+    }
+});
+
+router.post('/warranty', authenticateToken, async (req, res) => {
+    try {
+        const { warrantyRequestId, items } = req.body;
+        if (!warrantyRequestId) return res.status(400).json({ message: 'warrantyRequestId مطلوب.' });
+        const requestRow = await WarrantyRequest.findById(warrantyRequestId);
+        if (!requestRow) return res.status(404).json({ message: 'طلب الضمان غير موجود.' });
+
+        const payload = {
+            jobOrder: `WJ-${Date.now()}`,
+            type: 'WARRANTY',
+            sourceType: 'WARRANTY_REQUEST',
+            sourceId: requestRow._id,
+            status: 'PENDING_OPS',
+            workflowStatus: 'AwaitingTechnician',
+            customer: requestRow.customerId || '',
+            customerName: requestRow.customerName || '',
+            customerPhone: requestRow.customerPhone || '',
+            items: Array.isArray(items) ? items : (requestRow.items || []),
+            warrantyInfo: {
+                originalInvoiceId: requestRow.originalInvoiceId || '',
+                originalJobId: requestRow.originalJobId || '',
+                complaintDate: requestRow.complaintDate || null,
+                complaint: requestRow.complaint || '',
+                warrantyValidUntil: requestRow.warrantyValidUntil || null
+            }
+        };
+        const createdJob = await ServiceJob.create(payload);
+        await WarrantyRequest.updateOne({ _id: requestRow._id }, { status: 'converted_to_job', convertedJobId: createdJob._id });
+        res.status(201).json(createdJob);
+    } catch (error) {
+        console.error('Error creating warranty service job:', error);
+        res.status(500).json({ message: 'فشل فتح أمر الضمان.' });
+    }
+});
+
+router.post('/reissue', authenticateToken, async (req, res) => {
+    try {
+        const { reissueRequestId, items } = req.body;
+        if (!reissueRequestId) return res.status(400).json({ message: 'reissueRequestId مطلوب.' });
+        const requestRow = await ReissueRequest.findById(reissueRequestId);
+        if (!requestRow) return res.status(404).json({ message: 'طلب إعادة الصرف غير موجود.' });
+
+        const payload = {
+            jobOrder: `RJ-${Date.now()}`,
+            type: 'REISSUE',
+            sourceType: 'REISSUE_REQUEST',
+            sourceId: requestRow._id,
+            status: 'PENDING_OPS',
+            workflowStatus: 'AwaitingTechnician',
+            items: Array.isArray(items) ? items : [],
+            reissueInfo: {
+                originalJobId: requestRow.originalJobId || '',
+                originalItemIndex: Number(requestRow.originalItemIndex || 0),
+                type: requestRow.type || 'mistake',
+                requestId: requestRow._id,
+                deductionAmount: Number(requestRow.accounting?.deductionAmount || 0),
+                costCenter: requestRow.accounting?.costCenter || 'technician'
+            }
+        };
+        const createdJob = await ServiceJob.create(payload);
+        await ReissueRequest.updateOne(
+            { _id: requestRow._id },
+            {
+                status: 'completed',
+                execution: {
+                    ...(requestRow.execution || {}),
+                    newJobId: createdJob._id,
+                    completedBy: req.user?.username || req.user?.id || '',
+                    completedAt: new Date().toISOString()
+                }
+            }
+        );
+        res.status(201).json(createdJob);
+    } catch (error) {
+        console.error('Error creating reissue service job:', error);
+        res.status(500).json({ message: 'فشل فتح أمر إعادة الصرف.' });
     }
 });
 

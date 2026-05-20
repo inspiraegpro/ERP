@@ -388,6 +388,14 @@ router.get('/:id/stock-issue-status', authenticateToken, async (req, res) => {
 
 // 5. Sales Service Adjustments (Add/Cancel services without losing invoice history)
 router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
+    return res.status(410).json({
+        error: 'تم إيقاف التعديل المباشر من داخل الفاتورة. استخدم صفحة ملحق التعديلات الجديدة.',
+        redirect: '/sales/service_adjustments.html'
+    });
+});
+
+/*
+router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
     try {
         const invoiceId = req.params.id;
         const mode = String(req.body.mode || '').toLowerCase();
@@ -542,6 +550,7 @@ router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
         res.status(500).json({ error: error.message || 'فشل إنشاء ملحق الفاتورة' });
     }
 });
+*/
 
 // 6. Delete Sales Invoice
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res, next) => {
