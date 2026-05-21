@@ -28,39 +28,7 @@ const getItemEffectiveQty = (item) => {
     return toNumber(item?.quantity);
 };
 
-const normalizeInvoiceItem = (item) => {
-    const quantity = toNumber(item.quantity || item.area || 1);
-    const price = toNumber(item.price);
-    const total = toNumber(item.total || (price * quantity));
-    return {
-        ...item,
-        quantity,
-        area: toNumber(item.area),
-        price,
-        total
-    };
-};
-
-const refreshInvoiceTotals = (invoice) => {
-    const subtotal = (invoice.items || [])
-        .filter((it) => !it.isCancelled)
-        .reduce((sum, it) => sum + toNumber(it.total || (toNumber(it.price) * toNumber(it.quantity || 1))), 0);
-    const discount = toNumber(invoice.discount || invoice.totalDiscount);
-    const vatRate = 0.14;
-    const taxableBase = Math.max(0, subtotal - discount);
-    const vat = Number((taxableBase * vatRate).toFixed(2));
-    const finalTotal = Number((taxableBase + vat).toFixed(2));
-    return {
-        subtotal: Number(subtotal.toFixed(2)),
-        totalDiscount: discount,
-        discount,
-        totalTax: vat,
-        vatAmount: vat,
-        totalAmount: finalTotal,
-        finalAmount: finalTotal,
-        finalTotal
-    };
-};
+// Helper functions inline - inlined to reduce code surface
 
 const resolveProductId = async (identifier) => {
     const value = typeof identifier === 'object' ? identifier?._id : identifier;
@@ -427,14 +395,22 @@ router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
         if (mode === 'add') {
             for (const rawItem of itemsPayload) {
                 const resolvedProduct = await resolveProductId(rawItem.product || rawItem.productSlug || rawItem.productCode);
-                const normalized = normalizeInvoiceItem({
+                // Normalize item inline
+                const quantity = toNumber(rawItem.quantity || rawItem.area || 1);
+                const price = toNumber(rawItem.price);
+                const total = toNumber(rawItem.total || (price * quantity));
+                const normalized = {
                     ...rawItem,
                     product: resolvedProduct?._id || rawItem.product,
                     productSlug: rawItem.productSlug || rawItem.productCode || rawItem.product || '',
                     partName: rawItem.partName || rawItem.productName || resolvedProduct?.name || 'خدمة إضافية',
+                    quantity,
+                    area: toNumber(rawItem.area),
+                    price,
+                    total,
                     adjustmentRef,
                     addedByAdjustment: true
-                });
+                };
                 nextItems.push(normalized);
                 changes.push({
                     action: 'add',
@@ -494,7 +470,25 @@ router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
             }
         }
 
-        const totals = refreshInvoiceTotals({ ...invoice, items: nextItems });
+        // Calculate totals inline
+        const subtotal = (nextItems || [])
+            .filter((it) => !it.isCancelled)
+            .reduce((sum, it) => sum + toNumber(it.total || (toNumber(it.price) * toNumber(it.quantity || 1))), 0);
+        const discount = toNumber(invoice.discount || invoice.totalDiscount);
+        const vatRate = 0.14;
+        const taxableBase = Math.max(0, subtotal - discount);
+        const vat = Number((taxableBase * vatRate).toFixed(2));
+        const finalTotal = Number((taxableBase + vat).toFixed(2));
+        const totals = {
+            subtotal: Number(subtotal.toFixed(2)),
+            totalDiscount: discount,
+            discount,
+            totalTax: vat,
+            vatAmount: vat,
+            totalAmount: finalTotal,
+            finalAmount: finalTotal,
+            finalTotal
+        };
         const serviceAdjustments = Array.isArray(invoice.serviceAdjustments) ? [...invoice.serviceAdjustments] : [];
         serviceAdjustments.push({
             ref: adjustmentRef,

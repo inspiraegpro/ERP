@@ -232,12 +232,6 @@ async function updateOne(id, data) { return await SalesInvoice.updateOne({ _id: 
 async function deleteOne(id) { return await SalesInvoice.deleteOne({ _id: id }); }
 async function count(query = {}) { return await SalesInvoice.countDocuments(query); }
 
-async function streamProcess(processor, query = {}) { return await SalesInvoice.streamProcess(processor, query); }
-async function streamAggregate(aggregators, query = {}) { return await SalesInvoice.streamAggregate(aggregators, query); }
-async function getDailySummary(date) { return await SalesInvoice.getDailySummary(date); }
-async function getDateRangeSummary(fromDate, toDate) { return await SalesInvoice.getDateRangeSummary(fromDate, toDate); }
-
 module.exports = {
-    generateInvoiceNumber, createSalesInvoice, findAll, findOne, updateOne, deleteOne, count,
-    streamProcess, streamAggregate, getDailySummary, getDateRangeSummary
+    generateInvoiceNumber, createSalesInvoice, findAll, findOne, updateOne, deleteOne, count
 };
