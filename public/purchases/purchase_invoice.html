@@ -435,13 +435,14 @@ function calcTotal() {
 }
 
 function findShipmentByLookup(value) {
-    const lookup = String(value || '').trim();
+    const lookup = String(value || '').trim().toLowerCase().replace(/\s+/g, '');
     if (!lookup) return null;
-    return importShipments.find((shipment) =>
-        String(shipment._id) === lookup ||
-        String(shipment.shipmentRef || '') === lookup ||
-        String(shipment.hwbNumber || '') === lookup
-    ) || null;
+    return importShipments.find((shipment) => {
+        const shipId = String(shipment._id || '').trim().toLowerCase().replace(/\s+/g, '');
+        const shipRef = String(shipment.shipmentRef || '').trim().toLowerCase().replace(/\s+/g, '');
+        const hwbNum = String(shipment.hwbNumber || '').trim().toLowerCase().replace(/\s+/g, '');
+        return shipId === lookup || shipRef === lookup || hwbNum === lookup;
+    }) || null;
 }
 
 function getImportedPieceCost(item, shipment) {

@@ -255,7 +255,10 @@
                 data-search="${(job.jobOrder+' '+job.customerName+' '+car).toLowerCase()}">
                 <td style="font-weight:700;">${job.jobOrder || '-'}</td>
                 <td>${typeLabel(job.type || 'SALES')}</td>
-                <td style="text-align:right;">${job.customerName || '-'}</td>
+                <td style="text-align:right;">
+                    <div>${job.customerName || '-'}</div>
+                    ${job.items && job.items.length > 0 ? `<div style="font-size:0.75rem;color:var(--s);margin-top:0.25rem;">الخامات: ${job.items.map(it => it.productData?.name || it.partName || it.product).filter(Boolean).join(', ')}</div>` : ''}
+                </td>
                 <td>${car}</td>
                 <td>${techName}</td>
                 <td style="text-align:center;">${(job.items||[]).length}</td>

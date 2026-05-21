@@ -117,6 +117,10 @@ router.get('/:id', auth, async (req, res) => {
 // POST create purchase
 router.post('/', auth, async (req, res) => {
     try {
+        // Ensure date is set if missing
+        if (!req.body.date) {
+            req.body.date = new Date().toISOString();
+        }
         const purchase = await purchaseService.createPurchase(req.body, req.user);
         res.status(201).json(purchase);
     } catch (error) {

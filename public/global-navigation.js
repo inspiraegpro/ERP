@@ -80,12 +80,12 @@
         {
             label: "الموارد البشرية",
             children: [
-                { href: "/hr/hr.html", label: "الرئيسية (HR)" },
-                { href: "/hr/employees_list.html", label: "دليل الموظفين" },
-                { href: "/hr/payroll.html", label: "صرف الرواتب" },
-                { href: "/hr/payroll_management.html", label: "إدارة الرواتب" },
-                { href: "/hr/technicians.html", label: "سجل الفنيين" },
-                { href: "/hr/tech_performance.html", label: "أداء الفنيين" }
+                { href: "/hr/hr.html", label: "الرئيسية (HR) - 🔧 قريباً", disabled: true },
+                { href: "/hr/employees_list.html", label: "دليل الموظفين - 🔧 قريباً", disabled: true },
+                { href: "/hr/payroll.html", label: "صرف الرواتب - 🔧 قريباً", disabled: true },
+                { href: "/hr/payroll_management.html", label: "إدارة الرواتب - 🔧 قريباً", disabled: true },
+                { href: "/hr/technicians.html", label: "سجل الفنيين - 🔧 قريباً", disabled: true },
+                { href: "/hr/tech_performance.html", label: "أداء الفنيين - 🔧 قريباً", disabled: true }
             ]
         }
     ];
@@ -211,9 +211,25 @@
             background: rgba(22, 58, 95, 0.06);
             color: #163a5f;
         }
-        .nav-dropdown-item.active {
-            background: rgba(22, 58, 95, 0.1);
-            color: #163a5f;
+        .nav-dropdown-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            color: #b0b9c8 !important;
+        }
+        .nav-dropdown-item.disabled:hover {
+            background: transparent !important;
+            color: #b0b9c8 !important;
+        }
+        .global-nav-link.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            color: #b0b9c8 !important;
+        }
+        .global-nav-link.disabled:hover {
+            background: transparent !important;
+            color: #b0b9c8 !important;
         }
         .global-nav-right {
             display: flex;
@@ -298,14 +314,14 @@
                                 <a href="#" class="global-nav-link ${hasActiveChild ? "active" : ""}">${item.label} ▾</a>
                                 <div class="nav-dropdown-content">
                                     ${item.children.map(child => `
-                                        <a href="${child.href}" class="nav-dropdown-item ${normalizedCurrentPage === child.href ? "active" : ""}">${child.label}</a>
+                                        <a href="${child.disabled ? '#' : child.href}" class="nav-dropdown-item ${normalizedCurrentPage === child.href ? "active" : ""} ${child.disabled ? "disabled" : ""}" ${child.disabled ? "onclick='return false;'" : ""}>${child.label}</a>
                                     `).join("")}
                                 </div>
                             </div>
                         `;
                     }
                     return `
-                        <a href="${item.href}" class="global-nav-link ${normalizedCurrentPage === item.href ? "active" : ""}">${item.label}</a>
+                        <a href="${item.disabled ? '#' : item.href}" class="global-nav-link ${normalizedCurrentPage === item.href ? "active" : ""} ${item.disabled ? "disabled" : ""}" ${item.disabled ? "onclick='return false;'" : ""}>${item.label}</a>
                     `;
                 }).join("")}
             </nav>
