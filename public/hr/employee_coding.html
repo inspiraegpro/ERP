@@ -308,9 +308,11 @@
         }
         
         let confirmMsg = `هل تريد تغيير حالة الموظف إلى ${newStatus === 'Active' ? 'نشط' : (newStatus === 'Terminated' ? 'منتهي الخدمة' : 'مستقيل')}؟`;
+        
         if (newStatus !== 'Active') {
             confirmMsg += '\nسيتم فتح شاشة تصفية تلقائياً بعد التأكيد.';
         }
+        
         if (!confirm(confirmMsg)) return;
         
         try {

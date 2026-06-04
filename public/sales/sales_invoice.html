@@ -1599,7 +1599,40 @@
         }
     }
 
-    function calcTotal() {
+    async function calcTotal() {
+        const items = [];
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const price = parseFloat(row.querySelector('.row-total')?.value || 0);
+            if (price > 0) {
+                items.push({ price });
+            }
+        });
+
+        const extraCost = parseFloat(document.getElementById('extraCost').value || 0);
+        const discount = parseFloat(document.getElementById('discount').value || 0);
+        const hasWht = document.getElementById('hasWht').checked || false;
+
+        try {
+            const response = await fetch(`${API}/sales/calculate`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({ items, extraCost, discount, hasWht })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('subtotal').innerText = data.subtotal.toFixed(2);
+                document.getElementById('totalWithVat').innerText = data.totalWithVat.toFixed(2);
+                document.getElementById('vatVal').innerText = data.vat.toFixed(2);
+                document.getElementById('whtVal').innerText = data.wht.toFixed(2);
+                document.getElementById('referenceTotal').innerText = data.totalWithVat.toFixed(2);
+                document.getElementById('finalTotal').innerText = data.finalTotal.toFixed(2);
+                return;
+            }
+        } catch (e) {
+            console.warn('API calculation failed, using local fallback', e);
+        }
+
         let subtotalNet = 0;
         // جمع إجمالي الأصناف (التي هي الآن صافية بدون ضريبة)
         document.querySelectorAll('.row-total').forEach(i => subtotalNet += parseFloat(i.value) || 0);

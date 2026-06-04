@@ -213,7 +213,7 @@
 
         try {
             const token = getTokenSafe();
-            const response = await fetch("/api/data/preview-import/stock_transactions", {
+            const response = await fetch("/api/inventory/opening-balance/preview", {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 body: fd
@@ -222,10 +222,8 @@
             if (!response.ok) throw new Error(data.message || data.error || "فشل المعاينة");
 
             document.getElementById("previewBox").innerHTML =
-                `المعاينة: ${data.rowCount || 0} سطر - صالح للاستيراد: ${data.canImport ? "نعم" : "لا"}` +
-                ((data.missingRequiredColumns || []).length
-                    ? `<br>أعمدة ناقصة: ${data.missingRequiredColumns.join(", ")}`
-                    : "");
+                `المعاينة: ${data.totalRows || 0} سطر - رولات: ${data.rolls || 0} - فضلات: ${data.remnants || 0}` +
+                (data.sample && data.sample.length ? `<br>عينة من البيانات: ${data.sample.map(s => s.productName).join(', ')}` : '');
         } catch (e) {
             alert("فشل المعاينة: " + (e.message || e));
         }
@@ -241,14 +239,14 @@
 
         try {
             const token = getTokenSafe();
-            const response = await fetch("/api/data/import/stock_transactions", {
+            const response = await fetch("/api/inventory/opening-balance/import", {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 body: fd
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || data.error || "فشل الاستيراد");
-            alert(data.message || "تم الاستيراد بنجاح");
+            alert(`تم الاستيراد بنجاح. رولات: ${data.createdRolls}, قطع: ${data.createdPieces}`);
             await runVerification();
         } catch (e) {
             alert("فشل الاستيراد: " + (e.message || e));

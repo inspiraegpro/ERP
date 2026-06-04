@@ -79,6 +79,7 @@
         <select id="availableRolls" onchange="fillRollDims()">
             <option value="">-- اختر رول --</option>
         </select>
+        <div id="rollsError" style="color:#b91c1c; font-size:12px; margin-top:8px; display:none;"></div>
 
         <div style="display:flex; gap:5px; margin-top:5px">
             <input id="rollL" type="number" placeholder="طول" value="15">
@@ -148,6 +149,20 @@
     // 👇 الرابط الصحيح للسيرفر المحلي
     const API = '/api'; 
     
+    function safeGetToken() {
+        if (typeof getToken === 'function') return getToken() || '';
+        if (window.Auth && typeof window.Auth.getToken === 'function') return window.Auth.getToken() || '';
+        return localStorage.getItem('token') || '';
+    }
+
+    function authHeaders(includeJson = false) {
+        const headers = {};
+        if (includeJson) headers['Content-Type'] = 'application/json';
+        const token = safeGetToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
     let rolls = [], piecesTemplate = [], expandedPieces = [];
     let allProducts = []; 
     let currentInvoiceId = null; 
@@ -156,7 +171,7 @@
         await loadWarehouses();
         // تحميل المنتجات في الخلفية عشان نعرف الأسماء
         try {
-            const res = await fetch(`${API}/products`);
+            const res = await fetch(`${API}/products`, { headers: authHeaders() });
             allProducts = await res.json();
             // ملء قائمة الإضافة اليدوية للقطع
             const matSel = document.getElementById('pieceMat');
@@ -180,7 +195,7 @@
 
     async function loadWarehouses() {
         try {
-            const res = await fetch(`/api/warehouses/transactional`);
+            const res = await fetch(`${API}/warehouses/transactional`, { headers: authHeaders() });
             const data = await res.json();
             const sel = document.getElementById('warehouseSelect');
             data.forEach(w => sel.innerHTML += `<option value="${w._id}">${w.path}</option>`);
@@ -217,7 +232,7 @@
         const num = document.getElementById('searchInv').value.trim();
         if(!num) return alert('أدخل رقم الفاتورة');
         try {
-            const res = await fetch(`${API}/sales/job-order/${encodeURIComponent(num)}`);
+            const res = await fetch(`${API}/sales/job-order/${encodeURIComponent(num)}`, { headers: authHeaders() });
             if(!res.ok) throw new Error('غير موجودة');
             const inv = await res.json();
             loadInvoiceData(inv._id); 
@@ -235,13 +250,13 @@
 
         try {
             // 1. جلب الفاتورة
-            const res = await fetch(`${API}/sales/${id}`);
+            const res = await fetch(`${API}/sales/${id}`, { headers: authHeaders() });
             const inv = await res.json();
             if (!inv) throw new Error('بيانات الفاتورة فارغة');
             currentInvoiceId = inv.invoiceNumber; 
             
             // 2. جلب حركات الصرف السابقة لنفس الفاتورة (لمعرفة ما تم تنفيذه)
-            const stockRes = await fetch(`${API}/stock`);
+            const stockRes = await fetch(`${API}/stock`, { headers: authHeaders() });
             const allStock = await stockRes.json();
             const prevOuts = allStock.filter(t => t.jobOrder === inv.invoiceNumber && t.type === 'Outbound');
             
@@ -320,19 +335,29 @@
 
             for (const prodId of neededMaterials) {
                 try {
-                    const rollRes = await fetch(`${API}/stock/available-rolls?productId=${prodId}`);
+                    const warehouseId = document.getElementById('warehouseSelect').value;
+                    const params = new URLSearchParams({ productId: prodId });
+                    if (warehouseId) params.set('warehouse', warehouseId);
+
+                    const rollRes = await fetch(`${API}/stock/available-rolls?${params.toString()}`, { headers: authHeaders() });
+                    if (!rollRes.ok) {
+                        const prodInfo = allProducts.find(p => p._id === prodId);
+                        skippedMaterials.add(prodInfo?.name || 'غير معروف');
+                        continue;
+                    }
+
                     const rollCodes = await rollRes.json();
                     const prodInfo = allProducts.find(p => p._id === prodId);
                     
-                    if (rollCodes.length > 0) {
+                    if (Array.isArray(rollCodes) && rollCodes.length > 0) {
                         const defaultW = prodInfo ? (prodInfo.dimensions?.width/100) : 1.52;
                         const defaultL = prodInfo ? (prodInfo.dimensions?.length/100) : 15;
 
-                        rollCodes.forEach(code => {
+                        rollCodes.forEach(rObj => {
                             rolls.push({
                                 name: prodInfo?.name,
                                 id: prodId,
-                                code: code,
+                                code: rObj.rollCode,
                                 L: defaultL, 
                                 W: defaultW,
                                 freeRects: [], cuts: []
@@ -347,7 +372,10 @@
                         // خامة ناقصة
                         skippedMaterials.add(prodInfo?.name || 'غير معروف');
                     }
-                } catch(e) {}
+                } catch(e) {
+                    const prodInfo = allProducts.find(p => p._id === prodId);
+                    skippedMaterials.add(prodInfo?.name || 'غير معروف');
+                }
             }
 
             // عرض القطع التي لها رولات فقط
@@ -368,20 +396,43 @@
     // 4. ربط الرولات بالمخزن والخامة (عند الإضافة اليدوية)
     async function loadRollsForProduct() {
         const prodId = document.getElementById('rollProduct').value;
+        const warehouseId = document.getElementById('warehouseSelect').value;
         const rollListSel = document.getElementById('availableRolls');
+        const rollsError = document.getElementById('rollsError');
         
         rollListSel.innerHTML = '<option value="">-- اختر رول محدد --</option>';
+        rollsError.style.display = 'none';
+        rollsError.innerText = '';
         if(!prodId) return;
+        if(!warehouseId) {
+            rollsError.style.display = 'block';
+            rollsError.innerText = 'الرجاء اختيار المخزن أولاً لجلب الرولات المتاحة.';
+            return;
+        }
         
         try {
-            const res = await fetch(`${API}/stock/available-rolls?productId=${prodId}`);
-            if(res.ok) {
-                const rollsData = await res.json();
-                rollsData.forEach(rObj => {
-                    rollListSel.innerHTML += `<option value="${rObj.rollCode}">${rObj.display}</option>`;
-                });
+            const params = new URLSearchParams({ productId: prodId, warehouse: warehouseId });
+            const res = await fetch(`${API}/stock/available-rolls?${params.toString()}`, { headers: authHeaders() });
+            if(!res.ok) {
+                const body = await res.text();
+                rollsError.style.display = 'block';
+                rollsError.innerText = `تعذر جلب الرولات: ${res.status} ${res.statusText} ${body}`;
+                return;
             }
-        } catch(e) { console.error('Error fetching rolls:', e); }
+            const rollsData = await res.json();
+            if(!Array.isArray(rollsData) || rollsData.length === 0) {
+                rollsError.style.display = 'block';
+                rollsError.innerText = 'لا توجد رولات متاحة بهذه الخامة في هذا المخزن.';
+                return;
+            }
+            rollsData.forEach(rObj => {
+                rollListSel.innerHTML += `<option value="${rObj.rollCode}">${rObj.display}</option>`;
+            });
+        } catch(e) {
+            console.error('Error fetching rolls:', e);
+            rollsError.style.display = 'block';
+            rollsError.innerText = 'حدث خطأ أثناء جلب الرولات. تحقق من اتصال الشبكة.';
+        }
     }
 
     function fillRollDims() { }
@@ -584,7 +635,7 @@
         };
 
         try {
-            const res = await fetch(`${API}/stock`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+            const res = await fetch(`${API}/stock`, { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeaders(true) }, body:JSON.stringify(data) });
             const json = await res.json();
             if(res.ok) alert('تم الصرف وتحديث المخزن بنجاح ✅');
             else alert('فشل الصرف: ' + json.message);

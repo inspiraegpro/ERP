@@ -602,7 +602,7 @@
 
         function resolveProductName(productId) {
             const product = productsList.find((item) => item._id === String(productId));
-            return product?.name || 'صنف';
+            return product?.name || '';
         }
 
         async function loadInvoiceItems() {
@@ -973,10 +973,10 @@
         async function addRow({ partName, productId, productName, lengthCm, widthCm, area, preferredRollCode, suggestedArea = 0, isCompleted = false, productCode = null, originalLengthCm = null, originalWidthCm = null, originalArea = null }) {
             const warehouse = document.getElementById('outWarehouse').value;
             
-            // جلب الاقتراحات الذكية باستخدام productId (Product ID كمرجع وحيد)
+            // جلب الاقتراحات الذكية باستخدام productId أو productName
             let suggestions = [];
-            if (productId) {
-                suggestions = await fetchSmartSuggestions(productId, area || suggestedArea, lengthCm, widthCm, warehouse);
+            if (productId || productName) {
+                suggestions = await fetchSmartSuggestions(productId, area || suggestedArea, lengthCm, widthCm, warehouse, productName);
             }
             // fallback للرولات العادية إذا مفيش اقتراحات
             if (suggestions.length === 0) {
@@ -1144,10 +1144,11 @@
         }
 
         // جلب اقتراحات ذكية للأكواد المتاحة (رولات + قطع + بواقي) - Waste-First Consumption
-        async function fetchSmartSuggestions(productId, area, lengthCm, widthCm, warehouse) {
+        async function fetchSmartSuggestions(productId, area, lengthCm, widthCm, warehouse, productName) {
             try {
                 const params = new URLSearchParams();
-                params.set('productId', productId);
+                if (productId) params.set('productId', productId);
+                if (productName) params.set('productName', productName);
                 if (area) params.set('area', area);
                 if (lengthCm) params.set('lengthCm', lengthCm);
                 if (widthCm) params.set('widthCm', widthCm);

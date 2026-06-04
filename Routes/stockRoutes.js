@@ -6,6 +6,50 @@ const { authenticateToken: auth } = require('../middleware/auth');
 
 const db = new FileDbManager();
 
+// POST: حساب المساحة بالمتر المربع من الطول والعرض بالسنتيمتر
+router.post('/calculate-area', auth, async (req, res) => {
+    try {
+        const { lengthCm, widthCm } = req.body;
+        const length = Number(lengthCm || 0);
+        const width = Number(widthCm || 0);
+        const areaM2 = (length * width) / 10000;
+        res.json({ lengthCm: length, widthCm: width, areaM2: Number(areaM2.toFixed(4)) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: توليد كود رول تلقائي للاستلام
+router.post('/generate-roll-code', auth, async (req, res) => {
+    try {
+        const { ref, index, productName, date, lengthCm, widthCm } = req.body;
+        
+        // تنسيق: {last5digits}/{index+1}-{productName}-{yyyymmdd}-{lengthCm×widthCm}
+        const refDigits = String(ref || '').replace(/[^0-9]/g, '');
+        const last5 = refDigits.length >= 5 ? refDigits.slice(-5) : refDigits.padStart(5, '0');
+        const nameToken = String(productName || 'XX').trim().replace(/\s+/g, '');
+        const dateToken = String(date || '').trim().replace(/[^0-9]/g, '').slice(0, 8) || new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const l = Math.max(0, Math.round(Number(lengthCm || 0)));
+        const w = Math.max(0, Math.round(Number(widthCm || 0)));
+        const sizeToken = (l && w) ? `${l}×${w}` : '';
+        
+        let rollCode = `${last5}/${index + 1}-${nameToken}`;
+        if (dateToken) rollCode += `-${dateToken}`;
+        if (sizeToken) rollCode += `-${sizeToken}`;
+        
+        // التحقق من عدم تكرار الكود
+        const existing = await db.findOne('rollbalances', { rollCode });
+        if (existing) {
+            // إضافة لاحقة عشوائية إذا كان مكرراً
+            rollCode += `-${Math.floor(Math.random() * 1000)}`;
+        }
+        
+        res.json({ rollCode });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ─── مولّد رقم مسلسل فريد ────────────────────────────────────────────────────
 async function generateSerialNumber(type) {
     const prefix = (type === 'Inbound' || type === 'Stock In') ? 'IN' : 'OUT';
@@ -38,15 +82,19 @@ router.get('/', auth, async (req, res) => {
 // GET: Available Rolls (Helper for Stock-Out or Stock-In validation)
 router.get('/available-rolls', auth, async (req, res) => {
     try {
-        const { productId, warehouse } = req.query;
+        const { productId, warehouse, warehouseId } = req.query;
         if(!productId) return res.json([]);
         
+        const warehouseFilter = String(warehouse || warehouseId || '').trim();
         const rolls = await db.find('rollbalances');
-        const filtered = rolls.filter(r => 
-            (String(r.product) === String(productId) || String(r.productCode) === String(productId)) &&
-            (r.status === 'Available' || r.status === 'PartiallyUsed') &&
-            (!warehouse || r.warehouse === warehouse)
-        );
+        const filtered = rolls.filter(r => {
+            const productMatch = String(r.product) === String(productId) || String(r.productCode) === String(productId);
+            const statusMatch = r.status === 'Available' || r.status === 'PartiallyUsed';
+            const warehouseMatch = !warehouseFilter ||
+                String(r.warehouse).trim() === warehouseFilter ||
+                String(r.warehouseId).trim() === warehouseFilter;
+            return productMatch && statusMatch && warehouseMatch;
+        });
         
         res.json(filtered.map(r => ({
             rollCode: r.rollCode,

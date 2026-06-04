@@ -212,6 +212,7 @@
             .table-grid { grid-template-columns: 1fr; }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="page-shell">
@@ -556,39 +557,15 @@
 
         function drawBarChart(canvasId, items, valueKey, color, formatter) {
             const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            const width = canvas.width;
-            const height = canvas.height;
-            ctx.clearRect(0, 0, width, height);
-
-            const safeItems = items && items.length ? items : [{ label: 'لا توجد بيانات', [valueKey]: 0 }];
-            const maxValue = Math.max(...safeItems.map(item => Number(item[valueKey] || 0)), 1);
-            const chartTop = 26;
-            const chartBottom = height - 52;
-            const chartHeight = chartBottom - chartTop;
-            const padding = 44;
-            const barGap = 18;
-            const barWidth = Math.max(34, (width - padding * 2 - barGap * (safeItems.length - 1)) / safeItems.length);
-
-            ctx.font = '12px Segoe UI';
-            ctx.fillStyle = '#526277';
-            ctx.textAlign = 'center';
-
-            safeItems.forEach((item, index) => {
-                const x = padding + index * (barWidth + barGap);
-                const value = Number(item[valueKey] || 0);
-                const barHeight = (value / maxValue) * chartHeight;
-                const y = chartBottom - barHeight;
-
-                ctx.fillStyle = color;
-                ctx.fillRect(x, y, barWidth, barHeight);
-
-                ctx.fillStyle = '#163a5f';
-                ctx.fillText(formatter(value), x + (barWidth / 2), Math.max(16, y - 8));
-
-                const label = String(item.label || '').slice(0, 14);
-                ctx.fillStyle = '#526277';
-                ctx.fillText(label, x + (barWidth / 2), height - 20);
+            if (canvas.chart) canvas.chart.destroy();
+            const labels = items.map(item => item.label || '');
+            const data = items.map(item => Number(item[valueKey] || 0));
+            canvas.chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'القيمة', data, backgroundColor: color || '#163a5f', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true } } }
             });
         }
 

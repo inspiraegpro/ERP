@@ -2,113 +2,54 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ميزان مراجعة الموردين</title>
+    <link rel="stylesheet" href="/improved-styles.css">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; background: #e0f2fe; padding: 15px; border-radius: 6px; }
-        input, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
-        button { background: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
-        th { background: #1e293b; color: white; }
-        
-        /* جعل الصف قابل للضغط */
-        tbody tr { cursor: pointer; transition: 0.2s; }
-        tbody tr:hover { background: #dbeafe; transform: scale(1.005); }
+        body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: #f5f7fb; color: #163a5f; }
+        .shell { max-width: 1380px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .hero, .card { background: #fff; border-radius: 24px; box-shadow: 0 18px 38px rgba(22,58,95,.08); padding: 2rem; margin-bottom: 1.25rem; }
+        .hero h1 { margin: 0 0 .8rem; font-size: clamp(2rem, 3vw, 2.6rem); }
+        .hero p { margin: 0; color: #526277; line-height: 1.85; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+        .btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; padding: 0.95rem 1.15rem; font-weight: 700; color: #fff; background: #163a5f; }
+        .btn.light { background: #f8fafc; color: #163a5f; border: 1px solid rgba(22,58,95,.12); }
+        .head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .head h2 { margin: 0; }
+        .hint { color: #738396; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+        .module-card { text-decoration: none; color: inherit; display: block; background: #fff; border: 1px solid rgba(22,58,95,.12); border-radius: 20px; padding: 1.1rem; transition: transform .18s ease, border-color .18s ease; }
+        .module-card:hover { transform: translateY(-2px); border-color: rgba(22,58,95,.2); }
+        .module-icon { width: 58px; height: 58px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: #edf3f8; color: #163a5f; font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; }
+        .module-card h3 { margin: 0 0 .5rem; color: #163a5f; }
+        .module-card p { margin: 0; color: #526277; line-height: 1.75; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h2>📊 ميزان مراجعة الموردين</h2>
-    <div class="filters">
-        <div><label>من تاريخ</label><input type="date" id="fromDate"></div>
-        <div><label>إلى تاريخ</label><input type="date" id="toDate"></div>
-        <div><label>بحث بالاسم</label><input type="text" id="search" onkeyup="filterTable()" placeholder="اكتب الاسم..."></div>
-        <div style="display:flex; align-items:flex-end"><button onclick="loadData()">تحديث التقرير</button></div>
+    <div class="shell">
+        <section class="hero">
+            <h1>ميزان مراجعة الموردين</h1>
+            <p>هذه الصفحة توفر الوصول السريع لتقرير ميزان مراجعة الموردين مع رابط للعودة إلى واجهة مشتريات Wrapstyle ERP.</p>
+            <div class="hero-actions">
+                <a class="btn light" href="/purchases/purchase_list.html">العودة إلى مشتريات</a>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="head">
+                <div>
+                    <h2>الوصول السريع</h2>
+                    <p class="hint">الوحدات المتاحة للوصول السريع داخل قسم المشتريات.</p>
+                </div>
+            </div>
+            <div class="grid">
+                <a class="module-card" href="/purchases/suppliers_balance.html">
+                    <div class="module-icon">⚖️</div>
+                    <h3>ميزان مراجعة الموردين</h3>
+                    <p>عرض كشف حساب الموردين والتحقق من الأرصدة.</p>
+                </a>
+            </div>
+        </section>
     </div>
-
-    <table id="table">
-        <thead>
-            <tr>
-                <th>الكود</th>
-                <th>اسم المورد</th>
-                <th>رصيد سابق</th>
-                <th>حركة مدينة (سداد)</th>
-                <th>حركة دائنة (شراء)</th>
-                <th>الرصيد الحالي</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot>
-            <tr style="background:#e2e8f0; font-weight:bold"><td colspan="2">الإجمالي</td><td id="tOpen">0</td><td id="tDeb">0</td><td id="tCred">0</td><td id="tEnd">0</td></tr>
-        </tfoot>
-    </table>
-</div>
-
-<script>
-    const API = '/api';
-    const today = new Date();
-    document.getElementById('toDate').valueAsDate = today;
-    document.getElementById('fromDate').valueAsDate = new Date(today.getFullYear(), 0, 1);
-
-    window.onload = loadData;
-
-    async function loadData() {
-        const from = document.getElementById('fromDate').value;
-        const to = document.getElementById('toDate').value;
-        const tbody = document.querySelector('#table tbody');
-        
-        tbody.innerHTML = '<tr><td colspan="6">جار التحميل...</td></tr>';
-
-        try {
-            const res = await fetch(`${API}/reports/suppliers-balance-summary?fromDate=${from}&toDate=${to}`);
-            const data = await res.json();
-            
-            tbody.innerHTML = '';
-            if(!data.length) { tbody.innerHTML = '<tr><td colspan="6">لا توجد بيانات</td></tr>'; return; }
-
-            let sOpen=0, sDeb=0, sCred=0, sEnd=0;
-
-            data.forEach(row => {
-                sOpen += row.openingBalance; sDeb += row.periodDebit; sCred += row.periodCredit; sEnd += row.closingBalance;
-                
-                const tr = document.createElement('tr');
-                
-                // 🔥🔥 هنا النقل للصفحة التانية عند الضغط 🔥🔥
-                tr.onclick = () => { window.location.href = `/purchases/supplier_report.html?id=${row.id}`; };
-                
-                tr.innerHTML = `
-                    <td>${row.code}</td>
-                    <td style="font-weight:bold; color:#2563eb; text-align:right">${row.name}</td>
-                    <td>${fmt(row.openingBalance)}</td>
-                    <td style="color:red">${fmt(row.periodDebit)}</td>
-                    <td style="color:green">${fmt(row.periodCredit)}</td>
-                    <td style="font-weight:bold; background:#f8fafc">${fmt(row.closingBalance)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('tOpen').innerText = fmt(sOpen);
-            document.getElementById('tDeb').innerText = fmt(sDeb);
-            document.getElementById('tCred').innerText = fmt(sCred);
-            document.getElementById('tEnd').innerText = fmt(sEnd);
-
-        } catch (e) { alert('خطأ: ' + e.message); }
-    }
-
-    function filterTable() {
-        const txt = document.getElementById('search').value.toLowerCase();
-        document.querySelectorAll('#table tbody tr').forEach(tr => {
-            const name = tr.cells[1]?.innerText.toLowerCase();
-            tr.style.display = name?.includes(txt) ? '' : 'none';
-        });
-    }
-
-    function fmt(n) { return n.toLocaleString('en-US', {minimumFractionDigits:2}); }
-</script>
-    <script src="/global-navigation.js"></script>
 </body>
 </html>
-

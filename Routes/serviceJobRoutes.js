@@ -103,6 +103,7 @@ const hydrateServiceJob = async (job) => {
                     ...item,
                     materialCategory, // Set from product if missing
                     product: productId, // Use the actual ID
+                    productName: product.name, // Expose product name directly for frontend
                     productData: { // Add separate field for display
                         _id: product._id,
                         name: product.name,

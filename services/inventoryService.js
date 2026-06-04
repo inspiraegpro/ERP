@@ -667,13 +667,14 @@ async function processCuttingAction({ rollBarcode, cutLength, cutWidth, remainin
     return { success: true, newRollArea, newRollStatus };
 }
 
-async function getSmartSuggestions(productIdentifier, desiredArea = 0, lengthCm = 0, widthCm = 0, warehouseId = '') {
+async function getSmartSuggestions(productIdentifier, desiredArea = 0, lengthCm = 0, widthCm = 0, warehouseId = '', productName = '') {
     const products = await db.find('products');
     let product = products.find(p => 
-        p._id === productIdentifier || 
+        (productIdentifier && (p._id === productIdentifier || 
         p.inventorySlug === productIdentifier || 
         p.code === productIdentifier ||
-        p.name === productIdentifier
+        p.name === productIdentifier)) ||
+        (productName && cleanText(p.name).toLowerCase() === cleanText(productName).toLowerCase())
     );
 
     if (!product) return [];
