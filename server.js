@@ -82,9 +82,9 @@ const routes = {
     '/api/service-adjustments': './Routes/serviceAdjustmentRoutes',
     '/api/warranty-requests': './Routes/warrantyRequestRoutes',
     '/api/reissue-requests': './Routes/reissueRequestRoutes',
-    '/api/inventory': './Routes/inventoryRoutes',
+    // '/api/inventory': './Routes/inventoryRoutes',
     '/api/journal': './Routes/journalRoutes',
-    '/api/pricing': './Routes/pricingRoutes',
+    // '/api/pricing': './Routes/pricingRoutes',
     '/api/agents': './Routes/agentRoutes',      // ← وكلاء البيع
     '/api/data': './Routes/dataRoutes',         // ← استيراد وتصدير الإكسيل
     '/api/payment': './Routes/paymentRoutes',
@@ -93,6 +93,7 @@ const routes = {
 };
 
 Object.entries(routes).forEach(([path, file]) => useRoute(path, file));
+useRoute('/api/pricing', './Routes/pricingRoutes');
 
 // Admin / System Routes
 useRoute('/api/admin', './Routes/adminRoutes');
