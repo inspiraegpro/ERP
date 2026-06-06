@@ -106,9 +106,23 @@ function buildArea(lengthCm, widthCm) {
     return Number(((lengthCm * widthCm) / 10000).toFixed(3));
 }
 
-function buildRemnantBarcode(parentCode, lengthCm, widthCm) {
-    const stamp = Date.now().toString().slice(-6);
-    return `${parentCode}-R-${Math.round(lengthCm)}x${Math.round(widthCm)}-${stamp}`;
+async function getNextRemnantSuffix(parentCode) {
+    const pieces = await db.find('inventory_pieces');
+    const prefix = `${parentCode}-P`;
+    const suffixes = pieces
+        .map((p) => String(p.pieceCode || p.barcode_id || p.barcode || ''))
+        .filter((code) => code.startsWith(prefix))
+        .map((code) => {
+            const match = code.match(/-P(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+        });
+    return (suffixes.length ? Math.max(...suffixes) : 0) + 1;
+}
+
+async function buildRemnantBarcode(parentCode, lengthCm, widthCm, suffix = null) {
+    const parent = cleanText(parentCode);
+    const nextSuffix = suffix != null ? suffix : await getNextRemnantSuffix(parent);
+    return `${parent}-P${nextSuffix}`;
 }
 
 async function ensureInventoryProduct({ productName, materialType }) {
@@ -413,7 +427,7 @@ async function processInbound(transactionData) {
                 const widthCm = Number(item.widthCm || 0) || toCentimeters(item.customDimensions?.width || 0);
                 const parentRollCode = cleanText(item.parentRollCode || item.parentRoll || '');
                 const barcodeValue = cleanText(item.barcode_id || item.barcodeId || item.barcode) ||
-                    buildRemnantBarcode(parentRollCode || pieceCode, lengthCm, widthCm);
+                    await buildRemnantBarcode(parentRollCode || pieceCode, lengthCm, widthCm);
                 await db.create('inventory_pieces', {
                     pieceCode: pieceCode,
                     barcode_id: barcodeValue,
@@ -631,11 +645,11 @@ async function processCuttingAction({ rollBarcode, cutLength, cutWidth, remainin
     });
 
     // Create a remnant piece if there's a specified remaining piece
+    let pieceBarcode = null;
     if (remainingLength > 0 && remainingWidth > 0) {
         const remnantArea = buildArea(remainingLength, remainingWidth);
         const parentBarcode = roll.barcode_id || roll.barcodeId || roll.barcode || roll.rollCode;
-        // Generate a unique barcode for the remnant
-        const pieceBarcode = `${parentBarcode}-R-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+        pieceBarcode = await buildRemnantBarcode(parentBarcode, remainingLength, remainingWidth);
 
         await db.create('inventory_pieces', {
             pieceCode: pieceBarcode,
@@ -664,7 +678,183 @@ async function processCuttingAction({ rollBarcode, cutLength, cutWidth, remainin
         });
     }
 
-    return { success: true, newRollArea, newRollStatus };
+    return { success: true, newRollArea, newRollStatus, remnantBarcode: remainingLength > 0 && remainingWidth > 0 ? pieceBarcode : null };
+}
+
+async function processIssue(issueData) {
+    const items = issueData.items || [];
+    const warehouseId = issueData.warehouseId || issueData.warehouse || 'main_warehouse';
+    const remnants = [];
+
+    for (const item of items) {
+        const area = normalizeNumber(item.area || item.quantity);
+        const consumedLength = normalizeNumber(item.consumedLength || item.lengthCm || 0);
+        const consumedWidth = normalizeNumber(item.consumedWidth || item.widthCm || 0);
+        const remainingLength = normalizeNumber(item.remainingLength || item.remnantLengthCm || 0);
+        const remainingWidth = normalizeNumber(item.remainingWidth || item.remnantWidthCm || 0);
+
+        if (item.rollCode || item.barcode_id || item.barcode) {
+            const rollCode = item.rollCode || item.barcode_id || item.barcode;
+            const roll = await db.findOne('rollbalances', { rollCode }) ||
+                await db.findOne('rollbalances', { barcode_id: rollCode }) ||
+                await db.findOne('rollbalances', { barcode: rollCode });
+
+            if (!roll) throw new Error(`Roll ${rollCode} not found`);
+
+            const newArea = Math.max(0, (roll.currentArea || roll.remainingArea || 0) - area);
+            const newStatus = newArea <= 0.05 ? 'Consumed' : 'PartiallyUsed';
+
+            await db.updateOne('rollbalances', { _id: roll._id }, {
+                currentArea: Number(newArea.toFixed(3)),
+                remainingArea: Number(newArea.toFixed(3)),
+                status: newStatus,
+                updatedAt: new Date().toISOString()
+            });
+
+            const remLen = remainingLength || (newArea > 0.05 && consumedLength > 0 ? Math.max(0, (roll.currentLengthCm || roll.originalLengthCm || 0) - consumedLength) : 0);
+            const remWid = remainingWidth || (newArea > 0.05 ? (roll.width || roll.widthCm || consumedWidth) : 0);
+
+            if (remLen > 0 && remWid > 0 && newStatus === 'PartiallyUsed') {
+                const parentCode = roll.rollCode || roll.barcode_id || roll.barcode;
+                const pieceBarcode = await buildRemnantBarcode(parentCode, remLen, remWid);
+                const remnantArea = buildArea(remLen, remWid);
+
+                await db.create('inventory_pieces', {
+                    pieceCode: pieceBarcode,
+                    barcode_id: pieceBarcode,
+                    barcodeId: pieceBarcode,
+                    barcode: pieceBarcode,
+                    parentRollCode: roll.rollCode,
+                    parentBarcode: parentCode,
+                    parentId: roll._id,
+                    product: roll.product,
+                    productCode: roll.productCode,
+                    productName: roll.productName,
+                    materialType: roll.materialType,
+                    materialName: roll.productName,
+                    lengthCm: remLen,
+                    widthCm: remWid,
+                    area: remnantArea,
+                    status: 'available',
+                    type: 'remnant',
+                    isRemnant: true,
+                    warehouseId,
+                    source: 'stock_issue',
+                    jobOrderId: issueData.jobOrderId || issueData.jobOrder,
+                    createdAt: new Date().toISOString()
+                });
+                remnants.push({ barcode: pieceBarcode, area: remnantArea });
+            }
+        } else if (item.pieceCode) {
+            const piece = await db.findOne('inventory_pieces', { pieceCode: item.pieceCode });
+            if (piece) {
+                await db.updateOne('inventory_pieces', { _id: piece._id }, {
+                    status: 'consumed',
+                    consumedDate: new Date().toISOString(),
+                    jobOrderId: issueData.jobOrderId || issueData.jobOrder
+                });
+            }
+        }
+
+        const productId = item.product || item.productCode;
+        if (productId && area > 0) {
+            const product = await db.findById('products', productId);
+            if (product) {
+                const newStock = Math.max(0, (product.currentStock || 0) - area);
+                await db.updateOne('products', { _id: productId }, {
+                    currentStock: Number(newStock.toFixed(3)),
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        }
+    }
+
+    const transaction = await db.create('stocktransactions', {
+        type: 'Outbound',
+        serialNumber: issueData.serialNumber || `OUT-${Date.now()}`,
+        date: issueData.date || new Date().toISOString().split('T')[0],
+        warehouseId,
+        warehouse: warehouseId,
+        jobOrder: issueData.jobOrder || null,
+        jobOrderId: issueData.jobOrderId || null,
+        customerName: issueData.customerName || '',
+        carName: issueData.carName || '',
+        items,
+        notes: issueData.notes || 'صرف مخزني موحد',
+        source: 'UnifiedIssue',
+        status: 'completed',
+        remnants,
+        createdAt: new Date().toISOString()
+    });
+
+    return { transaction, remnants };
+}
+
+async function getInventoryReport(type = 'detailed') {
+    const rolls = await db.find('rollbalances');
+    const pieces = await db.find('inventory_pieces');
+    const transactions = await db.find('stocktransactions');
+
+    if (type === 'detailed') {
+        return { rolls, pieces };
+    }
+    if (type === 'movement') {
+        return transactions.filter((t) => t.type === 'Inbound' || t.type === 'Outbound' || t.type === 'Stock In' || t.type === 'Stock Out');
+    }
+    if (type === 'category') {
+        const summary = {};
+        [...rolls, ...pieces].forEach((item) => {
+            const cat = item.materialType || 'غير مصنف';
+            if (!summary[cat]) summary[cat] = { area: 0, count: 0 };
+            summary[cat].area += normalizeNumber(item.currentArea || item.area || item.remainingArea);
+            summary[cat].count += 1;
+        });
+        return summary;
+    }
+    if (type === 'lowstock') {
+        const products = await db.find('products');
+        return products.filter((p) => normalizeNumber(p.currentStock) < normalizeNumber(p.minStock || 5));
+    }
+    return { rolls, pieces };
+}
+
+async function transferBetweenWarehouses({ fromWarehouse, toWarehouse, items, notes }) {
+    if (!fromWarehouse || !toWarehouse) throw new Error('fromWarehouse and toWarehouse are required');
+    if (fromWarehouse === toWarehouse) throw new Error('Cannot transfer to the same warehouse');
+
+    for (const item of items || []) {
+        const rollCode = item.rollCode || item.barcode;
+        if (rollCode) {
+            const roll = await db.findOne('rollbalances', { rollCode });
+            if (roll) {
+                await db.updateOne('rollbalances', { _id: roll._id }, {
+                    warehouseId: toWarehouse,
+                    warehouse: toWarehouse,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        }
+        const pieceCode = item.pieceCode;
+        if (pieceCode) {
+            const piece = await db.findOne('inventory_pieces', { pieceCode });
+            if (piece) {
+                await db.updateOne('inventory_pieces', { _id: piece._id }, {
+                    warehouseId: toWarehouse,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        }
+    }
+
+    return await db.create('stocktransactions', {
+        type: 'Transfer',
+        fromWarehouse,
+        toWarehouse,
+        items: items || [],
+        notes: notes || '',
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+    });
 }
 
 async function getSmartSuggestions(productIdentifier, desiredArea = 0, lengthCm = 0, widthCm = 0, warehouseId = '', productName = '') {
@@ -809,6 +999,7 @@ async function getSmartSuggestions(productIdentifier, desiredArea = 0, lengthCm 
 module.exports = {
     buildArea,
     buildRemnantBarcode,
+    getNextRemnantSuffix,
     findInventoryItemByBarcode,
     importOpeningInventoryRows,
     parseOpeningInventoryText,
@@ -817,7 +1008,10 @@ module.exports = {
     processInbound,
     processOutbound,
     processStockOut: processOutbound,
+    processIssue,
+    processCuttingAction,
+    getInventoryReport,
+    transferBetweenWarehouses,
     syncProductsFromStock,
-    getSmartSuggestions,
-    processCuttingAction // New function for cutting rolls
+    getSmartSuggestions
 };

@@ -68,7 +68,7 @@ const routes = {
     '/api/products': './Routes/productRoutes',
     '/api/customers': './Routes/customerRoutes',
     '/api/suppliers': './Routes/supplierRoutes',
-    '/api/warehouses': './Routes/warehouseRoutes',
+    // '/api/warehouses': './Routes/warehouseRoutes', // merged into /api/stock
     '/api/stock': './Routes/stockRoutes',
     '/api/accounts': './Routes/accountRoutes',
     '/api/purchases': './Routes/purchaseRoutes',

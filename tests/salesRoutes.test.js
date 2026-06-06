@@ -19,6 +19,10 @@ jest.mock('../services/salesService', () => ({
   createSalesInvoice: jest.fn()
 }));
 
+jest.mock('../services/pricingService', () => ({
+  calculateInvoice: jest.fn()
+}));
+
 jest.mock('../models/Product', () => ({
   findOne: jest.fn()
 }));
@@ -41,6 +45,7 @@ jest.mock('../middleware/auth', () => ({
 
 const FileDbManager = require('../file_db_manager');
 const salesService = require('../services/salesService');
+const pricingService = require('../services/pricingService');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const Car = require('../models/Car');
@@ -92,6 +97,18 @@ describe('salesRoutes API', () => {
     db.findOne.mockResolvedValue(null);
     salesService.generateInvoiceNumber.mockResolvedValue('INV-00010');
     salesService.createSalesInvoice.mockResolvedValue({ _id: 'inv1', invoiceNumber: 'INV-00010' });
+    pricingService.calculateInvoice.mockResolvedValue({
+      items: [{ product: 'p1', lineTotal: 100, price: 100, unitPrice: 100 }],
+      subtotal: 100,
+      totalExtraCosts: 0,
+      totalDiscount: 0,
+      vat: 14,
+      netAmount: 100,
+      wht: 0,
+      finalTotal: 114,
+      agentCommission: 5.7,
+      discountValid: true
+    });
     Product.findOne.mockResolvedValue({ _id: 'p1', name: 'PPF' });
     Customer.findOne.mockResolvedValue({ _id: 'c1', name: 'عميل' });
     Car.findOne.mockResolvedValue({ _id: 'car1', make: 'BMW', model: 'X5' });
@@ -132,7 +149,15 @@ describe('salesRoutes API', () => {
     };
     const res = await request(server, 'POST', '/api/sales', payload);
     expect(res.status).toBe(201);
-    expect(salesService.createSalesInvoice).toHaveBeenCalledWith(payload, expect.objectContaining({ _id: 'u1' }));
+    expect(pricingService.calculateInvoice).toHaveBeenCalled();
+    expect(salesService.createSalesInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: 'c1',
+        items: expect.any(Array),
+        finalTotal: 114
+      }),
+      expect.objectContaining({ _id: 'u1' })
+    );
   });
 
   test('GET / hydrates invoice list', async () => {

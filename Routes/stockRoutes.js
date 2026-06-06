@@ -2,9 +2,19 @@ const express = require('express');
 const router = express.Router();
 const FileDbManager = require('../file_db_manager');
 const inventoryService = require('../services/inventoryService');
+const Warehouse = require('../models/Warehouse');
 const { authenticateToken: auth } = require('../middleware/auth');
 
 const db = new FileDbManager();
+
+const getFallbackWarehouse = () => ([{
+    _id: 'default-warehouse',
+    code: 'MAIN',
+    name: 'Main Warehouse',
+    path: 'Main Warehouse',
+    isActive: true,
+    isTransactional: true
+}]);
 
 // POST: حساب المساحة بالمتر المربع من الطول والعرض بالسنتيمتر
 router.post('/calculate-area', auth, async (req, res) => {
@@ -130,6 +140,178 @@ router.get('/smart-suggestions', auth, async (req, res) => {
     } catch (error) {
         console.error('Error in smart-suggestions:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: صرف مخزني موحد مع توليد فضلات -P1, -P2
+router.post('/issue', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.processIssue(req.body);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: قص رول وإنشاء فضلة بباركود
+router.post('/cut-roll', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.processCuttingAction(req.body);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET: البحث بالباركود
+router.get('/lookup/:barcode', auth, async (req, res) => {
+    try {
+        const item = await inventoryService.findInventoryItemByBarcode(req.params.barcode);
+        if (!item) return res.status(404).json({ error: 'الباركود غير موجود' });
+        res.json(item);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET: تقارير المخزون
+router.get('/inventory-report/:type', auth, async (req, res) => {
+    try {
+        const report = await inventoryService.getInventoryReport(req.params.type);
+        res.json(report);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET: الرولات (alias للتوافق)
+router.get('/rolls', auth, async (req, res) => {
+    try {
+        const rolls = await db.find('rollbalances');
+        res.json(rolls);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: مزامنة المنتجات من المخزون
+router.post('/sync-products-from-stock', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.syncProductsFromStock(req.body);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ─── الجرد الافتتاحي ───────────────────────────────────────────────────────
+router.post('/opening-balance/preview', auth, async (req, res) => {
+    try {
+        const rows = inventoryService.parseOpeningInventoryText(req.body.rawText || req.body.text || '');
+        res.json({ count: rows.length, rows: rows.slice(0, 100) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/opening-balance/import', auth, async (req, res) => {
+    try {
+        const rows = req.body.rows || inventoryService.parseOpeningInventoryText(req.body.rawText || '');
+        const result = await inventoryService.importOpeningInventoryRows(rows, req.body.warehouseId || 'main_warehouse');
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/opening-balance/reset', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.resetOperationalInventory();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ─── إدارة المستودعات (CRUD) ───────────────────────────────────────────────
+router.get('/warehouses/transactional', auth, async (req, res) => {
+    try {
+        const warehouses = await Warehouse.find({ isTransactional: true });
+        res.json(warehouses.length > 0 ? warehouses : getFallbackWarehouse());
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.post('/warehouses/transfer', auth, async (req, res) => {
+    try {
+        const tx = await inventoryService.transferBetweenWarehouses(req.body);
+        res.status(201).json(tx);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/transfer', auth, async (req, res) => {
+    try {
+        const body = {
+            fromWarehouse: req.body.fromWarehouse || req.body.from,
+            toWarehouse: req.body.toWarehouse || req.body.to,
+            items: req.body.items,
+            notes: req.body.notes
+        };
+        const tx = await inventoryService.transferBetweenWarehouses(body);
+        res.status(201).json(tx);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/warehouses', auth, async (req, res) => {
+    try {
+        const warehouses = await Warehouse.find();
+        res.json(warehouses.length > 0 ? warehouses : getFallbackWarehouse());
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.get('/warehouses/:id', auth, async (req, res) => {
+    try {
+        const warehouse = await Warehouse.findOne({ _id: req.params.id });
+        if (!warehouse) return res.status(404).json({ message: 'Warehouse not found' });
+        res.json(warehouse);
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.post('/warehouses', auth, async (req, res) => {
+    try {
+        const warehouse = await Warehouse.create(req.body);
+        res.status(201).json(warehouse);
+    } catch (e) {
+        res.status(400).json({ message: e.message });
+    }
+});
+
+router.put('/warehouses/:id', auth, async (req, res) => {
+    try {
+        const updated = await Warehouse.updateOne({ _id: req.params.id }, req.body);
+        if (!updated) return res.status(404).json({ message: 'Warehouse not found' });
+        res.json(updated);
+    } catch (e) {
+        res.status(400).json({ message: e.message });
+    }
+});
+
+router.delete('/warehouses/:id', auth, async (req, res) => {
+    try {
+        const deleted = await Warehouse.deleteOne({ _id: req.params.id });
+        if (!deleted) return res.status(404).json({ message: 'Warehouse not found' });
+        res.json({ message: 'Warehouse deleted successfully' });
+    } catch (e) {
+        res.status(400).json({ message: e.message });
     }
 });
 

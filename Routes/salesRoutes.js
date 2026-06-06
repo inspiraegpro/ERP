@@ -7,50 +7,31 @@ const Customer = require('../models/Customer');
 const Car = require('../models/Car');
 const ServiceJob = require('../models/ServiceJob');
 const journalService = require('../services/journalService');
+const pricingService = require('../services/pricingService');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
-// POST: حساب الفاتورة (بدون حفظ)
+// POST: حساب الفاتورة من بيانات خام (بدون أسعار من Frontend)
+router.post('/calculate-invoice', authenticateToken, async (req, res) => {
+    try {
+        const calculated = await pricingService.calculateInvoice(req.body);
+        res.json(calculated);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: حساب الفاتورة (legacy alias)
 router.post('/calculate', authenticateToken, async (req, res) => {
     try {
-        const { items, extraCost, discount, hasWht } = req.body;
-        
-        const toNumber = (val) => Number(val) || 0;
-        
-        // حساب إجمالي الأصناف
-        const subtotal = (items || []).reduce((sum, item) => {
-            const price = toNumber(item.price);
-            const quantity = toNumber(item.quantity || item.area || 1);
-            return sum + (price * quantity);
-        }, 0);
-        
-        const extra = toNumber(extraCost);
-        const disc = toNumber(discount);
-        
-        // الإجمالي قبل الضريبة
-        const taxable = Math.max(0, subtotal + extra - disc);
-        
-        // ضريبة القيمة المضافة (14%)
-        const vat = taxable * 0.14;
-        
-        // الإجمالي بعد الضريبة
-        const totalWithVat = taxable + vat;
-        
-        // ضريبة الخصم من المنبع (1% على إجمالي الأصناف فقط حسب الممارسة)
-        let wht = 0;
-        if (hasWht === true || hasWht === 'true') {
-            wht = subtotal * 0.01;
-        }
-        
-        // الصافي النهائي
-        const finalTotal = totalWithVat - wht;
-        
+        const calculated = await pricingService.calculateInvoice(req.body);
         res.json({
-            subtotal: Number(subtotal.toFixed(2)),
-            taxable: Number(taxable.toFixed(2)),
-            vat: Number(vat.toFixed(2)),
-            totalWithVat: Number(totalWithVat.toFixed(2)),
-            wht: Number(wht.toFixed(2)),
-            finalTotal: Number(finalTotal.toFixed(2))
+            subtotal: calculated.subtotal,
+            taxable: calculated.taxable,
+            vat: calculated.vat,
+            totalWithVat: calculated.totalWithVat,
+            wht: calculated.wht,
+            finalTotal: calculated.finalTotal,
+            items: calculated.items
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -204,7 +185,29 @@ router.post('/', authenticateToken, async (req, res, next) => {
                 return res.status(400).json({ error: 'رقم الفاتورة مكرر، اختر رقمًا آخر' });
             }
         }
-        const newInvoice = await salesService.createSalesInvoice(req.body, req.user);
+
+        const calculated = await pricingService.calculateInvoice(req.body);
+        if (!calculated.discountValid) {
+            return res.status(400).json({ error: calculated.discountError || 'الخصم غير صالح' });
+        }
+
+        const securePayload = {
+            ...req.body,
+            items: calculated.items,
+            subtotal: calculated.subtotal,
+            totalExtraCosts: calculated.totalExtraCosts,
+            totalDiscount: calculated.totalDiscount,
+            totalTax: calculated.vat,
+            vatAmount: calculated.vat,
+            netAmount: calculated.netAmount,
+            whtAmount: calculated.wht,
+            finalTotal: calculated.finalTotal,
+            totalAmount: calculated.finalTotal,
+            agentCommission: calculated.agentCommission,
+            agent_commission_value: calculated.agentCommission
+        };
+
+        const newInvoice = await salesService.createSalesInvoice(securePayload, req.user);
         res.status(201).json({
             success: true,
             message: 'تم حفظ الفاتورة والقيود المخزنية والمحاسبية بنجاح',

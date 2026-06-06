@@ -37,6 +37,21 @@ jest.mock('../file_db_manager', () => {
   return Ctor;
 });
 
+jest.mock('../services/pricingService', () => ({
+  calculateInvoice: jest.fn(async (data) => ({
+    items: data.items || [],
+    subtotal: 1000,
+    totalExtraCosts: 0,
+    totalDiscount: 0,
+    vat: 140,
+    netAmount: 1000,
+    wht: 0,
+    finalTotal: 1140,
+    agentCommission: 57,
+    discountValid: true
+  }))
+}));
+
 jest.mock('../services/journalService', () => ({
   archiveBeforeMutation: jest.fn(),
   syncSalesJournal: jest.fn()
@@ -110,7 +125,7 @@ const dbInstance = FileDbManager.__mockInstance;
       invoiceNumber: 'INV-00999',
       status: 'PENDING_OPS'
     }));
-    expect(Customer.updateOne).toHaveBeenCalledWith({ _id: 'c1' }, { balance: 1280 });
+    expect(Customer.updateOne).toHaveBeenCalledWith({ _id: 'c1' }, { balance: 1240 });
     expect(invoice.serviceJobId).toBe('job1');
   });
 

@@ -5,6 +5,7 @@ const ServiceJob = require('../models/ServiceJob');
 const Product = require('../models/Product');
 const FileDatabaseManager = require('../file_db_manager');
 const journalService = require('./journalService');
+const pricingService = require('./pricingService');
 
 const db = new FileDatabaseManager();
 
@@ -23,33 +24,30 @@ async function generateInvoiceNumber() {
 }
 
 async function createSalesInvoice(data, user) {
-    // الـ frontend بيبعت finalTotal — نقبل الاثنين ونأخذ الأكبر
-    const totalWithVat = toNumber(data.finalTotal || data.totalAmount);
-    const vatRate = 0.14;
-    const netAmount  = Number((totalWithVat / (1 + vatRate)).toFixed(2));
-    const vatAmount  = Number((totalWithVat - netAmount).toFixed(2));
-    const agentCommission = toNumber(data.agent_commission_value || data.agentCommission)
-                         || (totalWithVat * 0.05);
+    const calculated = await pricingService.calculateInvoice(data);
+
+    const totalWithVat = calculated.finalTotal;
+    const netAmount = calculated.netAmount;
+    const vatAmount = calculated.vat;
+    const agentCommission = calculated.agentCommission;
 
     const normalizedInvoice = {
         invoiceNumber:   data.invoiceNumber || await generateInvoiceNumber(),
         customer:        data.customer,
         customerName:    data.customerName || data.customer?.name,
         carModel:        data.carModel,
-        items:           data.items || [],
-        // ── حقول مالية مكتملة ──────────────────────────────────────
-        subtotal:        toNumber(data.subtotal),
-        totalExtraCosts: toNumber(data.totalExtraCosts),
-        totalDiscount:   toNumber(data.totalDiscount),
-        totalTax:        toNumber(data.vatAmount || data.totalTax),
-        whtAmount:       toNumber(data.whtAmount),
-        netAmount:       toNumber(data.netAmount),
-        totalAmount:     totalWithVat,   // إجمالي شامل الضريبة
+        items:           calculated.items || data.items || [],
+        subtotal:        calculated.subtotal,
+        totalExtraCosts: calculated.totalExtraCosts,
+        totalDiscount:   calculated.totalDiscount,
+        totalTax:        vatAmount,
+        whtAmount:       calculated.wht,
+        netAmount:       netAmount,
+        totalAmount:     totalWithVat,
         vat:             vatAmount,
-        discount:        toNumber(data.totalDiscount || data.discount),
-        finalAmount:     totalWithVat,   // نفس totalAmount — للتوافق مع الكود القديم
-        finalTotal:      totalWithVat,   // الحقل الذي يستخدمه الـ frontend
-        // ────────────────────────────────────────────────────────────
+        discount:        calculated.totalDiscount,
+        finalAmount:     totalWithVat,
+        finalTotal:      totalWithVat,
         paymentMethod:   data.paymentMethod || 'Cash',
         salesPersonId:   data.salesPerson   || data.salesPersonId,
         salesPersonName: data.salesPersonName,
@@ -86,14 +84,14 @@ async function createSalesInvoice(data, user) {
     try {
         await journalService.syncSalesJournal({
             ...invoice,
-            subtotal:        toNumber(data.subtotal),
-            totalExtraCosts: toNumber(data.totalExtraCosts),
-            totalDiscount:   toNumber(data.totalDiscount),
-            totalWithVat:    toNumber(data.finalTotal || data.totalAmount),
-            finalTotal:      toNumber(data.finalTotal || data.totalAmount),
-            vatAmount:       toNumber(data.vatAmount || data.totalTax),
-            netAmount:       toNumber(data.netAmount),
-            whtAmount:       toNumber(data.whtAmount),
+            subtotal:        calculated.subtotal,
+            totalExtraCosts: calculated.totalExtraCosts,
+            totalDiscount:   calculated.totalDiscount,
+            totalWithVat:    totalWithVat,
+            finalTotal:      totalWithVat,
+            vatAmount:       vatAmount,
+            netAmount:       netAmount,
+            whtAmount:       calculated.wht,
             customerName:    invoice.customerName || ''
         }, user);
     } catch (glError) {
