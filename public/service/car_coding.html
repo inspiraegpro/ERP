@@ -52,7 +52,8 @@
         thead th { background:#eef2f7; color:var(--p); font-size:.88rem; padding:.85rem .75rem; text-align:center; border-bottom:1px solid var(--bd); }
         tbody td { padding:.75rem .65rem; border-bottom:1px solid rgba(82,98,119,.12); text-align:center; }
         tbody tr:hover { background:#fbfcfe; }
-        .part-entry-row { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:.75rem; margin-bottom:.75rem; }
+        .part-entry-row { display:grid; grid-template-columns:2fr 1fr 1fr 90px auto; gap:.75rem; margin-bottom:.75rem; align-items:center; }
+        .part-entry-row .roof-label { display:flex; align-items:center; gap:.35rem; font-size:.85rem; color:var(--s); white-space:nowrap; }
         .empty-state { background:#fff; border:1px dashed rgba(22,58,95,.2); border-radius:20px; padding:2rem; text-align:center; color:#738396; }
         @media (max-width:1100px) { .grid-2 { grid-template-columns:1fr; } }
         @media (max-width:820px) { .form-grid,.search-row,.part-entry-row { grid-template-columns:1fr; } .span-2 { grid-column:auto; } }
@@ -96,7 +97,7 @@
                 </div>
                 <div class="actions">
                     <button class="btn accent" type="button" onclick="importSizingFile()">استيراد ملف المقاسات</button>
-                    <button class="btn light" type="button" onclick="window.location.href='/api/data/export/cars'">تصدير السيارات الحالية</button>
+                    <button class="btn light" type="button" onclick="exportCars()">تصدير السيارات الحالية</button>
                 </div>
 
                 <hr style="border:none;border-top:1px solid rgba(22,58,95,.1);margin:1.5rem 0;">
@@ -105,7 +106,7 @@
                     <input type="hidden" id="carId">
                     <div class="field">
                         <label for="fullModelName">اسم السيارة / الموديل</label>
-                        <input id="fullModelName" placeholder="Mercedes-Benz CLE53">
+                        <input id="fullModelName" placeholder="Mercedes-Benz CLE53 2026">
                     </div>
                     <div class="field">
                         <label for="carYear">سنة الصنع</label>
@@ -118,6 +119,14 @@
                     <div class="field">
                         <label for="carModel">الموديل</label>
                         <input id="carModel" placeholder="CLE53">
+                    </div>
+                    <div class="field span-2">
+                        <label for="carCategory">فئة السيارة</label>
+                        <select id="carCategory">
+                            <option value="Sedan">Sedan</option>
+                            <option value="SUV/Large Sedan">SUV/Large Sedan</option>
+                            <option value="Large SUV">Large SUV</option>
+                        </select>
                     </div>
                 </div>
 
@@ -148,7 +157,7 @@
                 <div class="search-row">
                     <div class="field">
                         <label for="searchInput">بحث</label>
-                        <input id="searchInput" placeholder="ابحث باسم السيارة أو الماركة أو الموديل" oninput="renderCars()">
+                        <input id="searchInput" placeholder="ابحث باسم السيارة أو الماركة أو الموديل" oninput="debouncedLoadCars()">
                     </div>
                     <div class="field">
                         <label for="partsFilter">حد أدنى للأجزاء</label>
@@ -169,6 +178,14 @@
     <script>
         const API = '/api';
         let allCars = [];
+
+        function authHeaders(json = false) {
+            const headers = {};
+            const token = localStorage.getItem('token');
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (json) headers['Content-Type'] = 'application/json';
+            return headers;
+        }
 
         function setMessage(message, type = 'info') {
             const box = document.getElementById('messageBox');
@@ -199,6 +216,7 @@
                 <input class="part-name" placeholder="اسم الجزء" value="${escapeHtml(data.name || '')}">
                 <input class="part-length" type="number" min="0" step="0.01" placeholder="الطول (سم)" value="${Number(data.lengthCM || 0) || ''}">
                 <input class="part-width" type="number" min="0" step="0.01" placeholder="العرض (سم)" value="${Number(data.widthCM || 0) || ''}">
+                <label class="roof-label"><input class="part-roof" type="checkbox" ${data.isRoof ? 'checked' : ''}> سقف</label>
                 <button class="btn danger" type="button">حذف</button>
             `;
             row.querySelector('.btn.danger').addEventListener('click', () => row.remove());
@@ -209,7 +227,9 @@
             return Array.from(document.querySelectorAll('#partsEditor .part-entry-row')).map((row) => ({
                 name: row.querySelector('.part-name').value.trim(),
                 lengthCM: Number(row.querySelector('.part-length').value || 0),
-                widthCM: Number(row.querySelector('.part-width').value || 0)
+                widthCM: Number(row.querySelector('.part-width').value || 0),
+                isRoof: row.querySelector('.part-roof')?.checked === true,
+                notes: row.querySelector('.part-notes')?.value?.trim() || ''
             })).filter((part) => part.name);
         }
 
@@ -219,6 +239,7 @@
             document.getElementById('carYear').value = '';
             document.getElementById('carBrand').value = '';
             document.getElementById('carModel').value = '';
+            document.getElementById('carCategory').value = 'Sedan';
             document.getElementById('partsEditor').innerHTML = '';
             addPartRow();
         }
@@ -226,12 +247,14 @@
         async function loadCars() {
             clearMessage();
             try {
-                const response = await fetch(`${API}/cars`);
+                const search = String(document.getElementById('searchInput')?.value || '').trim();
+                const url = search ? `${API}/cars?search=${encodeURIComponent(search)}` : `${API}/cars`;
+                const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error('تعذر تحميل السيارات.');
                 }
                 allCars = await response.json();
-                renderStats();
+                await loadStats();
                 renderCars();
             } catch (error) {
                 console.error(error);
@@ -239,26 +262,22 @@
             }
         }
 
-        function renderStats() {
-            const models = allCars.length;
-            const parts = allCars.reduce((sum, car) => sum + Number((car.parts || []).length), 0);
-            document.getElementById('modelsCount').textContent = models.toLocaleString('ar-EG');
-            document.getElementById('partsCount').textContent = parts.toLocaleString('ar-EG');
-            document.getElementById('avgParts').textContent = models ? (parts / models).toFixed(1) : '0';
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API}/cars/stats`);
+                if (!response.ok) return;
+                const stats = await response.json();
+                document.getElementById('modelsCount').textContent = Number(stats.modelsCount || 0).toLocaleString('ar-EG');
+                document.getElementById('partsCount').textContent = Number(stats.partsCount || 0).toLocaleString('ar-EG');
+                document.getElementById('avgParts').textContent = stats.avgParts ?? '0';
+            } catch (error) {
+                console.warn('Stats load failed', error);
+            }
         }
 
         function renderCars() {
-            const search = String(document.getElementById('searchInput').value || '').trim().toLowerCase();
             const minParts = Number(document.getElementById('partsFilter').value || 0);
-            const filtered = allCars.filter((car) => {
-                const haystack = [
-                    car.fullModelName,
-                    car.brand,
-                    car.model,
-                    car.code
-                ].join(' ').toLowerCase();
-                return (!search || haystack.includes(search)) && Number((car.parts || []).length) >= minParts;
-            });
+            const filtered = allCars.filter((car) => Number((car.parts || []).length) >= minParts);
 
             const list = document.getElementById('carsList');
             if (!filtered.length) {
@@ -271,7 +290,7 @@
                     <div class="model-head">
                         <div>
                             <h3>${escapeHtml(car.fullModelName || `${car.brand || ''} ${car.model || ''}`.trim())}</h3>
-                            <p>${escapeHtml(car.code || '-')} | ${escapeHtml(car.year || 'بدون سنة')} | ${Number((car.parts || []).length).toLocaleString('ar-EG')} جزء</p>
+                            <p>${escapeHtml(car.code || '-')} | ${escapeHtml(car.year || 'بدون سنة')} | ${escapeHtml(car.category || '-')} | ${Number((car.parts || []).length).toLocaleString('ar-EG')} جزء</p>
                         </div>
                         <div class="actions">
                             <button class="btn light" type="button" onclick="editCar('${car._id}')">تعديل</button>
@@ -285,7 +304,8 @@
                                     <th>الجزء</th>
                                     <th>الطول (سم)</th>
                                     <th>العرض (سم)</th>
-                                    <th>المساحة (سم²)</th>
+                                    <th>المساحة (م²)</th>
+                                    <th>سقف</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -294,7 +314,8 @@
                                         <td>${escapeHtml(part.name)}</td>
                                         <td>${Number(part.lengthCM || 0).toFixed(2)}</td>
                                         <td>${Number(part.widthCM || 0).toFixed(2)}</td>
-                                        <td>${Number(part.areaCM2 || 0).toFixed(2)}</td>
+                                        <td>${Number(part.areaM2 || 0).toFixed(4)}</td>
+                                        <td>${part.isRoof ? 'نعم' : '—'}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -316,8 +337,9 @@
             formData.append('file', fileInput.files[0]);
 
             try {
-                const response = await fetch(`${API}/car/import-sizing`, {
+                const response = await fetch(`${API}/cars/import-sizing`, {
                     method: 'POST',
+                    headers: authHeaders(),
                     body: formData
                 });
                 const result = await response.json();
@@ -333,6 +355,25 @@
             }
         }
 
+        async function exportCars() {
+            try {
+                const response = await fetch(`${API}/cars/export`, { headers: authHeaders() });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.message || 'فشل التصدير.');
+                }
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'cars-sizing.xlsx';
+                link.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                setMessage(error.message || 'فشل تصدير الملف.', 'error');
+            }
+        }
+
         async function saveCar() {
             clearMessage();
             const payload = {
@@ -340,6 +381,7 @@
                 year: document.getElementById('carYear').value,
                 brand: document.getElementById('carBrand').value.trim(),
                 model: document.getElementById('carModel').value.trim(),
+                category: document.getElementById('carCategory').value,
                 parts: collectParts()
             };
 
@@ -354,12 +396,12 @@
 
             const carId = document.getElementById('carId').value;
             const method = carId ? 'PUT' : 'POST';
-            const endpoint = carId ? `${API}/car/${carId}` : `${API}/car`;
+            const endpoint = carId ? `${API}/cars/${carId}` : `${API}/cars`;
 
             try {
                 const response = await fetch(endpoint, {
                     method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders(true),
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
@@ -383,6 +425,7 @@
             document.getElementById('carYear').value = car.year || '';
             document.getElementById('carBrand').value = car.brand || '';
             document.getElementById('carModel').value = car.model || '';
+            document.getElementById('carCategory').value = car.category || 'Sedan';
             document.getElementById('partsEditor').innerHTML = '';
             (car.parts || []).forEach((part) => addPartRow(part));
             if (!(car.parts || []).length) addPartRow();
@@ -392,7 +435,10 @@
         async function deleteCar(carId) {
             if (!confirm('هل أنت متأكد من حذف السيارة ومقاساتها؟')) return;
             try {
-                const response = await fetch(`${API}/car/${carId}`, { method: 'DELETE' });
+                const response = await fetch(`${API}/cars/${carId}`, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
                 const result = await response.json();
                 if (!response.ok) {
                     throw new Error(result.message || 'فشل حذف السيارة.');
@@ -403,6 +449,12 @@
                 console.error(error);
                 setMessage(error.message || 'فشل حذف السيارة.', 'error');
             }
+        }
+
+        let searchTimer = null;
+        function debouncedLoadCars() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(loadCars, 400);
         }
 
         document.addEventListener('DOMContentLoaded', async () => {

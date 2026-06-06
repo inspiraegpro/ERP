@@ -309,10 +309,10 @@
             <span>إجمالي الأصناف (قبل الضريبة):</span> <span id="subtotal">0.00</span>
         </div>
         <div class="tax-row">
-            <span>+ خدمات إضافية:</span> <input type="number" id="extraCost" value="0" oninput="calcTotal()">
+            <span>+ خدمات إضافية:</span> <input type="number" id="extraCost" value="0" oninput="scheduleSyncInvoice()">
         </div>
         <div class="tax-row">
-            <span>- خصم مسموح به:</span> <input type="number" id="discount" value="0" oninput="calcTotal()">
+            <span>- خصم مسموح به:</span> <input type="number" id="discount" value="0" oninput="scheduleSyncInvoice()">
         </div>
         <div class="tax-row">
             <span>إجمالي الفاتورة (شامل الضريبة):</span> <span id="totalWithVat" style="font-weight:bold"></span>
@@ -321,7 +321,7 @@
             <span>ضريبة القيمة المضافة (14%):</span> <span id="vatVal" style="font-weight:bold"></span>
         </div>
         <div class="tax-row">
-            <label><input type="checkbox" id="hasWht" onchange="calcTotal()"> - ض.خصم من المنبع (1%):</label> <span id="whtVal"></span>
+            <label><input type="checkbox" id="hasWht" onchange="scheduleSyncInvoice()"> - ض.خصم من المنبع (1%):</label> <span id="whtVal"></span>
         </div>
         <div class="tax-row">
             <span>رقم استرشادي (قيمة الفاتورة قبل الخصم من المنبع):</span> <span id="referenceTotal" style="font-weight:bold"></span>
@@ -364,21 +364,101 @@
 <script src="/common-functions.js"></script>
 <script>
     const API = '/api';
-    const VAT_RATE = 0.14; // 14% VAT - prices are without VAT, add VAT to total
     let products = [], carsData = [];
     let originalInvoiceItems = [];
     let isServiceAdjustmentMode = false;
     let adjustmentInvoiceId = '';
+    let syncInvoiceTimer = null;
+    let lastCalculatedInvoice = null;
 
-    function getPriceWithoutVat(product) {
-        if (!product) return 0;
-        // هنا نتأكد أننا نسحب السعر الصافي الذي حسبته صفحة المنتجات مسبقاً
-        if (product.pricing && product.pricing.priceWithoutVat) {
-            return Number(product.pricing.priceWithoutVat);
+    function authHeaders(json = false) {
+        const headers = Auth.getHeaders(json);
+        return headers;
+    }
+
+    function collectRawInvoiceItems() {
+        const items = [];
+        document.querySelectorAll('tbody tr').forEach((row) => {
+            const prodEl = row.querySelector('.prod');
+            const prodSelect = prodEl;
+            const partName = row.querySelector('.part-name')?.value || '';
+            const product = prodEl?.value || '';
+            const materialCategory = row.getAttribute('data-product-type') || '';
+            const wfPart = prodSelect?.getAttribute('data-wf-part') || '';
+            const wfGrade = prodSelect?.getAttribute('data-wf-grade') || '';
+            const area = parseFloat(row.querySelector('.area')?.value || 0) || 0;
+            const lengthCM = parseFloat(row.querySelector('.len')?.value || 0) || 0;
+            const widthCM = parseFloat(row.querySelector('.wid')?.value || 0) || 0;
+
+            if (!product && !partName && area <= 0 && lengthCM <= 0) return;
+
+            items.push({
+                product,
+                partName: partName || wfPart,
+                materialCategory,
+                grade: wfGrade ? Number(wfGrade) : null,
+                wfGrade: wfGrade ? Number(wfGrade) : null,
+                area,
+                lengthCM,
+                widthCM,
+                quantity: area > 0 ? area : 1
+            });
+        });
+        return items;
+    }
+
+    function applyCalculatedInvoice(data) {
+        if (!data) return;
+        lastCalculatedInvoice = data;
+        document.getElementById('subtotal').innerText = Number(data.subtotal || 0).toFixed(2);
+        document.getElementById('totalWithVat').innerText = Number(data.totalWithVat || 0).toFixed(2);
+        document.getElementById('vatVal').innerText = Number(data.vat || data.vatAmount || 0).toFixed(2);
+        document.getElementById('whtVal').innerText = Number(data.wht || data.whtAmount || 0).toFixed(2);
+        document.getElementById('referenceTotal').innerText = Number(data.totalWithVat || 0).toFixed(2);
+        document.getElementById('finalTotal').innerText = Number(data.finalTotal || 0).toFixed(2);
+
+        const pricedItems = data.items || [];
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach((row, idx) => {
+            const priced = pricedItems[idx];
+            if (!priced) return;
+            const unitPriceEl = row.querySelector('.unit-price');
+            const rowTotalEl = row.querySelector('.row-total');
+            if (unitPriceEl) unitPriceEl.value = Number(priced.unitPrice || 0).toFixed(2);
+            if (rowTotalEl) rowTotalEl.value = Number(priced.lineTotal || priced.price || 0).toFixed(2);
+        });
+    }
+
+    async function syncInvoiceWithBackend() {
+        const items = collectRawInvoiceItems();
+        const payload = {
+            items,
+            extraCost: parseFloat(document.getElementById('extraCost').value || 0) || 0,
+            discount: parseFloat(document.getElementById('discount').value || 0) || 0,
+            hasWht: document.getElementById('hasWht').checked || false,
+            vehicleType: document.getElementById('vehicleType')?.value || 'Sedan',
+            customer: document.getElementById('customer')?.value || '',
+            salesPerson: window.salesSelect ? window.salesSelect.getValue() : (document.getElementById('salesPerson')?.value || '')
+        };
+
+        try {
+            const response = await fetch(`${API}/sales/calculate-invoice`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                const data = await response.json();
+                applyCalculatedInvoice(data);
+            }
+        } catch (e) {
+            console.warn('syncInvoiceWithBackend failed:', e.message);
         }
-        // إذا لم يوجد سعر صافي مسجل، نحسبه من السعر الإجمالي كخطة بديلة
-        const salePrice = Number(product.pricing?.salePrice || product.pricing?.unitSalePrice || product.price || 0);
-        return salePrice / 1.14; 
+    }
+
+    function scheduleSyncInvoice() {
+        clearTimeout(syncInvoiceTimer);
+        syncInvoiceTimer = setTimeout(syncInvoiceWithBackend, 500);
     }
 
     function findProductByTab(tabName) {
@@ -569,22 +649,12 @@
             customers.forEach(c => custSel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
 
             const carSel = document.getElementById('car');
-            carsData.forEach(c => carSel.innerHTML += `<option value="${c._id}">${c.brand} ${c.model}</option>`);
-
-            // Populate Datalist for Parts
-            const datalist = document.getElementById('parts-datalist') || document.createElement('datalist');
-            datalist.id = 'parts-datalist';
-            const uniqueParts = new Set();
             carsData.forEach(c => {
-               if(c.parts) c.parts.forEach(p => uniqueParts.add(p.name));
+                const label = c.fullModelName || `${c.brand || ''} ${c.model || ''}`.trim();
+                carSel.innerHTML += `<option value="${c._id}">${label}</option>`;
             });
-            datalist.innerHTML = '';
-            uniqueParts.forEach(p => {
-               const opt = document.createElement('option');
-               opt.value = p;
-               datalist.appendChild(opt);
-            });
-            document.body.appendChild(datalist);
+
+            await loadPartsCatalog();
 
             // Init Searchable Dropdowns
             setTimeout(() => {
@@ -623,27 +693,33 @@
     // Store selected car parts in background (not displayed in table)
     let selectedCarParts = [];
 
-    function populateCarParts() {
+    async function populateCarParts() {
         const carId = document.getElementById('car').value;
-        if(!carId) return; 
-        
+        selectedCarParts = [];
+        if (!carId) return;
+
         const car = carsData.find(c => c._id === carId);
-        
-        // Store parts in background for pricing calculations
-        selectedCarParts = (car?.parts || []).map(p => ({
-            name: p.name,
-            length: p.lengthCM,
-            width: p.widthCM,
-            area: p.areaCM2,
-            areaM2: Number(p.areaCM2 || 0) / 10000,
-            isRoof: /roof|sunroof|سقف/i.test(p.name || '')
-        }));
-        
-        // Auto-fill vehicle header fields from selected car
+
+        try {
+            const res = await fetch(`${API}/cars/${carId}/parts`, { headers: Auth.getHeaders() });
+            if (res.ok) {
+                const parts = await res.json();
+                selectedCarParts = parts.map(p => ({
+                    name: p.name,
+                    length: p.lengthCM,
+                    width: p.widthCM,
+                    areaM2: p.areaM2 || 0,
+                    isRoof: p.isRoof
+                }));
+            }
+        } catch (e) {
+            console.warn('Failed to load car parts from API', e.message);
+        }
+
         const modelField = document.getElementById('vehicleModel');
         const typeField = document.getElementById('vehicleType');
         if (modelField && !modelField.value && car) {
-            modelField.value = `${car.brand || ''} ${car.model || ''}`.trim();
+            modelField.value = car.fullModelName || `${car.brand || ''} ${car.model || ''}`.trim();
         }
         if (typeField && !typeField.value && car && car.category) {
             typeField.value = car.category;
@@ -665,33 +741,20 @@
     ];
     const windowFilmGrades = [1, 2, 3, 4, 5, 6];
 
-    function getWindowFilmMasterPriceForPart(part, grade, vehicleCategory = '') {
-        const safePart = String(part || '').toLowerCase();
-        const safeCategory = String(vehicleCategory || '').toLowerCase();
-
-        const match = products.find((p) => {
-            const t = String(p.type || p.category || '').toLowerCase();
-            const n = String(p.name || '').toLowerCase();
-            const g = String(p.grade ?? p.specGrade ?? '').toLowerCase();
-            const hasWindowFilm = t.includes('window film') || n.includes('window film');
-            const hasPart = n.includes(safePart);
-            const hasGrade = g === String(grade) || n.includes(`grade ${grade}`) || n.includes(`درجة ${grade}`);
-            const byCategory = !safeCategory || n.includes(safeCategory) || t.includes(safeCategory);
-            return hasWindowFilm && hasPart && hasGrade && byCategory;
-        }) || products.find((p) => {
-            const t = String(p.type || p.category || '').toLowerCase();
-            const n = String(p.name || '').toLowerCase();
-            const g = String(p.grade ?? p.specGrade ?? '').toLowerCase();
-            const hasWindowFilm = t.includes('window film') || n.includes('window film');
-            const hasPart = n.includes(safePart);
-            const hasGrade = g === String(grade) || n.includes(`grade ${grade}`) || n.includes(`درجة ${grade}`);
-            return hasWindowFilm && hasPart && hasGrade;
-        });
-
-        if (!match) return 0;
-        return getPriceWithoutVat(match.pricing || {});
+    async function fetchDisplayMatrixPrice(part, vehicleCategory, grade = null) {
+        try {
+            let url = `${API}/pricing/calculate?vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(part)}&area=1`;
+            if (grade !== null) url += `&grade=${grade}`;
+            const res = await fetch(url, { headers: Auth.getHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                return data.totalPrice || data.basePrice || 0;
+            }
+        } catch (e) {
+            console.error('Error fetching matrix price:', e);
+        }
+        return 0;
     }
-    
     function sanitizeSalesLabel(value) {
         return String(value || '')
             .replace(/\bsku\b/gi, '')
@@ -741,21 +804,7 @@
     let selectedWFGrade = null;
     let selectedWFPrice = 0;
     
-    // Get price from pricing matrix for Window Film
-    async function getMatrixPriceForPart(part, vehicleCategory) {
-        try {
-            const res = await fetch(`${API}/pricing/calculate?materialType=Window+Film&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(part)}&area=1`, { headers: Auth.getHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                return data.totalPrice || 0;
-            }
-        } catch (e) {
-            console.error('Error fetching matrix price:', e);
-        }
-        return 0;
-    }
-
-    // Open Window Film Grid Modal - Compact with Price Column
+    // Open Window Film Grid Modal - prices for display only (Backend calculates totals)
     async function openWindowFilmModal(rowId) {
         currentWFRowId = rowId;
         selectedWFPart = null;
@@ -764,9 +813,8 @@
         
         const vehicleCategory = document.getElementById('vehicleType')?.value || 'Sedan';
         
-        // Fetch all prices from pricing matrix
         const pricePromises = windowFilmParts.map(async (part) => {
-            const price = await getMatrixPriceForPart(part.part, vehicleCategory);
+            const price = await fetchDisplayMatrixPrice(part.part, vehicleCategory);
             return { part: part.part, price };
         });
         
@@ -892,17 +940,7 @@
             row.querySelector('.wf-info').innerHTML = `
                 <span style="color:#e74c3c; font-weight:bold;">درجة ${grade}</span>
             `;
-            
-            // Fetch price from pricing matrix and fallback to Product Master price
-            const vehicleCategory = document.getElementById('vehicleType')?.value || 'Sedan';
-            getPricingMatrixPrice('Window Film', vehicleCategory, part, 1, grade).then((matrixPrice) => {
-                const apiPrice = Number(matrixPrice?.totalPrice || 0);
-                const masterPrice = Number(getWindowFilmMasterPriceForPart(part, grade, vehicleCategory) || 0);
-                const finalPrice = apiPrice > 0 ? apiPrice : (masterPrice > 0 ? masterPrice : Number(price || 0));
-                row.querySelector('.unit-price').value = Number(finalPrice || 0).toFixed(2);
-                row.querySelector('.row-total').value = Number(finalPrice || 0).toFixed(2);
-                calcTotal();
-            });
+            scheduleSyncInvoice();
         }
         
         // Close modal immediately
@@ -981,8 +1019,8 @@
             <td><input type="number" class="wid" value="${d.width||0}" oninput="calcArea(this)" style="width:100%;" placeholder="سم"></td>
             <td><input type="number" class="area readonly-input" value="${d.area||0}" readonly style="width:100%;" placeholder="م²"></td>
             <td><input type="number" class="unit-price" value="${d.priceUnit||0}" readonly style="color:#666; width:100%;"></td>
-            <td><input type="number" class="row-total" value="${d.lineTotal||0}" oninput="calcTotal()" style="color:green;font-weight:bold; width:100%;"></td>
-            <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+            <td><input type="number" class="row-total readonly-input" value="${d.lineTotal||0}" readonly style="color:green;font-weight:bold; width:100%;"></td>
+            <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();scheduleSyncInvoice()">X</button></td>
         `;
         
         // Store product type in row attribute
@@ -1075,8 +1113,7 @@
                 if (matched.length > 0) {
                     let opts = '<option value="">اختر الصنف</option>';
                     matched.forEach(p => {
-                        const priceWV = getPriceWithoutVat(p);
-                        opts += `<option value="${p._id}" data-price="${priceWV}" data-unit="${p.unit||'رول'}">${p.name}</option>`;
+                        opts += `<option value="${p._id}" data-unit="${p.unit||'رول'}">${p.name}</option>`;
                     });
                     prodSelect.innerHTML = opts;
                 } else {
@@ -1113,8 +1150,7 @@
             } else {
                 let opts = '<option value="">اختر الخدمة</option>';
                 pieceProducts.forEach(p => {
-                    let priceWithoutVat = getPriceWithoutVat(p);
-                    opts += `<option value="${p._id}" data-price="${priceWithoutVat}" data-unit="عدد">${p.name} - ${priceWithoutVat.toFixed(2)} ج.م</option>`;
+                    opts += `<option value="${p._id}" data-unit="عدد">${p.name}</option>`;
                 });
                 prodSelect.innerHTML = opts;
             }
@@ -1137,8 +1173,7 @@
                 filteredProducts.forEach(p => {
                     const unit = p.unit || 'قطعة';
                     const displayLabel = buildSalesDisplayLabel(p, productType);
-                    let priceWithoutVat = getPriceWithoutVat(p.pricing || {});
-                    opts += `<option value="${p._id}" data-price="${priceWithoutVat}" data-unit="${unit}" data-material-type="${p.type}">${displayLabel}</option>`;
+                    opts += `<option value="${p._id}" data-unit="${unit}" data-material-type="${p.type}">${displayLabel}</option>`;
                 });
                 prodSelect.innerHTML = opts;
             }
@@ -1196,50 +1231,63 @@
         }
     }
 
-    function calcArea(el) {
+    async function calcArea(el) {
         const row = el.closest('tr');
-        const prodOpt = row.querySelector('.prod').options[row.querySelector('.prod').selectedIndex];
-        const unit = prodOpt ? (prodOpt.getAttribute('data-unit') || 'ROLL') : 'ROLL';
-        
-        if (unit.includes('قطعة') || unit.includes('زجاجة') || unit.toLowerCase() === 'piece' || unit.toLowerCase() === 'bottle') {
-            return; // Don't calculate area for pieces
-        }
-        
         const len = parseFloat(row.querySelector('.len').value) || 0;
         const wid = parseFloat(row.querySelector('.wid').value) || 0;
-        const area = (len * wid) / 10000;
-        row.querySelector('.area').value = area.toFixed(4);
-        updPrice(row.querySelector('.prod'));
+
+        try {
+            const response = await fetch(`${API}/stock/calculate-area`, {
+                method: 'POST',
+                headers: authHeaders(true),
+                body: JSON.stringify({ lengthCm: len, widthCm: wid })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                row.querySelector('.area').value = Number(data.areaM2 || 0).toFixed(4);
+            } else {
+                row.querySelector('.area').value = '0';
+            }
+        } catch (_e) {
+            row.querySelector('.area').value = '0';
+        }
+        scheduleSyncInvoice();
     }
 
     // Global arrays to store parts and services for dropdowns
     let allSavedParts = [];
     let allServices = [];
 
-    // Load all parts from cars data
-    function loadAllParts() {
+    async function loadPartsCatalog() {
         allSavedParts = [];
-        if (carsData && carsData.length > 0) {
-            carsData.forEach(car => {
-                if (car.parts && car.parts.length > 0) {
-                    car.parts.forEach(part => {
-                        // Avoid duplicates
-                        if (!allSavedParts.find(p => p.name === part.name)) {
-                            allSavedParts.push({
-                                name: part.name,
-                                length: part.lengthCM || 0,
-                                width: part.widthCM || 0,
-                                area: part.areaM2 || 0,
-                                carBrand: car.brand || '',
-                                carModel: car.model || ''
-                            });
-                        }
-                    });
-                }
+        try {
+            const catalog = await fetchJsonOrThrow(`${API}/cars/parts/catalog`, { headers: Auth.getHeaders() });
+            allSavedParts = catalog.map((part) => ({
+                name: part.name,
+                length: part.lengthCM || 0,
+                width: part.widthCM || 0,
+                area: part.areaM2 || 0,
+                carBrand: part.carBrand || '',
+                carModel: part.carModel || ''
+            }));
+            allSavedParts.sort((a, b) => a.name.localeCompare(b.name));
+
+            const datalist = document.getElementById('parts-datalist') || document.createElement('datalist');
+            datalist.id = 'parts-datalist';
+            datalist.innerHTML = '';
+            allSavedParts.forEach((part) => {
+                const opt = document.createElement('option');
+                opt.value = part.name;
+                datalist.appendChild(opt);
             });
+            document.body.appendChild(datalist);
+        } catch (e) {
+            console.warn('Failed to load parts catalog:', e.message);
         }
-        // Sort alphabetically
-        allSavedParts.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    async function loadAllParts() {
+        await loadPartsCatalog();
     }
 
     // Load all services from products
@@ -1254,13 +1302,11 @@
                                   p.type === 'Additional Services' || p.serviceCategory;
                 
                 if (isService) {
-                    const priceWithoutVat = getPriceWithoutVat(p);
                     allServices.push({
                         _id: p._id,
                         name: p.name,
                         type: p.type || p.serviceCategory || 'Service',
-                        unit: p.unit || 'عدد',
-                        price: priceWithoutVat
+                        unit: p.unit || 'عدد'
                     });
                 }
             });
@@ -1301,7 +1347,7 @@
         Object.keys(grouped).sort().forEach(type => {
             opts += `<optgroup label="${type}">`;
             grouped[type].forEach(svc => {
-                opts += `<option value="${svc._id}" data-price="${svc.price}" data-unit="${svc.unit}">${svc.name} - ${svc.price.toFixed(2)} ج.م</option>`;
+                opts += `<option value="${svc._id}" data-unit="${svc.unit}">${svc.name}</option>`;
             });
             opts += '</optgroup>';
         });
@@ -1327,13 +1373,12 @@
         if (width > 0) row.querySelector('.wid').value = width;
         if (area > 0) {
             row.querySelector('.area').value = area.toFixed(4);
+            scheduleSyncInvoice();
         } else if (length > 0 && width > 0) {
-            const calculatedArea = (length * width) / 10000;
-            row.querySelector('.area').value = calculatedArea.toFixed(4);
+            calcArea(row.querySelector('.len'));
+        } else {
+            updPrice(row.querySelector('.prod'));
         }
-        
-        // Trigger price update
-        updPrice(row.querySelector('.prod'));
     }
 
     // Handle service selection from dropdown
@@ -1342,56 +1387,36 @@
         const option = select.options[select.selectedIndex];
         if (!option.value) return;
         
-        const price = parseFloat(option.dataset.price) || 0;
         const unit = option.dataset.unit || 'عدد';
         
-        // Set the product select to match this service
         const prodSelect = row.querySelector('.prod');
         if (prodSelect) {
-            // Check if option exists, if not add it
             let existingOpt = prodSelect.querySelector(`option[value="${option.value}"]`);
             if (!existingOpt) {
                 existingOpt = document.createElement('option');
                 existingOpt.value = option.value;
-                existingOpt.textContent = option.text.split(' - ')[0]; // Remove price
-                existingOpt.dataset.price = price;
+                existingOpt.textContent = option.text.split(' - ')[0];
                 existingOpt.dataset.unit = unit;
                 prodSelect.appendChild(existingOpt);
             }
             prodSelect.value = option.value;
         }
         
-        // Set default quantity to 1 for services
         const areaInput = row.querySelector('.area');
         if (areaInput) {
             areaInput.value = '1';
             areaInput.placeholder = unit.includes('قطعة') || unit.includes('عدد') ? 'العدد' : 'الكمية';
         }
         
-        // Set price
-        const unitPriceInput = row.querySelector('.unit-price');
-        if (unitPriceInput) unitPriceInput.value = price.toFixed(2);
-        
-        const rowTotalInput = row.querySelector('.row-total');
-        if (rowTotalInput) rowTotalInput.value = price.toFixed(2);
-        
-        // For services, disable length/width
         const lenInput = row.querySelector('.len');
         const widInput = row.querySelector('.wid');
-        if (lenInput) {
-            lenInput.readOnly = true;
-            lenInput.classList.add('readonly-input');
-        }
-        if (widInput) {
-            widInput.readOnly = true;
-            widInput.classList.add('readonly-input');
-        }
+        if (lenInput) { lenInput.readOnly = true; lenInput.classList.add('readonly-input'); }
+        if (widInput) { widInput.readOnly = true; widInput.classList.add('readonly-input'); }
         
-        calcTotal();
+        scheduleSyncInvoice();
     }
 
     function addEmptyRow() { 
-        // Ensure parts and services are loaded
         if (allSavedParts.length === 0) {
             loadAllParts();
         }
@@ -1401,264 +1426,18 @@
         createRow({ isManual: true }); 
     }
 
-    async function getPricingMatrixPrice(materialType, vehicleCategory, carPart, area, grade = null) {
-        try {
-            let url = `${API}/pricing/calculate?materialType=${encodeURIComponent(materialType)}&vehicleCategory=${encodeURIComponent(vehicleCategory)}&carPart=${encodeURIComponent(carPart)}&area=${area || 1}`;
-            if (grade !== null) url += `&grade=${grade}`;
-            const res = await fetch(url, { headers: Auth.getHeaders() });
-            if (!res.ok) return null;
-            return await res.json();
-        } catch (error) {
-            return null;
-        }
-    }
-
-    async function getProductPrice(serviceName, partName = null, quantity = 1, area = null) {
-        try {
-            let url = `${API}/pricing/product-price?serviceName=${encodeURIComponent(serviceName)}`;
-            if (partName)  url += `&partName=${encodeURIComponent(partName)}`;
-            if (quantity)  url += `&quantity=${quantity}`;
-            if (area)      url += `&area=${area}`;
-            const res = await fetch(url, { headers: Auth.getHeaders() });
-            if (!res.ok) return null;
-            return await res.json();
-        } catch (error) {
-            return null;
-        }
-    }
-
-    async function updPrice(el, calculateTotal = true) {
-        if(!el) return;
+    function updPrice(el, calculateTotal = true) {
+        if (!el) return;
         const row = el.closest('tr');
-        const selectedOption = el.options[el.selectedIndex];
-        if(!selectedOption) return;
-        
-        const priceUnit = parseFloat(selectedOption.getAttribute('data-price')) || 0;
-        const unit = selectedOption.getAttribute('data-unit') || 'قطعة';
-        const productName = selectedOption.text || '';
-        
-        // Check if this is Window Film with modal selection
-        const wfPart = el.getAttribute('data-wf-part');
-        const wfGrade = el.getAttribute('data-wf-grade');
-        
-        // Get vehicle category
-        const vehicleCategory = document.getElementById('vehicleType')?.value || 'Sedan';
-        const partName = row.querySelector('.part-name')?.value || '';
-        const area = parseFloat(row.querySelector('.area')?.value) || 0;
-        const prodType = row.getAttribute('data-product-type') || '';
-        
-        // Handle Window Film with modal selection
-        if (prodType === 'Window Film' && wfPart && wfGrade) {
-            const price = Number(getWindowFilmMasterPriceForPart(wfPart, wfGrade, vehicleCategory) || 0);
-            
-            row.querySelector('.unit-price').value = price.toFixed(2);
-            row.querySelector('.row-total').value = price.toFixed(2);
-            
-            // Update the display info
-            row.querySelector('.wf-info').textContent = `درجة ${wfGrade} - ${wfPart}`;
-            
-            if (calculateTotal) calcTotal();
-            return;
-        }
-        
-        // For Window Film without selection yet
-        if (prodType === 'Window Film') {
-            row.querySelector('.unit-price').value = '0.00';
-            row.querySelector('.row-total').value = '0.00';
-            if (calculateTotal) calcTotal();
-            return;
-        }
-        
-        // Handle Roll-based products (PPF, MATT) - category-level pricing
-        if ((prodType === 'PPF' || prodType === 'MATT') && area > 0) {
-            // Get price from the select element (set in onCategoryChange)
-            const rollPrice = parseFloat(el.getAttribute('data-price')) || priceUnit;
-            const total = area * rollPrice;
-            
-            row.querySelector('.unit-price').value = rollPrice.toFixed(2);
-            row.querySelector('.row-total').value = total.toFixed(2);
-            if (calculateTotal) calcTotal();
-            return;
-        }
-        
-        // Auto-fill vehicle area for roll-based products if available
-        if ((prodType === 'PPF' || prodType === 'MATT')) {
-            const vehicleArea = parseFloat(document.getElementById('vehicleArea')?.value || 0);
-            if (vehicleArea > 0 && priceUnit > 0) {
-                row.querySelector('.area').value = vehicleArea.toFixed(2);
-                row.querySelector('.row-total').value = (vehicleArea * priceUnit).toFixed(2);
-                if (calculateTotal) calcTotal();
-                return;
-            }
-        }
-        
-        // For other products - use their own price
-        // Check if it's piece-based
+        if (!row) return;
+        const unit = el.options?.[el.selectedIndex]?.getAttribute('data-unit') || '';
         const isPieceBased = unit.includes('قطعة') || unit.includes('زجاجة') || unit.toLowerCase() === 'piece';
-        
         if (isPieceBased) {
-            // Fixed price from product
-            row.querySelector('.unit-price').value = priceUnit.toFixed(2);
-            row.querySelector('.row-total').value = priceUnit.toFixed(2);
-            
-            // Disable length/width for piece-based
             row.querySelector('.len').readOnly = true;
             row.querySelector('.wid').readOnly = true;
-            row.querySelector('.len').classList.add('readonly-input');
-            row.querySelector('.wid').classList.add('readonly-input');
-            row.querySelector('.area').value = '1';
-            row.querySelector('.area').readOnly = false;
-            row.querySelector('.area').placeholder = 'الكمية';
-            
-            if (calculateTotal) calcTotal();
-            return;
+            row.querySelector('.area').value = row.querySelector('.area').value || '1';
         }
-        
-        // For area-based products (like PPF)
-        if (area > 0 && priceUnit > 0) {
-            const total = area * priceUnit;
-            row.querySelector('.unit-price').value = priceUnit.toFixed(2);
-            row.querySelector('.row-total').value = total.toFixed(2);
-            if (calculateTotal) calcTotal();
-            return;
-        }
-        
-        row.querySelector('.unit-price').value = priceUnit.toFixed(2);
-        
-        let lineTotal = 0;
-        const lenInput = row.querySelector('.len');
-        const widInput = row.querySelector('.wid');
-        const areaInput = row.querySelector('.area');
-        
-        // Check if this is a fixed-price service - use API to get price from products
-        const fixedPriceServices = [
-            'Small Screen',
-            'Large Screen',
-            'Plexi',
-            'Plexi Plus',
-            'Interior Leather Protection',
-            'Soft Top Leather Protection'
-        ];
-        
-        const isFixedPriceService = fixedPriceServices.some(service => productName.includes(service));
-        
-        // Try to get price from API for Additional Services and fixed-price services
-        if (isPieceBased || isFixedPriceService || prodType === 'Additional Services') {
-            // Use API to get price from price_list (products database)
-            getProductPrice(prodType, productName, 1, null).then(priceData => {
-                if (priceData && priceData.pricing) {
-                    const apiPrice = priceData.pricing.priceWithoutVat;
-                    row.querySelector('.unit-price').value = apiPrice.toFixed(2);
-                    
-                    const qty = parseFloat(areaInput.value) || 1;
-                    const total = apiPrice * qty;
-                    row.querySelector('.row-total').value = total.toFixed(2);
-                    
-                    if (calculateTotal) calcTotal();
-                }
-            });
-        }
-        
-        if (isPieceBased || isFixedPriceService) {
-            // Piece-based or fixed-price service: use quantity field instead of area calculation
-            lenInput.value = 0; 
-            widInput.value = 0;
-            lenInput.readOnly = true; 
-            widInput.readOnly = true;
-            lenInput.classList.add('readonly-input'); 
-            widInput.classList.add('readonly-input');
-            
-            areaInput.readOnly = false;
-            areaInput.classList.remove('readonly-input');
-            areaInput.placeholder = 'الكمية/العدد';
-            
-            // Always set to 1 for piece-based items
-            areaInput.value = 1;
-            
-            // For piece-based: multiply price by quantity
-            lineTotal = (parseFloat(areaInput.value) * priceUnit).toFixed(2);
-        } else {
-            // Roll-based service: calculate area (length × width)
-            lenInput.readOnly = false; 
-            widInput.readOnly = false;
-            lenInput.classList.remove('readonly-input'); 
-            widInput.classList.remove('readonly-input');
-            
-            areaInput.readOnly = true;
-            areaInput.classList.add('readonly-input');
-            areaInput.placeholder = 'المساحة (م²)';
-            
-            const area = parseFloat(areaInput.value) || 0;
-            lineTotal = (area * priceUnit).toFixed(2);
-        }
-        
-        row.querySelector('.row-total').value = lineTotal;
-        
-        if (calculateTotal) {
-            calcTotal();
-        }
-    }
-
-    async function calcTotal() {
-        const items = [];
-        document.querySelectorAll('tbody tr').forEach(row => {
-            const price = parseFloat(row.querySelector('.row-total')?.value || 0);
-            if (price > 0) {
-                items.push({ price });
-            }
-        });
-
-        const extraCost = parseFloat(document.getElementById('extraCost').value || 0);
-        const discount = parseFloat(document.getElementById('discount').value || 0);
-        const hasWht = document.getElementById('hasWht').checked || false;
-
-        try {
-            const response = await fetch(`${API}/sales/calculate`, {
-                method: 'POST',
-                headers: authHeaders(true),
-                body: JSON.stringify({ items, extraCost, discount, hasWht })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                document.getElementById('subtotal').innerText = data.subtotal.toFixed(2);
-                document.getElementById('totalWithVat').innerText = data.totalWithVat.toFixed(2);
-                document.getElementById('vatVal').innerText = data.vat.toFixed(2);
-                document.getElementById('whtVal').innerText = data.wht.toFixed(2);
-                document.getElementById('referenceTotal').innerText = data.totalWithVat.toFixed(2);
-                document.getElementById('finalTotal').innerText = data.finalTotal.toFixed(2);
-                return;
-            }
-        } catch (e) {
-            console.warn('API calculation failed, using local fallback', e);
-        }
-
-        let subtotalNet = 0;
-        // جمع إجمالي الأصناف (التي هي الآن صافية بدون ضريبة)
-        document.querySelectorAll('.row-total').forEach(i => subtotalNet += parseFloat(i.value) || 0);
-        
-        document.getElementById('subtotal').innerText = subtotalNet.toFixed(2);
-
-        const extra = parseFloat(document.getElementById('extraCost').value) || 0;
-        const disc = parseFloat(document.getElementById('discount').value) || 0;
-
-        // الصافي النهائي بعد الخصم والإضافات
-        let netAmount = (subtotalNet + extra) - disc; 
-        
-        // حساب الضريبة (14% تضاف فوق الصافي)
-        let vatAmount = netAmount * 0.14;
-        
-        // الإجمالي النهائي الشامل الذي يدفعه العميل
-        let totalWithVat = netAmount + vatAmount;
-
-        document.getElementById('totalWithVat').innerText = totalWithVat.toFixed(2);
-        document.getElementById('vatVal').innerText = vatAmount.toFixed(2);
-        document.getElementById('referenceTotal').innerText = totalWithVat.toFixed(2);
-
-        // حساب الصافي النهائي للتحصيل
-        let wht = document.getElementById('hasWht').checked ? (netAmount * 0.01) : 0;
-        document.getElementById('whtVal').innerText = wht.toFixed(2);
-        document.getElementById('finalTotal').innerText = (totalWithVat - wht).toFixed(2);
+        if (calculateTotal) scheduleSyncInvoice();
     }
 
     // ── نظام حالة الفاتورة ────────────────────────────────────────────
@@ -1843,25 +1622,8 @@
     }
 
     async function saveInvoice() {
-        const items = [];
-        document.querySelectorAll('tbody tr').forEach(tr => {
-            const prodEl    = tr.querySelector('.prod');
-            const prodValue = prodEl ? prodEl.value : '';
-            // نحفظ الصف حتى لو الـ product فاضي — المهم إن فيه partName أو lineTotal
-            const partName  = tr.querySelector('.part-name')?.value || '';
-            const lineTotal = parseFloat(tr.querySelector('.row-total')?.value) || 0;
-            if (prodValue || partName || lineTotal > 0) {
-                items.push({
-                    originalIndex: tr.getAttribute('data-original-index'),
-                    product:  prodValue,
-                    partName: partName,
-                    lengthCM: tr.querySelector('.len')?.value  || 0,
-                    widthCM:  tr.querySelector('.wid')?.value  || 0,
-                    area:     tr.querySelector('.area')?.value || 0,
-                    price:    tr.querySelector('.row-total')?.value || 0
-                });
-            }
-        });
+        await syncInvoiceWithBackend();
+        const items = collectRawInvoiceItems();
 
         if(items.length === 0) { alert('أضف صنف واحد على الأقل'); return; }
 
@@ -1883,20 +1645,6 @@
             || (window.salesSelect ? window.salesSelect.getOption(agentId)?.textContent?.trim() : '')
             || '';
 
-        // Calculate final amounts for backend
-        const gross = parseFloat(document.getElementById('referenceTotal')?.innerText || 0) || 0;
-        const vat   = parseFloat(document.getElementById('vatVal')?.innerText || 0) || 0;
-        const net   = Math.max(0, gross - vat);
-
-        // Calculate agent commission
-        let agentCommissionValue = 0;
-        if (String(commissionType).toLowerCase() === 'fixed') {
-            agentCommissionValue = commissionValue;
-        } else {
-            agentCommissionValue = net * (commissionValue / 100);
-        }
-
-        // حالة الفاتورة: فاتورة جديدة → confirmed، تعديل → amended
         const currentStatus = document.getElementById('invoiceStatus')?.dataset.status || 'draft';
         const newStatus = id
             ? (['add_request','cancel_request'].includes(currentStatus) ? 'amended' : currentStatus)
@@ -1915,19 +1663,13 @@
             carModel:         document.getElementById('car').value,
             serviceType:      document.getElementById('serviceType').value,
             items,
-            subtotal:         parseFloat(document.getElementById('subtotal').innerText),
-            totalExtraCosts:  parseFloat(document.getElementById('extraCost').value)  || 0,
-            totalDiscount:    parseFloat(document.getElementById('discount').value)   || 0,
-            totalTax:         parseFloat(document.getElementById('vatVal').innerText) || 0,
-            whtAmount:        parseFloat(document.getElementById('whtVal').innerText) || 0,
-            finalTotal:       parseFloat(document.getElementById('referenceTotal').innerText),
+            extraCost:        parseFloat(document.getElementById('extraCost').value)  || 0,
+            discount:         parseFloat(document.getElementById('discount').value)   || 0,
+            hasWht:           document.getElementById('hasWht').checked || false,
             vehicleType:      document.getElementById('vehicleType')?.value  || '',
             vehicleModel:     document.getElementById('vehicleModel')?.value || '',
             vehiclePlate:     document.getElementById('vehiclePlate')?.value || '',
-            vehicleColor:     document.getElementById('vehicleColor')?.value || '',
-            netAmount:        Number(net.toFixed(2)),
-            vatAmount:        Number(vat.toFixed(2)),
-            agent_commission_value: Number(agentCommissionValue.toFixed(2))
+            vehicleColor:     document.getElementById('vehicleColor')?.value || ''
         };
 
         try {
@@ -2097,7 +1839,7 @@
                 }
             }
 
-            calcTotal();
+            scheduleSyncInvoice();
             alert('تم استيراد البيانات بنجاح ✅');
         };
         reader.readAsArrayBuffer(file);
@@ -2238,7 +1980,7 @@
                 lineTotal: lineTotalValue
             });
         });
-        calcTotal();
+        scheduleSyncInvoice();
         if (!isServiceAdjustmentMode) {
             lockBaseInvoiceEditing();
         }
@@ -2275,8 +2017,8 @@
                 <td><input type="number" class="wid" value="${widthVal}"  oninput="calcArea(this)" style="width:100%;"></td>
                 <td><input type="number" class="area readonly-input" value="${areaVal}" readonly style="width:100%;"></td>
                 <td><input type="number" class="unit-price" value="0" readonly style="color:#666;width:100%;"></td>
-                <td><input type="number" class="row-total" value="${priceVal}" oninput="calcTotal()" style="color:green;font-weight:bold;width:100%;"></td>
-                <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+                <td><input type="number" class="row-total readonly-input" value="${priceVal}" readonly style="color:green;font-weight:bold;width:100%;"></td>
+                <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();scheduleSyncInvoice()">X</button></td>
             `;
 
             // بعد إضافة الصف — حاول تبني dropdown حقيقي بدون modal
@@ -2321,7 +2063,7 @@
             }
         });
 
-        calcTotal();
+        scheduleSyncInvoice();
     }
 
     function ensureServiceTabsUi() {
@@ -2366,37 +2108,10 @@
     }
 
     async function refreshPackagePricesFromPriceList() {
-        try {
-            const entries = [
-                { tab: 'PPF', serviceName: mapSalesTabToPricingService('PPF') },
-                { tab: 'MATT', serviceName: mapSalesTabToPricingService('MATT') },
-                { tab: 'Vinyl', serviceName: mapSalesTabToPricingService('Vinyl') }
-            ];
-
-            for (const entry of entries) {
-                // First try API endpoint
-                const priceData = await getProductPrice(entry.serviceName, null, 1, 1);
-                let unitPrice = Number(priceData?.pricing?.priceWithoutVat || 0);
-                
-                // If API returns 0, try direct product search by Tab (category or type or serviceCategory)
-                if (unitPrice === 0) {
-                    const product = findProductByTab(entry.tab);
-                    
-                    if (product) {
-                        unitPrice = getPriceWithoutVat(product);
-                    }
-                }
-                
-                if (unitPrice > 0) {
-                    packagePrices[entry.tab] = unitPrice;
-                }
-            }
-        } catch (error) {
-            console.warn('refreshPackagePricesFromPriceList failed:', error.message);
-        }
+        // الأسعار تُحسب من السيرفر عند syncInvoiceWithBackend
     }
 
-    function openPackageModeModal(rowId, materialType) {
+    async function openPackageModeModal(rowId, materialType) {
         const existing = document.getElementById('ppfModeModal');
         if (existing) existing.remove();
         const modal = document.createElement('div');
@@ -2404,35 +2119,9 @@
         modal.setAttribute('data-material-type', materialType);
         modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
         
-        // Get price from products directly - search by Tab (category or type or serviceCategory)
-        const materialTypeLower = String(materialType || '').toLowerCase();
-        const materialProduct = findProductByTab(materialType) || products.find(p => {
-            const categoryFieldLower = String(p.category || '').toLowerCase();
-            const typeFieldLower = String(p.type || '').toLowerCase();
-            const serviceCategoryFieldLower = String(p.serviceCategory || '').toLowerCase();
-            
-            // مطابقة تامة أو جزئية في category أو type أو serviceCategory
-            return categoryFieldLower === materialTypeLower || 
-                   typeFieldLower === materialTypeLower ||
-                   serviceCategoryFieldLower === materialTypeLower ||
-                   categoryFieldLower.includes(materialTypeLower) ||
-                   typeFieldLower.includes(materialTypeLower) ||
-                   serviceCategoryFieldLower.includes(materialTypeLower);
-        });
-        
-        // Calculate price from product pricing
-        let pricePerM2 = 0;
-        if (materialProduct) {
-            pricePerM2 = getPriceWithoutVat(materialProduct);
-        }
-        // Fallback to cached package prices
-        if (pricePerM2 === 0) {
-            pricePerM2 = packagePrices[materialType] || 0;
-        }
-        
         modal.innerHTML = `
             <div style="width:min(720px,92vw);max-height:85vh;overflow:auto;background:#fff;border-radius:16px;padding:16px;">
-                <h3 style="margin:0 0 10px;">باقات ${materialType} <span style="font-size:14px;color:#64748b">(سعر المتر: ${pricePerM2 ? pricePerM2.toFixed(2) : 'غير محدد بعد'} ج.م)</span></h3>
+                <h3 style="margin:0 0 10px;">باقات ${materialType} <span style="font-size:14px;color:#64748b">(السعر يُحسب من السيرفر)</span></h3>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                     <button type="button" class="btn btn-list ppf-choice" data-mode="full_incl">
                         Full Wrap + Roof <br><small>كل الأجزاء + السقف</small>
@@ -2468,11 +2157,11 @@
         } else {
             host.innerHTML = parts.map((p) => {
                 const dimsText = p.length && p.width ? `${p.length}×${p.width} سم` : '';
-                return `<label style="display:flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;cursor:pointer;" data-is-roof="${p.isRoof}" data-area="${p.areaM2.toFixed(4)}">
-                    <input type="checkbox" class="ppf-custom-check" data-part="${String(p.name).replace(/"/g, '&quot;')}" data-area="${p.areaM2.toFixed(4)}" ${p.isRoof ? 'data-roof="true"' : ''}>
+                return `<label style="display:flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;cursor:pointer;" data-is-roof="${p.isRoof}" data-area="${(Number(p.areaM2) || 0).toFixed(4)}">
+                    <input type="checkbox" class="ppf-custom-check" data-part="${String(p.name).replace(/"/g, '&quot;')}" data-area="${(Number(p.areaM2) || 0).toFixed(4)}" ${p.isRoof ? 'data-roof="true"' : ''}>
                     <span style="flex:1;">${p.name}</span>
                     ${dimsText ? `<span style="color:#94a3b8;font-size:11px;">${dimsText}</span>` : ''}
-                    <span style="color:#64748b;font-size:12px;font-weight:500;">${p.areaM2.toFixed(2)} م²</span>
+                    <span style="color:#64748b;font-size:12px;font-weight:500;">${(Number(p.areaM2) || 0).toFixed(2)} م²</span>
                  </label>`;
             }).join('');
         }
@@ -2481,9 +2170,8 @@
         const updateSummary = () => {
             const selected = Array.from(modal.querySelectorAll('.ppf-custom-check:checked'));
             const totalArea = selected.reduce((sum, x) => sum + (parseFloat(x.getAttribute('data-area') || 0) || 0), 0);
-            const totalPrice = totalArea * pricePerM2;
             modal.querySelector('#packageSummary').innerHTML = 
-                `المساحة: ${totalArea.toFixed(2)} م² | السعر: ${totalPrice.toFixed(0)} ج.م`;
+                `المساحة: ${totalArea.toFixed(2)} م² | السعر: يُحسب تلقائياً`;
         };
 
         modal.querySelectorAll('.ppf-choice').forEach((btn) => {
@@ -2537,9 +2225,6 @@
             return;
         }
         
-        // Get price for this material type
-        const pricePerM2 = packagePrices[materialType] || 0;
-        
         // Build package display name
         let packageName = '';
         if (mode === 'full_incl') {
@@ -2554,19 +2239,13 @@
         const firstPart = selected[0];
         const firstPartName = firstPart.getAttribute('data-part') || '';
         const firstPartArea = parseFloat(firstPart.getAttribute('data-area') || 0) || 0;
-        const firstPartPrice = firstPartArea * pricePerM2;
         
-        // Update the first row with first part details
         const partInput = row.querySelector('.part-name');
         const areaInput = row.querySelector('.area');
-        const unitPriceInput = row.querySelector('.unit-price');
-        const rowTotalInput = row.querySelector('.row-total');
         const prodSelect = row.querySelector('.prod');
         
         partInput.value = `${packageName} - ${firstPartName}`;
         areaInput.value = firstPartArea.toFixed(2);
-        unitPriceInput.value = pricePerM2.toFixed(2);
-        rowTotalInput.value = firstPartPrice.toFixed(2);
         row.setAttribute('data-material-type', materialType);
         row.setAttribute('data-package-row', 'true');
         
@@ -2582,9 +2261,7 @@
             const part = selected[i];
             const partName = part.getAttribute('data-part') || '';
             const partArea = parseFloat(part.getAttribute('data-area') || 0) || 0;
-            const partPrice = partArea * pricePerM2;
             
-            // سحب الطول والعرض الفعليين لبقية الأسطر (تعديل تجميلي)
             const actualCarPart = selectedCarParts.find(p => p.name === partName);
             const displayLength = actualCarPart ? actualCarPart.length : 0;
             const displayWidth = actualCarPart ? actualCarPart.width : 0;
@@ -2593,7 +2270,7 @@
             const newRow = document.createElement('tr');
             newRow.setAttribute('data-row-id', newRowId);
             newRow.setAttribute('data-material-type', materialType);
-            newRow.setAttribute('data-package-detail', 'true'); // For print CSS
+            newRow.setAttribute('data-package-detail', 'true');
             newRow.setAttribute('data-parent-row', rowId);
             
             newRow.innerHTML = `
@@ -2606,16 +2283,16 @@
                 <td><input type="number" class="len" value="${displayLength}" readonly style="background:#f8fafc;"></td>
                 <td><input type="number" class="wid" value="${displayWidth}" readonly style="background:#f8fafc;"></td>
                 <td><input type="number" class="area readonly-input" value="${partArea.toFixed(2)}" readonly></td>
-                <td><input type="number" class="unit-price" value="${pricePerM2.toFixed(2)}" readonly style="color:#666;"></td>
-                <td><input type="number" class="row-total" value="${partPrice.toFixed(2)}" readonly style="color:green;font-weight:bold;"></td>
-                <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();calcTotal()">X</button></td>
+                <td><input type="number" class="unit-price" value="0" readonly style="color:#666;"></td>
+                <td><input type="number" class="row-total readonly-input" value="0" readonly style="color:green;font-weight:bold;"></td>
+                <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();scheduleSyncInvoice()">X</button></td>
             `;
             
             // Insert after the current row
             row.parentNode.insertBefore(newRow, row.nextSibling);
         }
         
-        calcTotal();
+        scheduleSyncInvoice();
         modal.remove();
     }
 
