@@ -266,14 +266,14 @@
                     currentReportData = inTargetFlow;
                 } else {
                     let url = '';
-                    if (type === 'balance') url = `${API}/inventory/report/detailed`;
-                    else if (type === 'movements') url = `${API}/inventory/reports/movement`;
-                    else if (type === 'category') url = `${API}/inventory/reports/category`;
-                    else if (type === 'lowstock') url = `${API}/inventory/reports/lowstock`;
+                    if (type === 'balance') url = `${API}/stock/inventory-report/detailed`;
+                    else if (type === 'movements') url = `${API}/stock/inventory-report/movement`;
+                    else if (type === 'category') url = `${API}/stock/inventory-report/category`;
+                    else if (type === 'lowstock') url = `${API}/stock/inventory-report/lowstock`;
                     else if (type === 'inventory_movement') {
                         const startDate = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
                         const endDate = new Date().toISOString().split('T')[0];
-                        url = `${API}/inventory/reports/movement?startDate=${startDate}&endDate=${endDate}`;
+                        url = `${API}/stock/inventory-report/movement?startDate=${startDate}&endDate=${endDate}`;
                     }
                     
                     if(url) {

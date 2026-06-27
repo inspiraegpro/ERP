@@ -101,54 +101,36 @@
             <!-- Items will go here -->
         </div>
 
-        <!-- Financials -->
+        <!-- Job Details -->
         <div class="row">
-            <div class="label">Order Date</div>
-            <div class="val" id="orderDate"></div>
-        </div>
-        <div class="row">
-            <div class="label">Sales Person</div>
-            <div class="val" id="salesPersonName">-</div>
+            <div class="label">Status</div>
+            <div class="val" id="jobStatus" style="font-weight:bold;">-</div>
         </div>
         <div class="row">
-            <div class="label">Service Type</div>
-            <div class="val" id="serviceTypeVal">-</div>
-        </div>
-
-        <div class="money-row">
-            <div class="money-lbl">Subtotal</div>
-            <div class="money-val" id="subtotalVal">0.00</div>
-        </div>
-        <div class="money-row">
-            <div class="money-lbl">Discount</div>
-            <div class="money-val" id="discountVal">0.00</div>
-        </div>
-        <div class="money-row">
-            <div class="money-lbl">VAT (14%)</div>
-            <div class="money-val" id="vatVal">0.00</div>
-        </div>
-        <div class="money-row">
-            <div class="money-lbl">Total</div>
-            <div class="money-val" id="finalVal">0.00</div>
+            <div class="label">Duration</div>
+            <div class="val" id="jobDuration">-</div>
         </div>
 
         <!-- Remarks -->
-        <div class="sec-title">REMARKS</div>
+        <div class="sec-title">REMARKS / NOTES</div>
         <div class="remarks-box" id="notes"></div>
 
         <!-- Signatures -->
         <div class="signatures">
             <div class="sig-box">
-                <div class="sig-title">إدارة المبيعات</div>
+                <div class="sig-title">Operations / Manager</div>
             </div>
             <div class="sig-box">
-                <div class="sig-title">توقيع العميل</div>
+                <div class="sig-title">Technician</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-title">Quality Assurance</div>
             </div>
         </div>
 
         <!-- Terms -->
         <div class="terms">
-            Terms & Conditions: All above prices are inclusive of 14% value added tax (VAT). By signing this form, the customer has agreed to the above price, understands the warranty extended to installed products and confirms that all belongings have been removed from the vehicle.
+            By signing this form, the technician confirms that the work has been completed according to standard procedures. The Quality Assurance team confirms that the final output meets the required quality standards.
         </div>
 
         <!-- Footer -->
@@ -160,81 +142,93 @@
     </div>
 
 <script>
-    // 👇👇👇 التعديل الحاسم: استخدام الرابط الكامل لضمان جلب البيانات محلياً 👇👇👇
     const API = '/api';
     
     window.onload = async () => {
         const id = new URLSearchParams(window.location.search).get('id');
-        if(!id) return alert('No Invoice ID');
+        if(!id) return alert('No Job Order ID');
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API}/sales/${id}`, {
+            // Fetch from Service Jobs API ONLY
+            const res = await fetch(`${API}/service-jobs/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res.ok) throw new Error("فاتورة غير موجودة");
-            const inv = await res.json();
+            if (!res.ok) throw new Error("أمر التشغيل غير موجود");
+            const job = await res.json();
 
-            document.getElementById('invNum').innerText = inv.invoiceNumber;
-            document.getElementById('date').innerText = new Date(inv.date).toLocaleDateString('en-GB');
-            document.getElementById('custName').innerText = inv.customer?.name || inv.customerName || '-';
-            document.getElementById('phone').innerText = inv.customer?.phone || '-';
-            document.getElementById('orderDate').innerText = new Date(inv.date).toLocaleDateString('en-GB');
-            document.getElementById('salesPersonName').innerText = inv.salesPerson?.name || inv.salesPerson || '-';
-            document.getElementById('serviceTypeVal').innerText = inv.serviceType || '-';
+            // Handle legacy fields or populate from embedded sales invoice data if backend provided it
+            // Backend's hydrateServiceJob usually does not populate full invoice data if not requested,
+            // but the job itself has some basic info cached.
             
-            // بيانات السيارة (معالجة ذكية لو البيانات ناقصة)
-            const brand = inv.carModel?.brand || inv.carModel?.brandName || '';
-            const model = inv.carModel?.model || inv.carModel?.name || '';
-            const year = inv.carModel?.year || '';
+            // For print we need the invoice number. Let's try to get it.
+            const invoiceNum = job.jobOrder || job.jobNumber || (job.salesInvoiceId && job.salesInvoiceId.invoiceNumber) || '-';
+            document.getElementById('invNum').innerText = invoiceNum;
+            document.getElementById('date').innerText = new Date(job.createdAt).toLocaleDateString('en-GB');
+            document.getElementById('custName').innerText = job.customerName || '-';
+            document.getElementById('phone').innerText = job.customerPhone || '-';
+            
+            const brand = job.carBrand || '';
+            const model = job.carModel || '';
+            const year = job.carYear || '';
             document.getElementById('carInfo').innerText = `${brand} ${model} ${year}`.trim() || '-';
+            document.getElementById('jobStatus').innerText = job.status || '-';
+            document.getElementById('jobDuration').innerText = job.durationStr || '-';
             
-            // Group Services (Ignore part names and area, just sum up by product/service name)
-            const servicesMap = {};
-            (inv.items || []).forEach(item => {
-                let serviceName = item.product?.name || item.productName;
-                if (!serviceName && typeof item.product === 'string') {
-                    serviceName = item.product;
-                }
-                serviceName = serviceName || item.materialCategory || inv.serviceType || 'General Service';
-                
-                if (serviceName.toLowerCase() === 'window_film') serviceName = 'Window Film';
-                if (serviceName.toLowerCase() === 'ppf') serviceName = 'PPF Paint Protection';
-                
-                const price = parseFloat(item.price || item.total || item.lineTotal) || 0;
-                
-                if (!servicesMap[serviceName]) {
-                    servicesMap[serviceName] = 0;
-                }
-                servicesMap[serviceName] += price;
-            });
-
+            // Build items list
             let html = '';
-            for (const [name, val] of Object.entries(servicesMap)) {
-                html += `<div class="service-line"><span>${name}</span> <span>${val.toLocaleString('en-GB', {minimumFractionDigits: 2})} EGP</span></div>`;
+            const items = job.items || [];
+            
+            if (items.length > 0) {
+                html += `
+                <table style="width:100%; border-collapse: collapse; margin-top:10px;">
+                    <thead>
+                        <tr style="background:#f0f0f0; border-bottom:1px solid #ccc; text-align:left;">
+                            <th style="padding:5px;">Part / Service</th>
+                            <th style="padding:5px;">Product</th>
+                            <th style="padding:5px;">Technician</th>
+                            <th style="padding:5px;">Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+                
+                items.forEach(item => {
+                    const partName = item.partName || item.description || item.productName || '-';
+                    
+                    let productName = '-';
+                    if (item.productData && item.productData.name) {
+                        productName = item.productData.name;
+                    } else if (item.productName) {
+                        productName = item.productName;
+                    }
+                    
+                    let techName = item.technicianName || '-';
+                    if (techName === '-' && item.assignedTechnicianId && item.assignedTechnicianId.name) {
+                        techName = item.assignedTechnicianId.name;
+                    }
+                    
+                    const rating = (item.rating) ? `${item.rating}/10` : '-';
+                    
+                    html += `
+                        <tr style="border-bottom:1px dashed #eee;">
+                            <td style="padding:5px;">${partName}</td>
+                            <td style="padding:5px;">${productName}</td>
+                            <td style="padding:5px;">${techName}</td>
+                            <td style="padding:5px; font-weight:bold;">${rating}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `</tbody></table>`;
+            } else {
+                html = '<div style="padding:10px;">No items found.</div>';
             }
             
-            const extra = parseFloat(inv.totalExtraCosts) || 0;
-            if (extra > 0) {
-                html += `<div class="service-line"><span>Additional Services / Extra Costs</span> <span>${extra.toLocaleString('en-GB', {minimumFractionDigits: 2})} EGP</span></div>`;
-            }
-            
-            document.getElementById('servicesList').innerHTML = html || '<div class="service-line"><span>No services recorded</span><span>0.00 EGP</span></div>';
-
-            // Financials
-            const sub = parseFloat(inv.subtotal) || 0;
-            const gross = sub + extra;
-            const discount = parseFloat(inv.totalDiscount || inv.discount) || 0;
-            const vat = parseFloat(inv.totalTax) || 0;
-            const final = parseFloat(inv.finalTotal) || 0;
-
-            document.getElementById('subtotalVal').innerText = gross.toLocaleString('en-GB', {minimumFractionDigits: 2});
-            document.getElementById('discountVal').innerText = discount.toLocaleString('en-GB', {minimumFractionDigits: 2});
-            document.getElementById('vatVal').innerText = vat.toLocaleString('en-GB', {minimumFractionDigits: 2});
-            document.getElementById('finalVal').innerText = final.toLocaleString('en-GB', {minimumFractionDigits: 2});
+            document.getElementById('servicesList').innerHTML = html;
 
         } catch(e) { 
-            alert('خطأ في تحميل الفاتورة: ' + e.message); 
+            alert('خطأ في تحميل بيانات التشغيل: ' + e.message); 
         }
     }
 </script>

@@ -108,19 +108,30 @@
                             <input type="text" id="productCategory" name="category" placeholder="مثال: PPF, Vinyl...">
                         </div>
                         <div class="form-group">
+                            <label for="pricingType">طريقة التسعير</label>
+                            <select id="pricingType" name="pricingType">
+                                <option value="unit_based">بالوحدة (Unit Based)</option>
+                                <option value="area_based">بالمساحة (Area Based)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
                             <label for="productGrade">Grade (الدرجة)</label>
                             <input type="text" id="productGrade" name="grade" placeholder="مثال: Premium, Standard...">
+                        </div>
+                        <div class="form-group">
+                            <label for="productColor">Color (اللون/الظل)</label>
+                            <input type="text" id="productColor" name="color" placeholder="مثال: Clear, Black, Gray...">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="productColor">Color (اللون/الظل)</label>
-                            <input type="text" id="productColor" name="color" placeholder="مثال: Clear, Black, Gray...">
-                        </div>
-                        <div class="form-group">
                             <label for="productMaterialType">materialType (الخامة)</label>
                             <input type="text" id="productMaterialType" name="materialType" placeholder="مثال: PPF, Window Film...">
+                        </div>
+                        <div class="form-group">
                         </div>
                     </div>
 
@@ -196,6 +207,13 @@
                     <div class="form-group">
                         <label for="productDescription">الوصف</label>
                         <textarea id="productDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="productIsDefault" name="isDefault" style="width:16px; height:16px;">
+                            <span>تعيين كمنتج افتراضي لهذا التبويب (يتم اختياره تلقائياً في الفاتورة)</span>
+                        </label>
                     </div>
                 </form>
             </div>
@@ -468,9 +486,7 @@
             }
         }
 
-        /**
-         * Extract sale price (with VAT) from product
-         */
+        
         function getSalePrice(product) {
             if (!product) return 0;
             // Check new pricing structure first
@@ -488,9 +504,7 @@
             return 0;
         }
 
-        /**
-         * Extract price without VAT from product
-         */
+        
         function getPriceWithoutVat(product) {
             if (!product) return 0;
             // Check new pricing structure first
@@ -618,10 +632,9 @@
                     // Update pricing
                     if (!product.pricing) product.pricing = {};
                     const priceWithVat = Number(input.value || 0);
+                    // Just set salePrice, the backend (buildPricingObject) will calculate net and vat
                     product.pricing.salePrice = priceWithVat;
-                    product.pricing.unitSalePrice = priceWithVat;
-                    product.pricing.priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;
-                    product.pricing.vatAmount = priceWithVat > 0 ? priceWithVat - product.pricing.priceWithoutVat : 0;
+                    product.price = priceWithVat;
                     
                     // Save to API
                     await apiCall(`/api/products/${productId}`, 'PUT', product);
@@ -689,6 +702,8 @@
             document.getElementById('productForm').reset();
             delete document.getElementById('productForm').dataset.productId;
             document.getElementById('productArea').value = '';
+            const defaultCheckbox = document.getElementById('productIsDefault');
+            if (defaultCheckbox) defaultCheckbox.checked = false;
             document.getElementById('pricePreview').style.display = 'none';
             document.getElementById('productModal').style.display = 'flex';
             
@@ -713,6 +728,7 @@
             document.getElementById('productGrade').value = product.grade || '';
             document.getElementById('productColor').value = product.color || '';
             document.getElementById('productMaterialType').value = product.materialType || '';
+            document.getElementById('pricingType').value = product.pricingType || 'unit_based';
             
             // Dimensions
             const dims = product.dimensions || {};
@@ -735,6 +751,7 @@
             if(invField) invField.value = accs.inventory || '';
             
             document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productIsDefault').checked = Boolean(product.isDefault);
             document.getElementById('productForm').dataset.productId = productId;
             document.getElementById('productModal').style.display = 'flex';
             
@@ -772,6 +789,8 @@
                 productData.grade = formData.get('grade');
                 productData.color = formData.get('color');
                 productData.materialType = formData.get('materialType');
+                productData.pricingType = formData.get('pricingType');
+                productData.isDefault = document.getElementById('productIsDefault').checked;
                 
                 // Dimensions
                 productData.dimensions = {

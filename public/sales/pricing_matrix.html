@@ -48,6 +48,7 @@
     </table>
 </div>
 
+<script src="/common-functions.js"></script>
 <script>
     let matrixData = [];
     const VAT_RATE = 1.14;
@@ -70,8 +71,8 @@
             matrixData = await response.json();
             
             if (matrixData.length === 0) {
-                showStatus("⚠️ لم يتم العثور على بيانات، سيتم بدء مصفوفة جديدة.");
-                return;
+                showStatus("⚠️ لم يتم العثور على بيانات، سيتم بدء مصفوفة جديدة.", false);
+                matrixData.push({ carSize: "Sedan", partName: "باقة جديدة", inclusivePrice: 0 });
             }
 
             renderTable();
@@ -84,7 +85,11 @@
         const tbody = document.getElementById('matrixBody');
         tbody.innerHTML = '';
         matrixData.forEach((row, index) => {
-            const net = (row.inclusivePrice / VAT_RATE).toFixed(2);
+            const incPrice = row.inclusivePrice || (row.netPrice ? row.netPrice * 1.14 : 0);
+            row.inclusivePrice = incPrice;
+            const netNum = row.netPrice || incPrice / 1.14;
+            row.netPrice = netNum;
+            const net = netNum.toFixed(2);
             tbody.innerHTML += `
                 <tr>
                     <td>
@@ -95,9 +100,12 @@
                         </select>
                     </td>
                     <td><input type="text" value="${row.partName}" onchange="updateRow(${index}, 'partName', this.value)"></td>
-                    <td><input type="number" value="${row.inclusivePrice}" oninput="updatePrice(${index}, this.value)"></td>
+                    <td><input type="number" value="${incPrice}" oninput="updatePrice(${index}, this.value)"></td>
                     <td><span class="net-badge" id="net-${index}">${net}</span> ج.م</td>
-                    <td><button class="btn-delete" onclick="deleteRow(${index})">🗑️</button></td>
+                    <td>
+                        <button class="btn-add" style="padding: 5px 10px; font-size:12px; margin-left: 5px; background: #64748b;" onclick="editGrades(${index})">درجات</button>
+                        <button class="btn-delete" onclick="deleteRow(${index})">🗑️</button>
+                    </td>
                 </tr>`;
         });
     }
@@ -106,7 +114,25 @@
     function updatePrice(index, val) {
         const price = parseFloat(val) || 0;
         matrixData[index].inclusivePrice = price;
-        document.getElementById(`net-${index}`).innerText = (price / VAT_RATE).toFixed(2);
+        const netNum = price / 1.14;
+        matrixData[index].netPrice = netNum;
+        document.getElementById(`net-${index}`).innerText = netNum.toFixed(2);
+    }
+    
+    function editGrades(index) {
+        let factors = matrixData[index].gradeFactors || {};
+        let grades = [1, 2, 3, 4, 5, 6];
+        let res = prompt("أدخل معاملات الدرجات مفصولة بفاصلة (مثال: 1, 1.2, 1.4, 1.6, 1.8, 2)\nحيث أن 1 تعني السعر الأصلي بدون زيادة.", 
+            grades.map(g => factors[g] || 1).join(", "));
+            
+        if (res) {
+            let values = res.split(',').map(v => parseFloat(v.trim()) || 1);
+            if (!matrixData[index].gradeFactors) matrixData[index].gradeFactors = {};
+            grades.forEach((g, i) => {
+                matrixData[index].gradeFactors[g] = values[i] !== undefined ? values[i] : 1;
+            });
+            showStatus("✅ تم تحديث معاملات الدرجات للبند: " + matrixData[index].partName, false);
+        }
     }
     function addNewRow() {
         matrixData.push({ carSize: "Sedan", partName: "باقة جديدة", inclusivePrice: 0 });

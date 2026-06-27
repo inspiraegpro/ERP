@@ -227,7 +227,57 @@ async function createSalesInvoice(data, user) {
 async function findAll(query = {}) { return await SalesInvoice.find(query); }
 async function findOne(query) { return await SalesInvoice.findOne(query); }
 async function updateOne(id, data) { return await SalesInvoice.updateOne({ _id: id }, data); }
-async function deleteOne(id) { return await SalesInvoice.deleteOne({ _id: id }); }
+
+/**
+ * deleteOne — حذف الفاتورة مع جميع تبعياتها
+ * 1. أمر التشغيل المرتبط
+ * 2. رصيد العميل
+ * 3. (اختياري) القيد المحاسبي — يُسجَّل كـ reversal وليس حذف
+ */
+async function deleteOne(id) {
+    const invoice = await SalesInvoice.findOne({ _id: id });
+    if (!invoice) return null;
+
+    // 1. حذف أمر التشغيل المرتبط
+    try {
+        let job = null;
+        if (invoice.serviceJobId) {
+            job = await ServiceJob.findOne({ _id: invoice.serviceJobId });
+        }
+        if (!job && invoice.invoiceNumber) {
+            job = await ServiceJob.findOne({ jobOrder: invoice.invoiceNumber });
+        }
+        if (!job) {
+            job = await ServiceJob.findOne({ salesInvoiceId: id });
+        }
+        if (job) {
+            await ServiceJob.deleteOne({ _id: job._id });
+        }
+    } catch (jobError) {
+        console.error('deleteOne: job cleanup failed:', jobError.message);
+    }
+
+    // 2. تصحيح رصيد العميل (نطرح قيمة الفاتورة)
+    try {
+        if (invoice.customer) {
+            const customerId = typeof invoice.customer === 'object'
+                ? invoice.customer._id
+                : invoice.customer;
+            const customer = await Customer.findOne({ _id: customerId });
+            if (customer) {
+                const newBalance = (parseFloat(customer.balance) || 0)
+                    - (parseFloat(invoice.finalAmount || invoice.finalTotal) || 0);
+                await Customer.updateOne({ _id: customerId }, { balance: newBalance });
+            }
+        }
+    } catch (custError) {
+        console.error('deleteOne: customer balance rollback failed:', custError.message);
+    }
+
+    // 3. حذف الفاتورة نفسها
+    return await SalesInvoice.deleteOne({ _id: id });
+}
+
 async function count(query = {}) { return await SalesInvoice.countDocuments(query); }
 
 module.exports = {

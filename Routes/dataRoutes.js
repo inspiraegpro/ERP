@@ -14,7 +14,8 @@ const PurchaseInvoice = require('../models/PurchaseInvoice');
 const SalesInvoice = require('../models/SalesInvoice');
 const Account = require('../models/Account');
 const StockTransaction = require('../models/StockTransaction');
-const Car = require('../models/Car'); 
+const Car = require('../models/Car');
+const carService = require('../services/carService');
 const TreasuryTransaction = require('../models/TreasuryTransaction');
 const JournalEntry = require('../models/JournalEntry');
 let ImportShipment; try { ImportShipment = require('../models/ImportShipment'); } catch(e){}
@@ -449,17 +450,22 @@ router.get('/export/:type', async (req, res) => {
              }
         }
         else if (type === 'cars') {
-             for (const car of data) {
-                if (car.parts && car.parts.length > 0) {
-                    for (const part of car.parts) {
-                        formattedData.push({
-                            code: car.code, brand: car.brand, model: car.model, year: car.year,
-                            partName: part.name, lengthCM: part.lengthCM, widthCM: part.widthCM, areaCM2: part.areaCM2
-                        });
-                    }
-                } else {
-                    formattedData.push({ code: car.code, brand: car.brand, model: car.model, year: car.year });
-                }
+            if (req.query.template === 'true') {
+                formattedData.push({
+                    'Car Model': 'BMW X5 2024',
+                    Part: 'Hood',
+                    'Length (Cm)': 200,
+                    'Width (cm)': 150,
+                    brand: 'BMW',
+                    model: 'X5',
+                    year: 2024,
+                    category: 'SUV/Large Sedan',
+                    code: 'CAR-BMW-X5-2024'
+                });
+            } else {
+                const buffer = await Car.exportToExcel({});
+                const wb = xlsx.read(buffer, { type: 'buffer' });
+                formattedData = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
             }
         } else {
              // Generic Fallback
@@ -1346,37 +1352,11 @@ router.post('/import/:type', upload.single('file'), async (req, res) => {
             // C. Special Batch Handling for Cars (Merged Rows)
             // --------------------------------------------------------
             if (type === 'cars') {
-                const carGroups = {};
-                
-                for (const row of jsonData) {
-                    const code = row.code ? String(row.code).trim() : null;
-                    if (!code) continue;
-
-                    if (!carGroups[code]) {
-                        carGroups[code] = {
-                            code: code,
-                            brand: row.brand,
-                            model: row.model,
-                            year: row.year,
-                            parts: []
-                        };
-                    }
-
-                    // Add part if exists
-                    if (row.partName) {
-                        carGroups[code].parts.push({
-                            name: row.partName,
-                            lengthCM: Number(row.lengthCM) || 0,
-                            widthCM: Number(row.widthCM) || 0,
-                            areaCM2: Number(row.areaCM2) || ((Number(row.lengthCM)||0) * (Number(row.widthCM)||0))
-                        });
-                    }
-                }
-
-                for (const code in carGroups) {
-                    const carData = carGroups[code];
-                    await Car.findOneAndUpdate({ code: code }, carData, { upsert: true });
-                    successCount++;
+                try {
+                    const result = await carService.importRowsFromData(jsonData);
+                    successCount = result.created + result.updated;
+                } catch (err) {
+                    errors.push(`Cars import: ${err.message}`);
                 }
             }
         }

@@ -424,8 +424,8 @@
             if (!priced) return;
             const unitPriceEl = row.querySelector('.unit-price');
             const rowTotalEl = row.querySelector('.row-total');
-            if (unitPriceEl) unitPriceEl.value = Number(priced.unitPrice || 0).toFixed(2);
-            if (rowTotalEl) rowTotalEl.value = Number(priced.lineTotal || priced.price || 0).toFixed(2);
+            if (unitPriceEl) unitPriceEl.value = Number(priced.price || priced.unitPrice || 0).toFixed(2);
+            if (rowTotalEl) rowTotalEl.value = Number(priced.lineTotal || priced.total || 0).toFixed(2);
         });
     }
 
@@ -1015,8 +1015,8 @@
                 <select class="prod" onchange="onProductChange(this, '${rowId}')" style="width:100%;">${prodOpts}</select>
                 <span class="wf-info" style="color:#666; font-size:11px; display:block; margin-top:2px;">${d.wfGrade ? `درجة ${d.wfGrade}` : ''}</span>
             </td>
-            <td><input type="number" class="len" value="${d.length||0}" oninput="calcArea(this)" style="width:100%;" placeholder="سم"></td>
-            <td><input type="number" class="wid" value="${d.width||0}" oninput="calcArea(this)" style="width:100%;" placeholder="سم"></td>
+            <td><input type="number" class="len" value="${d.length||0}" oninput="scheduleSyncInvoice()" style="width:100%;" placeholder="سم"></td>
+            <td><input type="number" class="wid" value="${d.width||0}" oninput="scheduleSyncInvoice()" style="width:100%;" placeholder="سم"></td>
             <td><input type="number" class="area readonly-input" value="${d.area||0}" readonly style="width:100%;" placeholder="م²"></td>
             <td><input type="number" class="unit-price" value="${d.priceUnit||0}" readonly style="color:#666; width:100%;"></td>
             <td><input type="number" class="row-total readonly-input" value="${d.lineTotal||0}" readonly style="color:green;font-weight:bold; width:100%;"></td>
@@ -1041,7 +1041,7 @@
             prodSelect.innerHTML = `<option value="window_film" selected>Window Film - درجة ${d.wfGrade}</option>`;
             tr.querySelector('.part-name').value = d.wfPart;
             tr.querySelector('.wf-info').textContent = `درجة ${d.wfGrade}`;
-            updPrice(prodSelect, false);
+            scheduleSyncInvoice();
         }
         // If other product type selected
         else if (productType && productType !== 'Window Film') {
@@ -1072,7 +1072,7 @@
                     }
                 }
                 if (!d._isEditMode) {
-                    updPrice(prodSelect, false);
+                    scheduleSyncInvoice();
                 }
             }
         }
@@ -1101,26 +1101,33 @@
             // فتح Modal فقط في وضع الإنشاء
             if (!isEditMode) openWindowFilmModal(rowId);
         } else if (productType === 'PPF' || productType === 'MATT' || productType === 'Vinyl') {
-            // في وضع التعديل: ابنِ قائمة المنتجات الحقيقية بدل option واحدة
-            if (isEditMode) {
-                const typeKey = productType === 'PPF'   ? ['ppf','paint protection'] :
-                                productType === 'MATT'  ? ['matt'] :
-                                                          ['vinyl'];
-                const matched = products.filter(p => {
-                    const t = (p.type || p.serviceCategory || '').toLowerCase();
-                    return typeKey.some(k => t.includes(k));
+            const typeKey = productType === 'PPF'   ? ['ppf','paint protection'] :
+                            productType === 'MATT'  ? ['matt'] :
+                                                      ['vinyl'];
+            const matched = products.filter(p => {
+                const t = (p.type || p.serviceCategory || '').toLowerCase();
+                return typeKey.some(k => t.includes(k));
+            });
+            
+            let defaultId = null;
+            if (!isEditMode) {
+                const defaultProd = matched.find(p => p.isDefault);
+                if (defaultProd) defaultId = defaultProd._id;
+                else if (matched.length > 0) defaultId = matched[0]._id; // Fallback to first if no default
+            }
+
+            if (matched.length > 0) {
+                let opts = '<option value="">اختر الصنف</option>';
+                matched.forEach(p => {
+                    const isSelected = (!isEditMode && p._id === defaultId) ? 'selected' : '';
+                    opts += `<option value="${p._id}" data-unit="${p.unit||'رول'}" ${isSelected}>${p.name}</option>`;
                 });
-                if (matched.length > 0) {
-                    let opts = '<option value="">اختر الصنف</option>';
-                    matched.forEach(p => {
-                        opts += `<option value="${p._id}" data-unit="${p.unit||'رول'}">${p.name}</option>`;
-                    });
-                    prodSelect.innerHTML = opts;
-                } else {
-                    prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
-                }
+                prodSelect.innerHTML = opts;
             } else {
                 prodSelect.innerHTML = `<option value="${productType.toLowerCase()}" selected>${productType}</option>`;
+            }
+
+            if (!isEditMode) {
                 const hasCarParts = Array.isArray(selectedCarParts) && selectedCarParts.length > 0;
                 if (hasCarParts) {
                     row.querySelector('.len').readOnly = true;
@@ -1210,7 +1217,7 @@
         populateProductDropdown(prodSelect, selectedType, rowId);
         
         if (triggerPriceUpdate) {
-            updPrice(prodSelect);
+            scheduleSyncInvoice();
         }
     }
     
@@ -1227,32 +1234,11 @@
             openWindowFilmModal(rowId);
         } else {
             // Normal product - just update price
-            updPrice(select);
+            scheduleSyncInvoice();
         }
     }
 
-    async function calcArea(el) {
-        const row = el.closest('tr');
-        const len = parseFloat(row.querySelector('.len').value) || 0;
-        const wid = parseFloat(row.querySelector('.wid').value) || 0;
 
-        try {
-            const response = await fetch(`${API}/stock/calculate-area`, {
-                method: 'POST',
-                headers: authHeaders(true),
-                body: JSON.stringify({ lengthCm: len, widthCm: wid })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                row.querySelector('.area').value = Number(data.areaM2 || 0).toFixed(4);
-            } else {
-                row.querySelector('.area').value = '0';
-            }
-        } catch (_e) {
-            row.querySelector('.area').value = '0';
-        }
-        scheduleSyncInvoice();
-    }
 
     // Global arrays to store parts and services for dropdowns
     let allSavedParts = [];
@@ -1375,9 +1361,9 @@
             row.querySelector('.area').value = area.toFixed(4);
             scheduleSyncInvoice();
         } else if (length > 0 && width > 0) {
-            calcArea(row.querySelector('.len'));
+            scheduleSyncInvoice();
         } else {
-            updPrice(row.querySelector('.prod'));
+            scheduleSyncInvoice();
         }
     }
 
@@ -1426,19 +1412,7 @@
         createRow({ isManual: true }); 
     }
 
-    function updPrice(el, calculateTotal = true) {
-        if (!el) return;
-        const row = el.closest('tr');
-        if (!row) return;
-        const unit = el.options?.[el.selectedIndex]?.getAttribute('data-unit') || '';
-        const isPieceBased = unit.includes('قطعة') || unit.includes('زجاجة') || unit.toLowerCase() === 'piece';
-        if (isPieceBased) {
-            row.querySelector('.len').readOnly = true;
-            row.querySelector('.wid').readOnly = true;
-            row.querySelector('.area').value = row.querySelector('.area').value || '1';
-        }
-        if (calculateTotal) scheduleSyncInvoice();
-    }
+
 
     // ── نظام حالة الفاتورة ────────────────────────────────────────────
     const STATUS_LABELS = {
@@ -1712,7 +1686,7 @@
             if (res.ok) {
                 const savedInv = await res.json();
                 alert(id ? 'تم حفظ التعديل بنجاح!' : 'تم حفظ الفاتورة بنجاح!');
-                window.location.href = '/sales/job_order_print.html?id=' + (savedInv.invoice?._id || savedInv._id || id);
+                window.location.href = '/sales/invoice_print.html?id=' + (savedInv.invoice?._id || savedInv._id || id);
             } else {
                 const err = await res.json();
                 alert('خطأ أثناء الحفظ: ' + (err.message || err.error || JSON.stringify(err)));
@@ -1726,7 +1700,7 @@
     function goToPrint() {
         const id = document.getElementById('editId').value;
         if(id) {
-            window.open('/sales/job_order_print.html?id=' + id, '_blank');
+            window.open('/sales/invoice_print.html?id=' + id, '_blank');
         } else {
             alert('الرجاء حفظ الفاتورة أولاً قبل الطباعة');
         }
@@ -2013,8 +1987,8 @@
                     </select>
                     <span class="wf-info" style="color:#666;font-size:11px;display:block;margin-top:2px;"></span>
                 </td>
-                <td><input type="number" class="len" value="${lengthVal}" oninput="calcArea(this)" style="width:100%;"></td>
-                <td><input type="number" class="wid" value="${widthVal}"  oninput="calcArea(this)" style="width:100%;"></td>
+                <td><input type="number" class="len" value="${lengthVal}" oninput="scheduleSyncInvoice()" style="width:100%;"></td>
+                <td><input type="number" class="wid" value="${widthVal}"  oninput="scheduleSyncInvoice()" style="width:100%;"></td>
                 <td><input type="number" class="area readonly-input" value="${areaVal}" readonly style="width:100%;"></td>
                 <td><input type="number" class="unit-price" value="0" readonly style="color:#666;width:100%;"></td>
                 <td><input type="number" class="row-total readonly-input" value="${priceVal}" readonly style="color:green;font-weight:bold;width:100%;"></td>
@@ -2156,12 +2130,17 @@
             host.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;">اختر سيارة أولاً لتحميل أجزائها</div>';
         } else {
             host.innerHTML = parts.map((p) => {
-                const dimsText = p.length && p.width ? `${p.length}×${p.width} سم` : '';
-                return `<label style="display:flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;cursor:pointer;" data-is-roof="${p.isRoof}" data-area="${(Number(p.areaM2) || 0).toFixed(4)}">
-                    <input type="checkbox" class="ppf-custom-check" data-part="${String(p.name).replace(/"/g, '&quot;')}" data-area="${(Number(p.areaM2) || 0).toFixed(4)}" ${p.isRoof ? 'data-roof="true"' : ''}>
+                const actLen = Number(p.length) || 0;
+                const actWid = Number(p.width) || 0;
+                let calcArea = (actLen * actWid) / 10000;
+                if (calcArea === 0) calcArea = Number(p.areaM2) || 0;
+                
+                const dimsText = actLen && actWid ? `${actLen}×${actWid} سم` : '';
+                return `<label style="display:flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;cursor:pointer;" data-is-roof="${p.isRoof}" data-area="${calcArea.toFixed(4)}">
+                    <input type="checkbox" class="ppf-custom-check" data-part="${String(p.name).replace(/"/g, '&quot;')}" data-area="${calcArea.toFixed(4)}" ${p.isRoof ? 'data-roof="true"' : ''}>
                     <span style="flex:1;">${p.name}</span>
                     ${dimsText ? `<span style="color:#94a3b8;font-size:11px;">${dimsText}</span>` : ''}
-                    <span style="color:#64748b;font-size:12px;font-weight:500;">${(Number(p.areaM2) || 0).toFixed(2)} م²</span>
+                    <span style="color:#64748b;font-size:12px;font-weight:500;">${calcArea.toFixed(2)} م²</span>
                  </label>`;
             }).join('');
         }
@@ -2184,7 +2163,7 @@
                 // Auto-select parts based on mode
                 const checkboxes = modal.querySelectorAll('.ppf-custom-check');
                 checkboxes.forEach((cb) => {
-                    const isRoof = cb.hasAttribute('data-roof');
+                    const isRoof = cb.getAttribute('data-roof') === 'true';
                     if (mode === 'full_incl') {
                         cb.checked = true; // All parts including roof
                     } else if (mode === 'full_excl') {
@@ -2244,8 +2223,12 @@
         const areaInput = row.querySelector('.area');
         const prodSelect = row.querySelector('.prod');
         
+        const selectedProductId = prodSelect.value;
+        const selectedProductName = prodSelect.options[prodSelect.selectedIndex]?.text || materialType;
+        const selectedProductUnit = prodSelect.options[prodSelect.selectedIndex]?.getAttribute('data-unit') || 'رول';
+        
         partInput.value = `${packageName} - ${firstPartName}`;
-        areaInput.value = firstPartArea.toFixed(2);
+        areaInput.value = firstPartArea.toFixed(4);
         row.setAttribute('data-material-type', materialType);
         row.setAttribute('data-package-row', 'true');
         
@@ -2253,8 +2236,14 @@
         const actualFirstPart = selectedCarParts.find(p => p.name === firstPartName);
         const lenInput = row.querySelector('.len');
         const widInput = row.querySelector('.wid');
-        if (lenInput) lenInput.value = actualFirstPart ? actualFirstPart.length : 0;
-        if (widInput) widInput.value = actualFirstPart ? actualFirstPart.width : 0;
+        const actLen = actualFirstPart ? actualFirstPart.length : 0;
+        const actWid = actualFirstPart ? actualFirstPart.width : 0;
+        if (lenInput) lenInput.value = actLen;
+        if (widInput) widInput.value = actWid;
+        
+        let calculatedFirstArea = (actLen * actWid) / 10000;
+        if (calculatedFirstArea === 0) calculatedFirstArea = firstPartArea;
+        if (areaInput) areaInput.value = calculatedFirstArea.toFixed(4);
         
         // Create additional rows for remaining parts
         for (let i = 1; i < selected.length; i++) {
@@ -2265,6 +2254,8 @@
             const actualCarPart = selectedCarParts.find(p => p.name === partName);
             const displayLength = actualCarPart ? actualCarPart.length : 0;
             const displayWidth = actualCarPart ? actualCarPart.width : 0;
+            let calculatedArea = (displayLength * displayWidth) / 10000;
+            if (calculatedArea === 0) calculatedArea = partArea;
             
             const newRowId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             const newRow = document.createElement('tr');
@@ -2274,16 +2265,16 @@
             newRow.setAttribute('data-parent-row', rowId);
             
             newRow.innerHTML = `
-                <td><input class="part-name" value="${materialType} - ${partName}" readonly style="background:#f8fafc;"></td>
+                <td><input class="part-name" value="${packageName} - ${partName}" readonly style="background:#f8fafc;"></td>
                 <td>
                     <select class="prod" style="width:100%;" disabled>
-                        <option value="${materialType.toLowerCase()}" selected>${materialType}</option>
+                        <option value="${selectedProductId}" data-unit="${selectedProductUnit}" selected>${selectedProductName}</option>
                     </select>
                 </td>
                 <td><input type="number" class="len" value="${displayLength}" readonly style="background:#f8fafc;"></td>
                 <td><input type="number" class="wid" value="${displayWidth}" readonly style="background:#f8fafc;"></td>
-                <td><input type="number" class="area readonly-input" value="${partArea.toFixed(2)}" readonly></td>
-                <td><input type="number" class="unit-price" value="0" readonly style="color:#666;"></td>
+                <td><input type="number" class="area readonly-input" value="${calculatedArea.toFixed(4)}" readonly></td>
+                <td><input type="number" class="unit-price" value="0" readonly style="color:#666;background:#f8fafc;"></td>
                 <td><input type="number" class="row-total readonly-input" value="0" readonly style="color:green;font-weight:bold;"></td>
                 <td class="no-print"><button class="btn-del" onclick="this.closest('tr').remove();scheduleSyncInvoice()">X</button></td>
             `;

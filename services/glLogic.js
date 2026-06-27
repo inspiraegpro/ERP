@@ -3,6 +3,12 @@ const AccountingMapping = require('../models/AccountingMapping');
 const FinancialSettings = require('../models/FinancialSettings');
 const Product = require('../models/Product');
 
+// Helper function to convert to number
+const toNumber = (value) => {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const glLogic = {
     // Standard chart of accounts codes (Legacy fallback)
     COA: {
@@ -42,11 +48,6 @@ const glLogic = {
 
         const details = [];
 
-        const toNumber = (value) => {
-            const parsed = parseFloat(value);
-            return Number.isFinite(parsed) ? parsed : 0;
-        };
-
         const subtotal = toNumber(invoice.subtotal);
         const extraCosts = toNumber(invoice.totalExtraCosts);
         const discount = toNumber(invoice.totalDiscount);
@@ -80,7 +81,7 @@ const glLogic = {
             // Load category mappings
             const categoryMappings = await AccountingMapping.find({ mappingType: 'CATEGORY' });
 
-            invoice.items.forEach(item => {
+            for (const item of invoice.items) {
                 const pId = typeof item.product === 'object' ? item.product._id : item.product;
                 const p = productMap[String(pId)];
                 
@@ -94,7 +95,18 @@ const glLogic = {
                     if (rule && rule.revenueAccount) accId = rule.revenueAccount;
                 }
 
-                const itemTotal = toNumber(item.price || 0) * (toNumber(item.quantity) || 1) || toNumber(item.total || 0) || 1; 
+                // Calculate item total based on available fields
+                let itemTotal = 0;
+                if (item.total && item.total > 0) {
+                    itemTotal = toNumber(item.total);
+                } else if (item.price && item.quantity) {
+                    itemTotal = toNumber(item.price) * toNumber(item.quantity);
+                } else {
+                    itemTotal = toNumber(item.price || 0) * (toNumber(item.quantity) || 1);
+                }
+                
+                // Ensure minimum value to avoid division by zero
+                if (itemTotal <= 0) itemTotal = 1;
                 
                 totalItemsValue += itemTotal;
                 itemRatios.push({
@@ -102,9 +114,9 @@ const glLogic = {
                     value: itemTotal,
                     desc: p ? p.name : (item.partName || 'مبيعات')
                 });
-            });
+            }
 
-            if (totalItemsValue > 0) {
+            if (totalItemsValue > 0 && netRevenue > 0) {
                 let distributed = 0;
                 for (let i = 0; i < itemRatios.length; i++) {
                     const ir = itemRatios[i];
@@ -114,13 +126,16 @@ const glLogic = {
                     } else {
                         amt = Number((netRevenue * (ir.value / totalItemsValue)).toFixed(2));
                     }
+                    if (amt < 0) amt = 0;
                     distributed += amt;
 
-                    if (!revenueGroups[ir.accId]) {
-                        revenueGroups[ir.accId] = { amount: 0, names: new Set() };
+                    if (amt > 0) {
+                        if (!revenueGroups[ir.accId]) {
+                            revenueGroups[ir.accId] = { amount: 0, names: new Set() };
+                        }
+                        revenueGroups[ir.accId].amount += amt;
+                        revenueGroups[ir.accId].names.add(ir.desc);
                     }
-                    revenueGroups[ir.accId].amount += amt;
-                    revenueGroups[ir.accId].names.add(ir.desc);
                 }
             } else {
                 revenueGroups[defaultRev] = { amount: netRevenue, names: new Set(['إيراد مبيعات']) };
@@ -129,6 +144,8 @@ const glLogic = {
             revenueGroups[defaultRev] = { amount: netRevenue, names: new Set(['إيراد مبيعات']) };
         }
 
+        // Ensure total credit from revenue groups matches netRevenue
+        let totalRevenueCredited = 0;
         for (const [accId, group] of Object.entries(revenueGroups)) {
             if (group.amount > 0) {
                 const descNames = Array.from(group.names).join(' - ');
@@ -138,6 +155,17 @@ const glLogic = {
                     credit: group.amount,
                     description: `إيراد مبيعات (${descNames}) فاتورة ${invoice.invoiceNumber}`
                 });
+                totalRevenueCredited += group.amount;
+            }
+        }
+
+        // Adjust for any rounding differences
+        const roundingDiff = netRevenue - totalRevenueCredited;
+        if (Math.abs(roundingDiff) > 0.01 && Object.keys(revenueGroups).length > 0) {
+            const firstRevenueAcc = Object.keys(revenueGroups)[0];
+            const lastEntry = details.find(d => d.accountId === firstRevenueAcc && d.credit > 0);
+            if (lastEntry) {
+                lastEntry.credit = Number((lastEntry.credit + roundingDiff).toFixed(2));
             }
         }
 
@@ -153,8 +181,16 @@ const glLogic = {
 
         // Debit: WHT (if any)
         if (wht > 0) {
+            let whtAccountId = settings.defaultWhtAccountId;
+            if (!whtAccountId) {
+                try {
+                    whtAccountId = await glLogic.getAccountId('110404');
+                } catch (err) {
+                    whtAccountId = await glLogic.getAccountId('210201');
+                }
+            }
             details.push({
-                accountId: settings.defaultWhtAccountId || await glLogic.getAccountId('110404'), // Configurable WHT
+                accountId: whtAccountId,
                 debit: wht,
                 credit: 0,
                 description: `ضريبة أرباح تجارية (خصم منبع) فاتورة ${invoice.invoiceNumber}`
@@ -164,7 +200,8 @@ const glLogic = {
         // Final Validation: Balance Check
         const totalDebit = Number(details.reduce((sum, line) => sum + (line.debit || 0), 0).toFixed(2));
         const totalCredit = Number(details.reduce((sum, line) => sum + (line.credit || 0), 0).toFixed(2));
-        if (Math.abs(totalDebit - totalCredit) !== 0) {
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            console.error(`Unbalanced Entry - Debit: ${totalDebit}, Credit: ${totalCredit}, Diff: ${totalDebit - totalCredit}`);
             throw new Error("FATAL_ERROR: Unbalanced Journal Entry");
         }
 
@@ -202,13 +239,13 @@ const glLogic = {
             const productMap = {};
             products.forEach(p => productMap[String(p._id)] = p);
 
-            let totalItemsValue = 0;
+            let totalItemsCost = 0;
             const itemRatios = [];
 
             // Load category mappings
             const categoryMappings = await AccountingMapping.find({ mappingType: 'CATEGORY' });
 
-            invoice.items.forEach(item => {
+            for (const item of invoice.items) {
                 const pId = typeof item.product === 'object' ? item.product._id : item.product;
                 const p = productMap[String(pId)];
                 
@@ -226,15 +263,25 @@ const glLogic = {
                 if (p && p.accounts && p.accounts.cogs) cogsAccId = p.accounts.cogs;
                 if (p && p.accounts && p.accounts.inventory) invAccId = p.accounts.inventory;
 
-                const itemCost = toNumber(item.cost || p?.cost || 1); 
+                // Get item cost - priority: item.cost > product.cost > fallback
+                let itemCost = toNumber(item.cost);
+                if (itemCost <= 0 && p && p.cost) {
+                    itemCost = toNumber(p.cost);
+                }
+                if (itemCost <= 0) {
+                    itemCost = 1; // Minimum fallback
+                }
                 
-                totalItemsValue += itemCost;
+                totalItemsCost += itemCost;
                 itemRatios.push({
-                    cogsAccId, invAccId, value: itemCost, desc: p ? p.name : (item.partName || 'بضاعة')
+                    cogsAccId, 
+                    invAccId, 
+                    value: itemCost, 
+                    desc: p ? p.name : (item.partName || 'بضاعة')
                 });
-            });
+            }
 
-            if (totalItemsValue > 0) {
+            if (totalItemsCost > 0 && totalCost > 0) {
                 let distributed = 0;
                 for (let i = 0; i < itemRatios.length; i++) {
                     const ir = itemRatios[i];
@@ -242,17 +289,20 @@ const glLogic = {
                     if (i === itemRatios.length - 1) {
                         amt = Number((totalCost - distributed).toFixed(2));
                     } else {
-                        amt = Number((totalCost * (ir.value / totalItemsValue)).toFixed(2));
+                        amt = Number((totalCost * (ir.value / totalItemsCost)).toFixed(2));
                     }
+                    if (amt < 0) amt = 0;
                     distributed += amt;
 
-                    if (!cogsGroups[ir.cogsAccId]) cogsGroups[ir.cogsAccId] = { amount: 0, names: new Set() };
-                    cogsGroups[ir.cogsAccId].amount += amt;
-                    cogsGroups[ir.cogsAccId].names.add(ir.desc);
+                    if (amt > 0) {
+                        if (!cogsGroups[ir.cogsAccId]) cogsGroups[ir.cogsAccId] = { amount: 0, names: new Set() };
+                        cogsGroups[ir.cogsAccId].amount += amt;
+                        cogsGroups[ir.cogsAccId].names.add(ir.desc);
 
-                    if (!invGroups[ir.invAccId]) invGroups[ir.invAccId] = { amount: 0, names: new Set() };
-                    invGroups[ir.invAccId].amount += amt;
-                    invGroups[ir.invAccId].names.add(ir.desc);
+                        if (!invGroups[ir.invAccId]) invGroups[ir.invAccId] = { amount: 0, names: new Set() };
+                        invGroups[ir.invAccId].amount += amt;
+                        invGroups[ir.invAccId].names.add(ir.desc);
+                    }
                 }
             } else {
                 cogsGroups[defaultCogs] = { amount: totalCost, names: new Set(['تكلفة بضاعة مباعة']) };
@@ -263,21 +313,35 @@ const glLogic = {
             invGroups[defaultInv] = { amount: totalCost, names: new Set(['بضاعة']) };
         }
 
+        // Add COGS debit entries
         for (const [accId, group] of Object.entries(cogsGroups)) {
             if (group.amount > 0) {
-                details.push({ accountId: accId, debit: group.amount, credit: 0, description: `تكلفة مبيعات (${Array.from(group.names).join(' - ')}) - فاتورة ${invoice.invoiceNumber}` });
+                details.push({ 
+                    accountId: accId, 
+                    debit: group.amount, 
+                    credit: 0, 
+                    description: `تكلفة مبيعات (${Array.from(group.names).join(' - ')}) - فاتورة ${invoice.invoiceNumber}` 
+                });
             }
         }
+        
+        // Add Inventory credit entries
         for (const [accId, group] of Object.entries(invGroups)) {
             if (group.amount > 0) {
-                details.push({ accountId: accId, debit: 0, credit: group.amount, description: `صرف مخزن (${Array.from(group.names).join(' - ')}) - فاتورة ${invoice.invoiceNumber}` });
+                details.push({ 
+                    accountId: accId, 
+                    debit: 0, 
+                    credit: group.amount, 
+                    description: `صرف مخزن (${Array.from(group.names).join(' - ')}) - فاتورة ${invoice.invoiceNumber}` 
+                });
             }
         }
 
         // Balance Check
         const totalDebit = Number(details.reduce((sum, line) => sum + (line.debit || 0), 0).toFixed(2));
         const totalCredit = Number(details.reduce((sum, line) => sum + (line.credit || 0), 0).toFixed(2));
-        if (Math.abs(totalDebit - totalCredit) !== 0) {
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            console.error(`COGS Unbalanced - Debit: ${totalDebit}, Credit: ${totalCredit}`);
             throw new Error("FATAL_ERROR: Unbalanced Journal Entry");
         }
 
@@ -295,34 +359,57 @@ const glLogic = {
 
         const details = [];
 
-        details.push({
-            accountId: settings.defaultInventoryAccountId,
-            debit: (invoice.subtotal || 0) + (invoice.totalExtraCosts || 0),
-            credit: 0,
-            description: `مشتريات مخزنية - فاتورة ${invoice.invoiceNumber}`
-        });
+        const subtotal = toNumber(invoice.subtotal);
+        const extraCosts = toNumber(invoice.totalExtraCosts);
+        const totalTax = toNumber(invoice.totalTax);
+        const totalDiscount = toNumber(invoice.totalDiscount);
+        const totalAmount = toNumber(invoice.totalAmount);
 
-        if (invoice.totalTax > 0) {
+        // Debit: Inventory (net of discount)
+        const inventoryAmount = (subtotal + extraCosts) - totalDiscount;
+        if (inventoryAmount > 0) {
+            details.push({
+                accountId: settings.defaultInventoryAccountId,
+                debit: inventoryAmount,
+                credit: 0,
+                description: `مشتريات مخزنية - فاتورة ${invoice.invoiceNumber}`
+            });
+        }
+
+        // Debit: VAT Input
+        if (totalTax > 0) {
             details.push({
                 accountId: invoice.accVat || settings.defaultVatInputAccountId,
-                debit: invoice.totalTax,
+                debit: totalTax,
                 credit: 0,
                 description: `ضريبة مدخلات - فاتورة ${invoice.invoiceNumber}`
             });
         }
 
-        details.push({
-            accountId: invoice.accSupplier || settings.defaultSupplierAccountId || await glLogic.getAccountId(glLogic.COA.AP),
-            debit: 0,
-            credit: invoice.totalAmount,
-            description: `استحقاق مورد - فاتورة مشتريات ${invoice.invoiceNumber}`
-        });
-
-        if (invoice.totalDiscount > 0) {
+        // Credit: Accounts Payable (total amount including tax)
+        if (totalAmount > 0) {
             details.push({
-                accountId: settings.defaultDiscountAccountId || await glLogic.getAccountId('4201'),
+                accountId: invoice.accSupplier || settings.defaultSupplierAccountId || await glLogic.getAccountId(glLogic.COA.AP),
                 debit: 0,
-                credit: invoice.totalDiscount,
+                credit: totalAmount,
+                description: `استحقاق مورد - فاتورة مشتريات ${invoice.invoiceNumber}`
+            });
+        }
+
+        // Credit: Discount Earned (if discount exists)
+        if (totalDiscount > 0) {
+            let discountAccountId = settings.defaultDiscountAccountId;
+            if (!discountAccountId) {
+                try {
+                    discountAccountId = await glLogic.getAccountId('4201');
+                } catch (err) {
+                    discountAccountId = await glLogic.getAccountId('5301');
+                }
+            }
+            details.push({
+                accountId: discountAccountId,
+                debit: 0,
+                credit: totalDiscount,
                 description: `خصم مكتسب فاتورة ${invoice.invoiceNumber}`
             });
         }
@@ -330,7 +417,8 @@ const glLogic = {
         // Balance Check
         const totalDebit = Number(details.reduce((sum, line) => sum + (line.debit || 0), 0).toFixed(2));
         const totalCredit = Number(details.reduce((sum, line) => sum + (line.credit || 0), 0).toFixed(2));
-        if (Math.abs(totalDebit - totalCredit) !== 0) {
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            console.error(`Purchase Unbalanced - Debit: ${totalDebit}, Credit: ${totalCredit}`);
             throw new Error("FATAL_ERROR: Unbalanced Journal Entry");
         }
 
@@ -347,26 +435,46 @@ const glLogic = {
         }
 
         const details = [];
+        const amount = toNumber(tx.amount);
         const isReceipt = tx.type === 'Inbound' || tx.type === 'Receipt';
 
-        details.push({
-            accountId: tx.treasuryAccount || settings.defaultTreasuryAccountId,
-            debit: isReceipt ? tx.amount : 0,
-            credit: isReceipt ? 0 : tx.amount,
-            description: tx.description || `حركة خزينة - ${tx.serialNumber}`
-        });
+        if (isReceipt) {
+            // Receipt: Debit Treasury, Credit Revenue/Account
+            details.push({
+                accountId: tx.treasuryAccount || settings.defaultTreasuryAccountId,
+                debit: amount,
+                credit: 0,
+                description: tx.description || `إيصال قبض - ${tx.serialNumber || tx.receiptNumber || ''}`
+            });
 
-        details.push({
-            accountId: tx.targetAccount || settings.defaultRevenueAccountId, // Assuming Revenue as target default for receipts
-            debit: isReceipt ? 0 : tx.amount,
-            credit: isReceipt ? tx.amount : 0,
-            description: tx.description || `حركة خزينة - ${tx.serialNumber}`
-        });
+            details.push({
+                accountId: tx.targetAccount || settings.defaultRevenueAccountId,
+                debit: 0,
+                credit: amount,
+                description: tx.description || `إيصال قبض - ${tx.serialNumber || tx.receiptNumber || ''}`
+            });
+        } else {
+            // Payment: Credit Treasury, Debit Expense/Account
+            details.push({
+                accountId: tx.treasuryAccount || settings.defaultTreasuryAccountId,
+                debit: 0,
+                credit: amount,
+                description: tx.description || `إيصال صرف - ${tx.serialNumber || tx.receiptNumber || ''}`
+            });
+
+            details.push({
+                accountId: tx.targetAccount || settings.defaultExpenseAccountId || await glLogic.getAccountId('6101'),
+                debit: amount,
+                credit: 0,
+                description: tx.description || `إيصال صرف - ${tx.serialNumber || tx.receiptNumber || ''}`
+            });
+        }
 
         // Balance Check
         const totalDebit = Number(details.reduce((sum, line) => sum + (line.debit || 0), 0).toFixed(2));
         const totalCredit = Number(details.reduce((sum, line) => sum + (line.credit || 0), 0).toFixed(2));
-        if (Math.abs(totalDebit - totalCredit) !== 0) {
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            console.error(`Treasury Unbalanced - Debit: ${totalDebit}, Credit: ${totalCredit}`);
             throw new Error("FATAL_ERROR: Unbalanced Journal Entry");
         }
 

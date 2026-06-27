@@ -53,7 +53,7 @@
 
     window.onload = async () => {
         // ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø®Ø§Ø²Ù†
-        const whRes = await fetch(`/api/warehouses/transactional`);
+        const whRes = await fetch(`/api/stock/warehouses/transactional`);
         const warehouses = await whRes.json();
         const opts = '<option value="">-- Ø§Ø®ØªØ± --</option>' + warehouses.map(w => `<option value="${w._id}">${w.path}</option>`).join('');
         document.getElementById('fromWh').innerHTML = opts;

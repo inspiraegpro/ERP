@@ -115,14 +115,9 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th width="8%">#</th>
-                    <th width="25%">القطعة / الباقة</th>
-                    <th width="20%">الخامة / الخدمة</th>
-                    <th width="10%">الطول</th>
-                    <th width="10%">العرض</th>
-                    <th width="12%">المساحة</th>
-                    <th width="15%">السعر</th>
-                    <th width="15%">الإجمالي</th>
+                    <th width="10%">#</th>
+                    <th width="60%">الخدمة</th>
+                    <th width="30%">الإجمالي</th>
                 </tr>
             </thead>
             <tbody id="itemsBody">
@@ -221,30 +216,44 @@
             
             // Fill items table
             const itemsBody = document.getElementById('itemsBody');
-            let itemsHtml = '';
             
-            (inv.items || []).forEach((item, index) => {
-                const partName = item.partName || item.product?.name || 'خدمة';
-                const productName = item.product?.name || item.productName || '-';
-                const length = item.length || 0;
-                const width = item.width || 0;
-                const area = item.area || 0;
-                const price = item.price || 0;
-                const total = item.lineTotal || (price * area) || price || 0;
+            const servicesMap = {};
+            (inv.items || []).forEach((item) => {
+                let serviceName = item.product?.name || item.productName || item.materialCategory || inv.serviceType || 'General Service';
+                let serviceLower = String(serviceName).toLowerCase();
                 
+                let finalName = serviceName;
+                if (serviceLower.includes('ppf') && !serviceLower.includes('matt')) {
+                    finalName = 'PPF Paint Protection';
+                } else if (serviceLower.includes('matt')) {
+                    finalName = 'MATT PPF Paint Protection';
+                } else if (serviceLower.includes('vinyl')) {
+                    finalName = 'Vinyl';
+                } else if (serviceLower.includes('window_film') || serviceLower.includes('window')) {
+                    finalName = 'Window Film';
+                } else if (serviceLower.includes('additional') || serviceLower.includes('service')) {
+                    finalName = 'Additional Services';
+                }
+                
+                const total = parseFloat(item.lineTotal || item.total || item.price) || 0;
+                
+                if (!servicesMap[finalName]) {
+                    servicesMap[finalName] = 0;
+                }
+                servicesMap[finalName] += total;
+            });
+            
+            let itemsHtml = '';
+            let index = 1;
+            for (const [name, val] of Object.entries(servicesMap)) {
                 itemsHtml += `
                     <tr>
-                        <td>${index + 1}</td>
-                        <td class="desc">${partName}</td>
-                        <td>${productName}</td>
-                        <td>${length}</td>
-                        <td>${width}</td>
-                        <td>${area.toFixed(4)}</td>
-                        <td>${Number(price).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
-                        <td class="total">${Number(total).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
+                        <td>${index++}</td>
+                        <td class="desc" style="text-align: right; padding-right: 15px; font-weight: bold;">${name}</td>
+                        <td class="total">${Number(val).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `;
-            });
+            }
             
             itemsBody.innerHTML = itemsHtml;
             

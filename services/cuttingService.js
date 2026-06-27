@@ -1,11 +1,4 @@
-function toNumber(value) {
-    const n = parseFloat(value);
-    return Number.isFinite(n) ? n : 0;
-}
-
-function buildArea(lengthCm, widthCm) {
-    return Number(((toNumber(lengthCm) * toNumber(widthCm)) / 10000).toFixed(4));
-}
+const { toNumber, buildArea } = require('./helpers');
 
 function findBestPlacement(roll, pieceLength, pieceWidth, allowRotate = false) {
     const rollLength = toNumber(roll.remainingLengthCm || roll.lengthCm || roll.originalLengthCm);

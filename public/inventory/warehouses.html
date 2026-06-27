@@ -91,7 +91,7 @@
     }
 
     async function loadWarehouses() {
-        const res = await fetch(`/api/warehouses`);
+        const res = await fetch(`/api/stock/warehouses`);
         allWarehouses = await res.json();
         
         // ملء قائمة الأباء

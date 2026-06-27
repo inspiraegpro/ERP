@@ -130,10 +130,27 @@ const hydrateServiceJob = async (job) => {
 
     // Normalize status for legacy jobs
     const status = normalizeServiceJobStatus(job.status || job.workflowStatus);
+    
+    // Calculate duration
+    let durationStr = '';
+    if (job.startedAt && job.completedAt) {
+        const diffMs = new Date(job.completedAt) - new Date(job.startedAt);
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 60) {
+            durationStr = `${diffMins} دقيقة`;
+        } else {
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            durationStr = mins > 0 ? `${hours} ساعة و ${mins} دقيقة` : `${hours} ساعة`;
+        }
+    } else if (job.startedAt) {
+        durationStr = 'قيد التنفيذ...';
+    }
 
     return {
         ...job,
         status,
+        durationStr,
         salesInvoiceId: invoice || job.salesInvoiceId,
         items: itemsWithProducts,
         technician: technician || (job.technicianName ? {
@@ -576,7 +593,8 @@ router.post('/:id/warehouse-issue', authenticateToken, async (req, res) => {
                 items: updatedItems,
                 warehouseIssuedAt: new Date().toISOString(),
                 status: isFullyIssued ? 'IN_PROGRESS' : 'PENDING_WAREHOUSE',
-                workflowStatus: isFullyIssued ? 'IssuedToTechnician' : 'PENDING_WAREHOUSE'
+                workflowStatus: isFullyIssued ? 'IssuedToTechnician' : 'PENDING_WAREHOUSE',
+                startedAt: isFullyIssued && !job.startedAt ? new Date().toISOString() : job.startedAt
             }
         );
 

@@ -258,5 +258,33 @@ describe('calculateInvoice', () => {
         expect(pricingService.VAT_RATE).toBe(0.14);
         expect(pricingService.WHT_RATE).toBe(0.01);
         expect(pricingService.MAX_DISCOUNT_RATIO).toBe(0.30);
+
+
     });
-});
+    test('exported constants have correct values', () => {
+        expect(pricingService.VAT_RATE).toBe(0.14);
+        expect(pricingService.WHT_RATE).toBe(0.01);
+        expect(pricingService.MAX_DISCOUNT_RATIO).toBe(0.30);
+    });
+
+    // ─── أضف الكود الجديد هنا مباشرة ──────────────────────────
+    describe('Central Tax Engine - Pricing Policy', () => {
+        test('يجب أن يحسب القيم بدقة بناءً على القاعدة (Total / 1.14)', () => {
+            const totalInclusive = 114;
+            const result = pricingService.calculateFinancials(totalInclusive);
+            
+            expect(result.total).toBe(114);
+            expect(result.net).toBe(100);
+            expect(result.vat).toBe(14);
+        });
+
+        test('التعامل مع المدخلات الفارغة (Safety Check)', () => {
+            const result = pricingService.calculateFinancials(0);
+            expect(result.total).toBe(0);
+            expect(result.net).toBe(0);
+            expect(result.vat).toBe(0);
+        });
+    });
+    // ──────────────────────────────────────────────────────────
+
+}); // هذا هو القوس الذي يغلق الملف بالكامل، لا تمسحه

@@ -209,7 +209,7 @@
                 showLoading();
                 
                 // Load roll balances
-                const rollsResponse = await apiCall('/api/inventory/rolls');
+                const rollsResponse = await apiCall('/api/stock/rolls');
                 allRolls = Array.isArray(rollsResponse) ? rollsResponse : (rollsResponse.data || []);
                 
                 // Load products
@@ -217,7 +217,7 @@
                 allProducts = Array.isArray(productsResponse) ? productsResponse : (productsResponse.data || []);
                 
                 // Load warehouses
-                const warehousesResponse = await apiCall('/api/warehouses');
+                const warehousesResponse = await apiCall('/api/stock/warehouses');
                 allWarehouses = Array.isArray(warehousesResponse) ? warehousesResponse : (warehousesResponse.data || []);
                 
                 populateFilters();

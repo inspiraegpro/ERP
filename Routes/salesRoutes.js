@@ -521,23 +521,22 @@ router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
             }
         }
 
-        // Calculate totals inline
-        const subtotal = (nextItems || [])
-            .filter((it) => !it.isCancelled)
-            .reduce((sum, it) => sum + toNumber(it.total || (toNumber(it.price) * toNumber(it.quantity || 1))), 0);
-        const discount = toNumber(invoice.discount || invoice.totalDiscount);
-        const vatRate = 0.14;
-        const taxableBase = Math.max(0, subtotal - discount);
-        const vat = Number((taxableBase * vatRate).toFixed(2));
-        const finalTotal = Number((taxableBase + vat).toFixed(2));
+        // حساب الإجماليات عبر pricingService (Single Source of Truth)
+        const activeItems  = (nextItems || []).filter(it => !it.isCancelled);
+        const subtotal     = activeItems.reduce((s, it) =>
+            s + toNumber(it.total || (toNumber(it.price) * toNumber(it.quantity || 1))), 0);
+        const discount     = toNumber(invoice.discount || invoice.totalDiscount);
+        const financials   = pricingService.calculateFinancials(subtotal - discount);
+        const vat          = financials.vat;
+        const finalTotal   = parseFloat((subtotal - discount + vat).toFixed(2));
         const totals = {
-            subtotal: Number(subtotal.toFixed(2)),
+            subtotal:      parseFloat(subtotal.toFixed(2)),
             totalDiscount: discount,
             discount,
-            totalTax: vat,
-            vatAmount: vat,
-            totalAmount: finalTotal,
-            finalAmount: finalTotal,
+            totalTax:      vat,
+            vatAmount:     vat,
+            totalAmount:   finalTotal,
+            finalAmount:   finalTotal,
             finalTotal
         };
         const serviceAdjustments = Array.isArray(invoice.serviceAdjustments) ? [...invoice.serviceAdjustments] : [];

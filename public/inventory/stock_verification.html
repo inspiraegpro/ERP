@@ -108,7 +108,7 @@
             setStatus("جاري التحقق...");
             const [products, rolls, trx] = await Promise.all([
                 apiCall("/api/products"),
-                apiCall("/api/inventory/rolls"),
+                apiCall("/api/stock/rolls"),
                 apiCall("/api/stock")
             ]);
 
@@ -177,7 +177,7 @@
         try {
             setStatus("جاري الإصلاح...");
             if (type === "rolls" || type === "products") {
-                const response = await fetch("/api/inventory/sync-products-from-stock", {
+                const response = await fetch("/api/stock/sync-products-from-stock", {
                     method: "POST",
                     headers: getAuthHeaders(true),
                     body: JSON.stringify({ dryRun: false })
@@ -213,7 +213,7 @@
 
         try {
             const token = getTokenSafe();
-            const response = await fetch("/api/inventory/opening-balance/preview", {
+            const response = await fetch("/api/stock/opening-balance/preview", {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 body: fd
@@ -239,7 +239,7 @@
 
         try {
             const token = getTokenSafe();
-            const response = await fetch("/api/inventory/opening-balance/import", {
+            const response = await fetch("/api/stock/opening-balance/import", {
                 method: "POST",
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 body: fd
