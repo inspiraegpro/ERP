@@ -329,14 +329,17 @@
                         <h3>📄 أمر تشغيل #${job.jobOrder || job.jobNumber || '-'}</h3>
                         <p>🧾 فاتورة: ${job.salesInvoiceId?.invoiceNumber || job.invoiceNumber || '-'} | 👤 ${job.customerName || '-'} | 🚗 ${job.carName || job.carModel || '-'} | 🏷️ ${job.serviceType || '-'}</p>
                     </div>
+                    <div style="font-size: 14px; color: #64748b; margin-top: 5px;">
+                        <span>تاريخ: ${new Date(job.createdAt).toLocaleString('ar-EG')}</span>
+                        ${job.durationStr ? `<span style="margin-right: 15px; color:#4f46e5;">⏱️ المدة: ${job.durationStr}</span>` : ''}
+                    </div>
                     <span class="status-badge status-${getStatusClass(job.status)}">${getStatusText(job.status)}</span>
                 </div>
                 <div class="job-table">
                     ${renderJobItemsTable(job)}
                 </div>
                 <div class="job-actions no-print">
-                    ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician') ? `<button class="btn btn-primary" onclick="openSetupModal('${job._id}')">🔧 تجهيز المهمة</button>` : ''}
-                    ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician' || job.status === 'PENDING_WAREHOUSE') ? `<button class="btn btn-warning" onclick="openSetupModal('${job._id}')">✏️ تعديل</button>` : ''}
+                    ${(job.status === 'PENDING_OPS' || job.status === 'AwaitingTechnician' || job.status === 'PENDING_WAREHOUSE') ? `<button class="btn btn-primary" onclick="openSetupModal('${job._id}')">🔧 تجهيز / تعديل</button>` : ''}
                     ${job.status === 'IN_PROGRESS' ? `<button class="btn btn-success" onclick="openRatingModal('${job._id}')">⭐ تقييم وإنهاء</button>` : ''}
                     ${String(job.type || 'SALES').toUpperCase() !== 'REISSUE' ? `<button class="btn btn-light" onclick="openReissueRequestFromJob('${job._id}')">📤 طلب إعادة صرف</button>` : ''}
                     <button class="btn btn-light" onclick="printJob('${job._id}')">🖨️ طباعة</button>
@@ -478,7 +481,20 @@
         if (!job) return;
         
         const container = document.getElementById('setupItemsList');
-        container.innerHTML = `<input type="hidden" id="setupJobId" value="${jobId}">`;
+        
+        const globalTechOptions = technicians.map(t => `<option value="${t._id}">${t.name}</option>`).join('');
+        const globalTechHtml = `
+            <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #cbd5e1; display: flex; align-items: center; gap: 10px;">
+                <label style="font-weight: bold; margin: 0;">توزيع سريع (اختياري):</label>
+                <select id="globalTechSelect" style="flex: 1; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                    <option value="">-- اختر الفني لتطبيقه على كل البنود --</option>
+                    ${globalTechOptions}
+                </select>
+                <button type="button" class="btn btn-secondary" onclick="applyGlobalTech()" style="padding: 8px 15px;">تطبيق على الكل</button>
+            </div>
+        `;
+        
+        container.innerHTML = `<input type="hidden" id="setupJobId" value="${jobId}">` + globalTechHtml;
         
         (job.items || []).forEach((item, idx) => {
             // Extract category from partName (e.g., "Window Film - درجة 1" -> "window film")
@@ -593,6 +609,18 @@
     
     function closeSetupModal() {
         document.getElementById('setupModal').style.display = 'none';
+    }
+    
+    function applyGlobalTech() {
+        const globalSelect = document.getElementById('globalTechSelect');
+        if (!globalSelect) return;
+        const selectedTechId = globalSelect.value;
+        if (!selectedTechId) return;
+        
+        const techSelects = document.querySelectorAll('#setupItemsList .tech-select');
+        techSelects.forEach(select => {
+            select.value = selectedTechId;
+        });
     }
     
     async function submitSetup() {

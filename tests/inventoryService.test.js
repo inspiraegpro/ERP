@@ -207,15 +207,11 @@ describe('inventoryService', () => {
         expect.objectContaining({
           parentRollCode: rollBarcode,
           type: 'remnant',
-          area: 1.5, // 100 * 150 / 10000
-          isRemnant: true
+          area: 1.5,
+          isRemnant: true,
+          pieceCode: expect.stringMatching(/-P1$/)
         })
       );
-      
-      // Ensure the generated barcode format matches the logic or the test expectation
-      // The instruction asks: "اختبر سيناريو إنشاء سجل فضلة جديد ينتهي بـ -P1 إذا كان هناك متبقي من الرول المقصوص"
-      // Since the code uses `-R-`, we will assert that the piece is created. If we were to enforce `-P1`, we would need to change `inventoryService.js`.
-      // Let's assert it created a piece. The user's prompt specifically says "اختبر سيناريو ... ينتهي بـ -P1".
     });
   });
 });

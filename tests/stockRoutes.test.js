@@ -17,7 +17,9 @@ jest.mock('../file_db_manager', () => {
 jest.mock('../services/inventoryService', () => ({
   getSmartSuggestions: jest.fn(),
   processInbound: jest.fn(),
-  processOutbound: jest.fn()
+  processOutbound: jest.fn(),
+  processIssue: jest.fn(),
+  processCuttingAction: jest.fn()
 }));
 
 jest.mock('../middleware/auth', () => ({
@@ -79,6 +81,11 @@ describe('stockRoutes API', () => {
     inventoryService.getSmartSuggestions.mockResolvedValue([{ code: 'R1', type: 'remnant' }]);
     inventoryService.processInbound.mockResolvedValue({});
     inventoryService.processOutbound.mockResolvedValue({});
+    inventoryService.processIssue.mockResolvedValue({
+      transaction: { _id: 'out1', type: 'Outbound' },
+      remnants: [{ barcode: 'ROLL-1-P1', area: 1 }]
+    });
+    inventoryService.processCuttingAction.mockResolvedValue({ success: true, remnantBarcode: 'ROLL-1-P1' });
   });
 
   afterEach((done) => {
@@ -134,5 +141,30 @@ describe('stockRoutes API', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].rollCode).toBe('R1');
   });
-});
 
+  test('GET /available-rolls filters by warehouse', async () => {
+    db.find.mockResolvedValueOnce([
+      { product: 'p1', status: 'Available', rollCode: 'R1', remainingArea: 5, warehouseId: 'main' },
+      { product: 'p1', status: 'Available', rollCode: 'R2', remainingArea: 8, warehouseId: 'branch' }
+    ]);
+
+    const res = await request(server, 'GET', '/api/stock/available-rolls?productId=p1&warehouse=branch');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].rollCode).toBe('R2');
+  });
+
+  test('POST /issue delegates unified stock issue and returns remnant barcode', async () => {
+    const payload = {
+      warehouseId: 'main',
+      items: [{ product: 'p1', rollCode: 'ROLL-1', area: 1, remainingLength: 100, remainingWidth: 100 }]
+    };
+
+    const res = await request(server, 'POST', '/api/stock/issue', payload);
+
+    expect(res.status).toBe(201);
+    expect(inventoryService.processIssue).toHaveBeenCalledWith(payload);
+    expect(res.body.remnants[0].barcode).toBe('ROLL-1-P1');
+  });
+});

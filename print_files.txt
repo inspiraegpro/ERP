@@ -1,0 +1,485 @@
+============================================
+sales_list.html
+============================================
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل المبيعات</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f1f5f9; }
+        .card { background: white; padding: 25px; border-radius: 10px; max-width: 1200px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size:14px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #e0f2fe; color: #0369a1; }
+        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; margin: 0 2px; font-size:12px; }
+        .btn-edit { background: #f59e0b; }
+        .btn-del { background: #ef4444; }
+        .btn-pay { background: #10b981; font-weight: bold; } /* زرار السداد */
+        .btn-cut { background: #8b5cf6; font-weight: bold; } /* زرار التقطيع لونه موف */
+        .btn-new { background: #10b981; padding: 10px 20px; text-decoration: none; display: inline-block; font-weight: bold; }
+        .paid-badge { background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 10px; font-size: 11px; }
+        .unpaid-badge { background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 10px; font-size: 11px; }
+        .btn-print { background: #333; } /* زرار الطباعة */
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            📋 سجل فواتير المبيعات
+            <input type="text" id="searchInput" placeholder="بحث باسم العميل أو رقم الفاتورة..." onkeyup="filterTable()" style="padding:5px; font-size:14px; margin-right:10px; width:250px;">
+        </div>
+        <div>
+            <button class="btn btn-del" onclick="deleteSelected()" style="padding:10px 15px; margin-left:10px; font-weight:bold;">🗑️ حذف المحدد</button>
+            <a href="/sales/sales_invoice.html" class="btn-new">+ فاتورة جديدة</a>
+        </div>
+    </h2>
+    <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+        <label>من:</label> <input type="date" id="dateFrom" onchange="filterTable()">
+        <label>إلى:</label> <input type="date" id="dateTo" onchange="filterTable()">
+    </div>
+    
+    <table id="salesTable">
+        <thead>
+            <tr>
+                <th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                <th>رقم الفاتورة</th>
+                <th>التاريخ</th>
+                <th>العميل</th>
+                <th>السيارة</th>
+                <th>الوكيل</th>
+                <th>الإجمالي</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+<script>
+    const API = '/api';
+    function safeGetToken() {
+        if (typeof getToken === 'function') return getToken();
+        return localStorage.getItem('token') || '';
+    }
+
+    function safeGetUser() {
+        if (typeof getUser === 'function') return getUser() || {};
+        try {
+            return JSON.parse(localStorage.getItem('user') || '{}');
+        } catch {
+            return {};
+        }
+    }
+
+    const user = safeGetUser();
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+
+    function authHeaders() {
+        const token = safeGetToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    
+    let allInvoices = [];
+
+    async function load() {
+        try {
+            const res = await fetch(`${API}/sales`, { headers: authHeaders() });
+            if (!res.ok) throw new Error('فشل تحميل البيانات');
+            const data = await res.json();
+            allInvoices = data;
+            renderTable(data);
+        } catch(e) { alert('خطأ: ' + e.message); }
+    }
+
+    function renderTable(data) {
+        if (!data || data.length === 0) {
+            document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="padding:20px;color:#666;">لا توجد فواتير مسجلة</td></tr>';
+            return;
+        }
+
+        document.getElementById('tbody').innerHTML = data.map(i => {
+            const isPaid = i.paymentStatus === 'Paid' || (i.paidAmount >= i.finalTotal);
+            const carInfo = encodeURIComponent(i.carModel ? `${i.carModel.brand} ${i.carModel.model}` : '-');
+            const custName = encodeURIComponent(i.customer?.name || '-');
+            const custId = i.customer?.accountId || '';
+            const payLink = `/financial/treasury.html?invoiceId=${i._id}&invNum=${i.invoiceNumber}&amount=${i.finalTotal}&type=Inbound&custId=${custId}&custName=${custName}&carInfo=${carInfo}`;
+            const cutLink = `/inventory/cutting_planner.html?invoiceId=${i._id}`;
+            // روابط الربط المباشر — رقم الفاتورة هو المفتاح المشترك
+            const jobLink      = `/service/service_jobs.html`;
+            const stockOutLink = `/inventory/stock_out.html?jobOrder=${encodeURIComponent(i.invoiceNumber)}`;
+
+            return `
+            <tr data-id="${i._id}">
+                <td><input type="checkbox" class="row-select" value="${i._id}"></td>
+                <td>${i.invoiceNumber}</td>
+                <td>${new Date(i.date).toLocaleDateString('ar-EG')}</td>
+                <td>${i.customer?.name || '-'}</td>
+                <td>${i.carModel ? `${i.carModel.brand} ${i.carModel.model}` : '-'}</td>
+                <td>${i.salesPersonName || '-'}</td>
+                <td style="font-weight:bold; color:green">${parseFloat(i.finalTotal).toLocaleString()}</td>
+                <td><span class="${isPaid?'paid-badge':'unpaid-badge'}">${isPaid?'مدفوع':'غير مدفوع'}</span></td>
+                <td>
+                    <button class="btn btn-cut" onclick="location.href='${cutLink}'">✂️ تقطيع</button>
+                    ${!isPaid ? `<button class="btn btn-pay" onclick="location.href='${payLink}'">💰 سداد</button>` : ''}
+                    ${isAdmin ? `<button class="btn btn-edit" onclick="location.href='/sales/sales_invoice.html?id=${i._id}'">✏️</button>` : ''}
+                    <button class="btn" style="background:#8b5cf6; color:white;" onclick="location.href='/sales/sales_invoice_details.html?id=${i._id}'">👁️</button>
+                    <button class="btn btn-print" onclick="printInvoice('${i._id}')">🖨️</button>
+                    <button class="btn" style="background:#0f766e; color:white;" title="أمر التشغيل" onclick="location.href='${jobLink}'">📋</button>
+                    <button class="btn" style="background:#b45309; color:white;" title="إذن الصرف - ${i.invoiceNumber}" onclick="location.href='${stockOutLink}'">📦</button>
+                    ${isAdmin ? `<button class="btn btn-del" onclick="del('${i._id}')">🗑️</button>` : ''}
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function filterTable() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const from = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
+        const to = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value) : null;
+        if(to) to.setHours(23,59,59);
+
+        const filtered = allInvoices.filter(i => {
+            const invNum = String(i.invoiceNumber).toLowerCase();
+            const custName = i.customer?.name ? i.customer.name.toLowerCase() : '';
+            const invDate = new Date(i.date);
+
+            // Text Match
+            const matchText = invNum.includes(query) || custName.includes(query);
+            
+            // Date Match
+            let matchDate = true;
+            if(from && invDate < from) matchDate = false;
+            if(to && invDate > to) matchDate = false;
+
+            return matchText && matchDate;
+        });
+        renderTable(filtered);
+    }
+
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.row-select').forEach(cb => cb.checked = checked);
+    }
+
+    async function deleteSelected() {
+        if ( !isAdmin ) { alert('الحذف متاح للأدمن فقط'); return; }
+        const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+        if (selected.length === 0) { alert('لم يتم تحديد أي فاتورة للحذف'); return; }
+        
+        if (!confirm(`تحذير خطير! ⚠️\n\nأنت على وشك حذف (${selected.length}) فاتورة نهائياً.\nسيتم عكس جميع تأثيرات المخزن والقيود المحاسبية.\n\nهل أنت متأكد تماماً؟`)) return;
+
+        let successCount = 0;
+        for (const id of selected) {
+            try {
+                const res = await fetch(`${API}/sales/${id}`, { method: 'DELETE', headers: authHeaders() });
+                if(res.ok) successCount++;
+            } catch(e) { console.error(e); }
+        }
+        
+        alert(`تم حذف ${successCount} من أصل ${selected.length} فاتورة بنجاح.`);
+        load();
+    }
+
+    async function del(id) {
+        if ( !isAdmin ) { alert('الحذف متاح للأدمن فقط'); return; }
+        if(!confirm('هل أنت متأكد من الحذف؟ سيتم إلغاء القيد وعكس المخزن.')) return;
+        try {
+            const res = await fetch(`${API}/sales/${id}`, { method: 'DELETE', headers: authHeaders() });
+            if(res.ok) { alert('تم الحذف وتصحيح الأوضاع ✅'); load(); }
+            else { 
+                const err = await res.json();
+                alert('فشل الحذف: ' + err.message); 
+            }
+        } catch(e) { alert('خطأ اتصال'); }
+    }
+
+    function printInvoice(id) {
+        window.open('/sales/job_order_print.html?id=' + id, '_blank');
+    }
+
+    load();
+</script>
+    <script src="/global-navigation.js"></script>
+</body>
+</html>
+
+============================================
+invoice_print.html
+============================================
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فاتورة مبيعات - طباعة</title>
+    <script src="/common-functions.js"></script>
+    <style>
+        body { font-family: 'Arial', 'Segoe UI', sans-serif; background: #fff; padding: 20px; color: #000; }
+        .container { max-width: 800px; margin: 0 auto; border: 1px solid #000; min-height: 1000px; position: relative; }
+        
+        /* Header Logo Area */
+        .logo-area { background: #333; color: white; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; border-bottom: 2px solid #000; }
+        
+        /* Section Title */
+        .sec-title { background: #555; color: white; text-align: center; font-weight: bold; padding: 5px; text-transform: uppercase; border-top: 1px solid #000; border-bottom: 1px solid #000; font-size: 14px; }
+        
+        /* Table Grid */
+        .row { display: flex; border-bottom: 1px solid #ccc; }
+        .row:last-child { border-bottom: none; }
+        .label { background: #f0f0f0; width: 180px; padding: 5px 10px; font-weight: bold; border-right: 1px solid #ccc; font-size: 13px; display: flex; align-items: center; }
+        .val { flex: 1; padding: 5px 10px; font-size: 14px; display: flex; align-items: center; }
+        .val-half { width: 50%; display: flex; border-right: 1px solid #ccc; }
+        
+        /* Services Section */
+        .services-box { min-height: 200px; padding: 10px; font-size: 14px; }
+        .service-line { padding: 5px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
+        
+        /* Financials */
+        .money-row { display: flex; border-top: 1px solid #000; }
+        .money-lbl { width: 50%; padding: 5px; text-align: right; border-right: 1px solid #000; font-weight: bold; background: #f9f9f9; }
+        .money-val { width: 50%; padding: 5px; text-align: center; font-weight: bold; }
+
+        /* Remarks */
+        .remarks-box { height: 60px; padding: 10px; font-style: italic; border-bottom: 1px solid #000; }
+
+        /* Footer & Signatures */
+        .signatures { display: flex; border-top: 2px solid #000; margin-top: 0; }
+        .sig-box { flex: 1; text-align: center; height: 80px; border-right: 1px solid #000; }
+        .sig-box:last-child { border-right: none; }
+        .sig-title { background: #555; color: white; padding: 5px; font-weight: bold; font-size: 12px; }
+
+        .terms { font-size: 10px; padding: 10px; text-align: justify; color: #444; border-top: 1px solid #000; }
+        .bottom-strip { background: #333; color: white; padding: 5px 20px; display: flex; justify-content: space-between; font-size: 12px; position: absolute; bottom: 0; width: 100%; box-sizing: border-box; }
+
+        /* Items Table */
+        .items-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .items-table th { background: #555; color: white; padding: 8px; font-size: 12px; text-align: center; border: 1px solid #000; }
+        .items-table td { padding: 8px; border: 1px solid #ccc; text-align: center; font-size: 12px; }
+        .items-table .desc { text-align: right; }
+        .items-table .qty { text-align: center; }
+        .items-table .price { text-align: center; }
+        .items-table .total { text-align: center; font-weight: bold; }
+
+        @media print {
+            .no-print { display: none; }
+            .container { border: none; }
+            body { padding: 0; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="text-align:center; margin-bottom:20px;">
+        <button onclick="window.print()" style="padding:10px 30px; background:#000; color:#fff; cursor:pointer;">🖨️ طباعة</button>
+    </div>
+
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo-area">WrapStyle Cairo – Empyrean Enterprises</div>
+
+        <!-- Header Info -->
+        <div class="sec-title">فاتورة مبيعات</div>
+        
+        <div class="row">
+            <div class="label">رقم الفاتورة</div>
+            <div class="val" id="invNum" style="font-weight:bold; font-size:16px"></div>
+        </div>
+        <div class="row">
+            <div class="val-half" style="flex:1">
+                <div class="label" style="width:120px">التاريخ</div>
+                <div class="val" id="date"></div>
+            </div>
+            <div class="val-half" style="flex:1">
+                <div class="label" style="width:80px; border-left:1px solid #ccc">الفرع</div>
+                <div class="val">Cloud Nine Mall, Mohamed Naguib Axis, New Cairo</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="label">العميل</div>
+            <div class="val" id="custName"></div>
+        </div>
+        <div class="row">
+            <div class="label">رقم الهاتف</div>
+            <div class="val" id="phone"></div>
+        </div>
+        <div class="row">
+            <div class="label">نوع السيارة</div>
+            <div class="val" id="vehicleType"></div>
+        </div>
+        <div class="row">
+            <div class="label">موديل السيارة</div>
+            <div class="val" id="carModel"></div>
+        </div>
+        <div class="row">
+            <div class="label">رقم اللوحة</div>
+            <div class="val" id="vehiclePlate">-</div>
+        </div>
+        <div class="row">
+            <div class="label">لون السيارة</div>
+            <div class="val" id="vehicleColor">-</div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="sec-title">الأصناف</div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th width="8%">#</th>
+                    <th width="25%">القطعة / الباقة</th>
+                    <th width="20%">الخامة / الخدمة</th>
+                    <th width="10%">الطول</th>
+                    <th width="10%">العرض</th>
+                    <th width="12%">المساحة</th>
+                    <th width="15%">السعر</th>
+                    <th width="15%">الإجمالي</th>
+                </tr>
+            </thead>
+            <tbody id="itemsBody">
+            </tbody>
+        </table>
+
+        <!-- Financials -->
+        <div class="row">
+            <div class="label">نوع الخدمة</div>
+            <div class="val" id="serviceType">-</div>
+        </div>
+        <div class="row">
+            <div class="label">مندوب المبيعات</div>
+            <div class="val" id="salesPersonName">-</div>
+        </div>
+
+        <div class="money-row">
+            <div class="money-lbl">إجمالي الأصناف (قبل الضريبة):</div>
+            <div class="money-val" id="subtotal">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">+ خدمات إضافية:</div>
+            <div class="money-val" id="extraCost">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">- خصم:</div>
+            <div class="money-val" id="discount">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">الإجمالي (قبل الضريبة):</div>
+            <div class="money-val" id="totalBeforeVat">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">ضريبة القيمة المضافة (14%):</div>
+            <div class="money-val" id="vatVal">0.00</div>
+        </div>
+        <div class="money-row">
+            <div class="money-lbl">الإجمالي النهائي:</div>
+            <div class="money-val" id="finalTotal">0.00</div>
+        </div>
+
+        <!-- Remarks -->
+        <div class="sec-title">ملاحظات</div>
+        <div class="remarks-box" id="notes"></div>
+
+        <!-- Signatures -->
+        <div class="signatures">
+            <div class="sig-box">
+                <div class="sig-title">إدارة المبيعات</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-title">توقيع العميل</div>
+            </div>
+        </div>
+
+        <!-- Terms -->
+        <div class="terms">
+            الشروط والأحكام: جميع الأسعار أعلاه تشمل 14% ضريبة القيمة المضافة. بتوقيع هذا النموذج، وافق العميل على السعر المذكور أعلاه، وفهم ضمان المنتجات المثبتة، وأكد إزالة جميع المتعلقات من السيارة.
+        </div>
+
+        <!-- Footer -->
+        <div class="bottom-strip">
+            <span>📞 +2012 00 999 333</span>
+            <span>✉️ cairo@wrapstyle.com</span>
+            <span>🌐 wrapstyle.com</span>
+        </div>
+    </div>
+
+<script>
+    const API = '/api';
+    
+    window.onload = async () => {
+        const id = new URLSearchParams(window.location.search).get('id');
+        if(!id) return alert('لا يوجد رقم فاتورة');
+
+        try {
+            const token = localStorage.getItem('token'); 
+            const res = await fetch(`${API}/sales/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error("فاتورة غير موجودة");
+            const inv = await res.json();
+
+            // Fill header information
+            document.getElementById('invNum').innerText = inv.invoiceNumber;
+            document.getElementById('date').innerText = new Date(inv.date).toLocaleDateString('ar-EG');
+            document.getElementById('custName').innerText = inv.customer?.name || inv.customerName || '-';
+            document.getElementById('phone').innerText = inv.customer?.phone || '-';
+            document.getElementById('vehicleType').innerText = inv.vehicleType || '-';
+            document.getElementById('carModel').innerText = inv.carModel || '-';
+            document.getElementById('vehiclePlate').innerText = inv.vehiclePlate || '-';
+            document.getElementById('vehicleColor').innerText = inv.vehicleColor || '-';
+            document.getElementById('serviceType').innerText = inv.serviceType || '-';
+            document.getElementById('salesPersonName').innerText = inv.salesPerson?.name || inv.salesPerson || '-';
+            document.getElementById('notes').innerText = inv.notes || '-';
+            
+            // Fill items table
+            const itemsBody = document.getElementById('itemsBody');
+            let itemsHtml = '';
+            
+            (inv.items || []).forEach((item, index) => {
+                const partName = item.partName || item.product?.name || 'خدمة';
+                const productName = item.product?.name || item.productName || '-';
+                const length = item.length || 0;
+                const width = item.width || 0;
+                const area = item.area || 0;
+                const price = item.price || 0;
+                const total = item.lineTotal || item.total || 0;
+                
+                itemsHtml += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="desc">${partName}</td>
+                        <td>${productName}</td>
+                        <td>${length}</td>
+                        <td>${width}</td>
+                        <td>${area.toFixed(4)}</td>
+                        <td>${Number(price).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
+                        <td class="total">${Number(total).toLocaleString('ar-EG', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            });
+            
+            itemsBody.innerHTML = itemsHtml;
+            
+            // Fill financials
+            const subtotal = parseFloat(inv.subtotal) || 0;
+            const extraCost = parseFloat(inv.totalExtraCosts) || 0;
+            const discount = parseFloat(inv.discount) || 0;
+            const totalBeforeVat = subtotal + extraCost - discount;
+            const vat = totalBeforeVat * 0.14;
+            const finalTotal = totalBeforeVat + vat;
+            
+            document.getElementById('subtotal').innerText = subtotal.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('extraCost').innerText = extraCost.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('discount').innerText = discount.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('totalBeforeVat').innerText = totalBeforeVat.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('vatVal').innerText = vat.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            document.getElementById('finalTotal').innerText = finalTotal.toLocaleString('ar-EG', {minimumFractionDigits: 2});
+            
+        } catch(e) {
+            alert('خطأ في تحميل الفاتورة: ' + e.message);
+            console.error('Invoice Load Error:', e);
+        }
+    };
+</script>
+
+</body>
+</html>

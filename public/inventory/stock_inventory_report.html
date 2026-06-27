@@ -115,7 +115,7 @@
 
         async function loadData() {
             try {
-                const response = await fetch(`${API}/inventory/report/detailed`, {
+                const response = await fetch(`${API}/stock/inventory-report/detailed`, {
                     headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 if (!response.ok) throw new Error('فشل جلب البيانات');

@@ -1,0 +1,38 @@
+============================================
+??????? public/service/
+============================================
+ Volume in drive C has no label.
+ Volume Serial Number is 7033-9DAA
+
+ Directory of C:\Users\ATG\Desktop\you\inspera\public\service
+
+04/23/2026  03:50 PM             3,958 cars.html
+06/06/2026  03:39 AM            25,164 car_coding.html
+04/23/2026  03:50 PM             4,946 job_profitability.html
+05/18/2026  05:49 PM             6,763 reissue_accounting.html
+05/18/2026  05:48 PM            11,166 reissue_execution.html
+05/19/2026  06:50 PM            16,840 reissue_request.html
+06/27/2026  05:41 PM            42,234 service_jobs.html
+05/19/2026  03:32 PM            25,322 warranty_request.html
+               8 File(s)        136,393 bytes
+               0 Dir(s)  17,992,003,584 bytes free
+
+============================================
+service_jobs.html - ????? ???????
+============================================
+        @media print {
+            .no-print, .tabs, .toolbar, .job-actions { display: none; }
+    <div class="tabs no-print">
+    <div class="tabs no-print" id="typeTabs">
+    <div class="toolbar no-print">
+                        <p>🧾 فاتورة: ${job.salesInvoiceId?.invoiceNumber || job.invoiceNumber || '-'} | 👤 ${job.customerName || '-'} | 🚗 ${job.carName || job.carModel || '-'} | 🏷️ ${job.serviceType || '-'}</p>
+                <div class="job-actions no-print">
+                    <button class="btn btn-light" onclick="printJob('${job._id}')">🖨️ طباعة</button>
+    function printJob(jobId) {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+                <p><strong>الفاتورة:</strong> ${job.salesInvoiceId?.invoiceNumber || job.invoiceNumber || '-'}</p>
+        printWindow.document.close();
+        printWindow.print();
+    document.querySelectorAll('.tabs.no-print:not(#typeTabs) .tab').forEach(tab => {
+            document.querySelectorAll('.tabs.no-print:not(#typeTabs) .tab').forEach(t => t.classList.remove('active'));

@@ -30,6 +30,8 @@
         
         .error-msg { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 5px; display: none; margin-bottom: 20px; text-align: center; }
     </style>
+    <!-- global-navigation.js يجب أن يُحمَّل أولاً لأنه يعرّف getUser() و getToken() -->
+    <script src="/global-navigation.js"></script>
 </head>
 <body>
 
@@ -70,8 +72,9 @@
 
 <script>
     const API = '/api';
-    const user = getUser();
-    const token = getToken();
+    // getUser() و getToken() معرّفتان في global-navigation.js المحمَّل في <head>
+    const user    = (typeof getUser  === 'function') ? getUser()  : {};
+    const token   = (typeof getToken === 'function') ? getToken() : (localStorage.getItem('token') || '');
     const isAdmin = String(user.role || '').toLowerCase() === 'admin';
 
     function authHeaders() {
@@ -241,6 +244,5 @@
 
     load();
 </script>
-    <script src="/global-navigation.js"></script>
 </body>
 </html>

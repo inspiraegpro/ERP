@@ -1,0 +1,391 @@
+{
+  "note": "Existing frontend financial-calculation violations. New violations fail npm run guard:frontend-financial-boundary.",
+  "updatedAt": "2026-06-22T11:21:52.297Z",
+  "violations": [
+    {
+      "file": "public/hr/employee_coding.html",
+      "rule": "frontend-financial-calc-function",
+      "code": "function calcTotalSettlement() {"
+    },
+    {
+      "file": "public/hr/payroll.html",
+      "rule": "frontend-financial-calc-function",
+      "code": "function calcGrandTotal() {"
+    },
+    {
+      "file": "public/hr/payroll.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "document.querySelectorAll('#tbody tr:not([style*=\"display: none\"]) .net-salary').forEach(i => total += parseFloat(i.value)||0);"
+    },
+    {
+      "file": "public/hr/payroll.html",
+      "rule": "frontend-financial-reducer",
+      "code": "document.querySelectorAll('#tbody tr:not([style*=\"display: none\"]) .net-salary').forEach(i => total += parseFloat(i.value)||0);"
+    },
+    {
+      "file": "public/hr/payroll.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "totalAmount: currentPayrollDetails.reduce((sum, d) => sum + (d.netSalary||0), 0)"
+    },
+    {
+      "file": "public/hr/payroll.html",
+      "rule": "frontend-financial-reducer",
+      "code": "totalAmount: currentPayrollDetails.reduce((sum, d) => sum + (d.netSalary||0), 0)"
+    },
+    {
+      "file": "public/inventory-constants.js",
+      "rule": "frontend-financial-arithmetic",
+      "code": "VAT_RATE: 0.14, // ضريبة القيمة المضافة 14%"
+    },
+    {
+      "file": "public/inventory-constants.js",
+      "rule": "frontend-vat-rate",
+      "code": "VAT_RATE: 0.14, // ضريبة القيمة المضافة 14%"
+    },
+    {
+      "file": "public/inventory-constants.js",
+      "rule": "frontend-financial-arithmetic",
+      "code": "WHT_RATE: 0.01, // ضريبة الخصم من المنبع 1%"
+    },
+    {
+      "file": "public/inventory/import_shipment.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const lineTotal = qty * price;"
+    },
+    {
+      "file": "public/inventory/import_shipment.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "totalUSD += lineTotal;"
+    },
+    {
+      "file": "public/inventory/import_shipment.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const finalTotal = goodsEGP + comms + expEGP;"
+    },
+    {
+      "file": "public/inventory/import_shipment.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const itemAverage = totalQty > 0 ? finalTotal / totalQty : 0;"
+    },
+    {
+      "file": "public/inventory/import_shipment.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const areaAverage = totalArea > 0 ? finalTotal / totalArea : 0;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "السعر الشامل (مدخل): <span id=\"previewWithVat\">0</span> ج.م<br>"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "السعر الصافي (للفاتورة): <span id=\"previewWithoutVat\">0</span> ج.م<br>"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "ضريبة القيمة المضافة (14%): <span id=\"previewVat\">0</span> ج.م"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-vat-rate",
+      "code": "const VAT_RATE = 0.14;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "return salePrice / (1 + VAT_RATE);"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-calc-function",
+      "code": "function updateVatDisplay(input) {"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const vatAmount = priceWithVat > 0 ? priceWithVat - priceWithoutVat : 0;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-calc-function",
+      "code": "function updateNetPrice(input) {"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "product.pricing.priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "product.pricing.vatAmount = priceWithVat > 0 ? priceWithVat - product.pricing.priceWithoutVat : 0;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const priceWithoutVat = priceWithVat / (1 + VAT_RATE);"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const vatAmount = priceWithVat - priceWithoutVat;"
+    },
+    {
+      "file": "public/inventory/products.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "// Price (sale price with VAT) - Backend will calculate net price"
+    },
+    {
+      "file": "public/inventory/stock_in.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const factor = invoice.subtotal > 0 && invoice.totalAmount > 0 ? invoice.totalAmount / invoice.subtotal : 1;"
+    },
+    {
+      "file": "public/inventory/waste_report.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "tGross += parseFloat(row.grossArea);"
+    },
+    {
+      "file": "public/inventory/waste_report.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "document.getElementById('totalGross').innerText = tGross.toFixed(2) + ' m²';"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "<div class=\"cost\"><label for=\"taxVal\">قيمة الضريبة</label><input type=\"number\" id=\"taxVal\" value=\"0\" min=\"0\" step=\"0.01\" oninput=\"document.getElementById('autoTax').checked=false;calcTotal()\"></div>"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "<div class=\"cost\"><label for=\"whtVal\">خصم 1%</label><input type=\"number\" id=\"whtVal\" value=\"0\" min=\"0\" step=\"0.01\" oninput=\"calcTotal()\"></div>"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "<div class=\"cost\" style=\"grid-column:1/-1\"><label style=\"display:inline-flex;align-items:center;gap:.5rem;cursor:pointer\"><input type=\"checkbox\" id=\"autoTax\" onchange=\"calcTotal()\" style=\"width:auto\"> تطبيق ضريبة 14% تلقائيًا</label><span c"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const total = Number(data.lineTotal || (quantity * loadedCost));"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-calc-function",
+      "code": "function calcTotal() {"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const subtotal = rows.reduce((sum, row) => sum + Number(row.querySelector('.total').value || 0), 0);"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-reducer",
+      "code": "const subtotal = rows.reduce((sum, row) => sum + Number(row.querySelector('.total').value || 0), 0);"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "document.getElementById('taxVal').value = (subtotal * 0.14).toFixed(2);"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-vat-rate",
+      "code": "document.getElementById('taxVal').value = (subtotal * 0.14).toFixed(2);"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "document.getElementById('finalTotal').textContent = ((subtotal + tax) - (wht + discount)).toFixed(2);"
+    },
+    {
+      "file": "public/purchases/purchase_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "lineTotal: Number(item.quantity || 0) * importedCost"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-vat-rate",
+      "code": "const VAT_RATE = 0.14; // 14% VAT"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const priceWithoutVat = priceWithVat > 0 ? (priceWithVat / (1 + VAT_RATE)).toFixed(2) : 0;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const vatAmount = priceWithVat > 0 ? (priceWithVat - priceWithoutVat).toFixed(2) : 0;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "<td><input class=\"price-input\" type=\"number\" min=\"0\" step=\"0.01\" data-id=\"${product._id}\" data-original=\"${priceWithVat}\" value=\"${priceWithVat}\" oninput=\"markChanged(this); updateVatDisplay(this)\" data-field=\"withVat\"></td>"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-calc-function",
+      "code": "function updateVatDisplay(input) {"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-vat-rate",
+      "code": "const VAT_RATE = 0.14;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const priceWithoutVat = priceWithVat > 0 ? (priceWithVat / (1 + VAT_RATE)).toFixed(2) : 0;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const vatAmount = priceWithVat > 0 ? (priceWithVat - priceWithoutVat).toFixed(2) : 0;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-vat-rate",
+      "code": "const VAT_RATE = 0.14;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "product.pricing.priceWithoutVat = priceWithVat > 0 ? priceWithVat / (1 + VAT_RATE) : 0;"
+    },
+    {
+      "file": "public/reports/price_list.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "product.pricing.vatAmount = priceWithVat > 0 ? priceWithVat - product.pricing.priceWithoutVat : 0;"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "<a href=\"#commissions\" class=\"btn-nav\" onclick=\"scrollToSection('commissionsSection')\">💰 العمولات</a>"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "tbody.innerHTML += `<tr class=\"total-row\"><td colspan=\"6\" style=\"text-align:left\">الرصيد النهائي:</td><td>${data.finalBalance.toLocaleString()}</td></tr>`;"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "// Formula: Net = Total / 1.14 (removing 14% VAT)"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-vat-rate",
+      "code": "// Formula: Net = Total / 1.14 (removing 14% VAT)"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const netRevenue = (inv.totalAmount || 0) / 1.14; // Remove VAT"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-vat-rate",
+      "code": "const netRevenue = (inv.totalAmount || 0) / 1.14; // Remove VAT"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const commission = inv.agentCommissionValue || inv.commissionValue || (total * 0.05) || 0; // Default 5%"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const net = total - commission;"
+    },
+    {
+      "file": "public/reports/smart_reports.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "agentStats[agent].commission += commission;"
+    },
+    {
+      "file": "public/sales/invoice_print.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const totalBeforeVat = subtotal + extraCost - discount;"
+    },
+    {
+      "file": "public/sales/invoice_print.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const vat = totalBeforeVat * 0.14;"
+    },
+    {
+      "file": "public/sales/invoice_print.html",
+      "rule": "frontend-vat-rate",
+      "code": "const vat = totalBeforeVat * 0.14;"
+    },
+    {
+      "file": "public/sales/invoice_print.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const finalTotal = totalBeforeVat + vat;"
+    },
+    {
+      "file": "public/sales/job_order_print.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const gross = sub + extra;"
+    },
+    {
+      "file": "public/sales/pricing_matrix.html",
+      "rule": "frontend-vat-rate",
+      "code": "const VAT_RATE = 1.14;"
+    },
+    {
+      "file": "public/sales/pricing_matrix.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const net = (row.inclusivePrice / VAT_RATE).toFixed(2);"
+    },
+    {
+      "file": "public/sales/pricing_matrix.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "document.getElementById(`net-${index}`).innerText = (price / VAT_RATE).toFixed(2);"
+    },
+    {
+      "file": "public/sales/sales_agents.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "csv += `\"${a.name}\",\"${a.type === 'internal' ? 'موظف' : 'خارجي'}\",\"${a.phone || '-'}\",\"${a.email || '-'}\",\"${a.commissionType}\",\"${a.commissionValue}\"\\n`;"
+    },
+    {
+      "file": "public/sales/sales_invoice_details.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "const total = Number(item.total || (price * qty) || price).toFixed(2);"
+    },
+    {
+      "file": "public/sales/sales_invoice_details.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "total: price * (area || 1)"
+    },
+    {
+      "file": "public/sales/sales_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "<label><input type=\"checkbox\" id=\"hasWht\" onchange=\"scheduleSyncInvoice()\"> - ض.خصم من المنبع (1%):</label> <span id=\"whtVal\"></span>"
+    },
+    {
+      "file": "public/sales/sales_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "// Prices are WITHOUT VAT, loaded from Price List (pricing/product-price)."
+    },
+    {
+      "file": "public/sales/sales_invoice.html",
+      "rule": "frontend-financial-arithmetic",
+      "code": "s.innerHTML += `<option value=\"${agent._id}\" data-type=\"${agent.type}\" data-commission-type=\"${agent.commissionType}\" data-commission-value=\"${agent.commissionValue}\">${agent.name} ${typeLabel}</option>`;"
+    }
+  ]
+}

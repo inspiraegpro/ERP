@@ -8,7 +8,7 @@ const FileDatabaseManager = require('../file_db_manager');
 const db = new FileDatabaseManager();
 
 // Auth Middlewares
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 // Role Authorization Middleware
 const authorizeRoles = (...allowedRoles) => {
@@ -944,6 +944,39 @@ router.post('/technicians/batch-remove', authenticateToken, authorizeRoles('admi
         });
     } catch (error) {
         res.status(500).json({ message: 'Error batch removing technicians', error: error.message });
+    }
+});
+
+// PATCH: تغيير حالة موظف (تنشيط/إنهاء خدمة/استقالة)
+router.patch('/employees/:id/status', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, terminationDate, terminationReason } = req.body;
+        
+        const validStatuses = ['Active', 'Resigned', 'Terminated'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ message: 'حالة غير صالحة' });
+        }
+        
+        const updateData = { status };
+        if (status === 'Terminated') {
+            updateData.terminationDate = terminationDate || new Date().toISOString().split('T')[0];
+            updateData.terminationReason = terminationReason || '';
+        }
+        if (status === 'Active') {
+            updateData.terminationDate = null;
+            updateData.terminationReason = null;
+        }
+        
+        const Employee = require('../models/Employee');
+        const updated = await Employee.updateOne({ _id: id }, updateData);
+        if (!updated) {
+            return res.status(404).json({ message: 'الموظف غير موجود' });
+        }
+        
+        res.json({ success: true, message: `تم تغيير الحالة إلى ${status}` });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 

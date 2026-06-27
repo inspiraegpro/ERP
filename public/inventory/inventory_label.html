@@ -120,7 +120,7 @@
         async function loadLabel() {
             if (!barcode) return;
 
-            const response = await fetch(`/api/inventory/lookup/${encodeURIComponent(barcode)}`, {
+            const response = await fetch(`/api/stock/lookup/${encodeURIComponent(barcode)}`, {
                 headers: authHeaders()
             });
 

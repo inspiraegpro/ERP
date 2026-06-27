@@ -141,7 +141,8 @@ class ServiceJob {
             { _id: jobId },
             {
                 items: updatedItems,
-                status: 'PENDING_WAREHOUSE'
+                status: 'PENDING_WAREHOUSE',
+                startedAt: new Date().toISOString()
             }
         );
     }
@@ -166,7 +167,8 @@ class ServiceJob {
             { _id: jobId },
             {
                 items: updatedItems,
-                status: 'COMPLETED'
+                status: 'COMPLETED',
+                completedAt: new Date().toISOString()
             }
         );
     }

@@ -7,7 +7,36 @@ const Customer = require('../models/Customer');
 const Car = require('../models/Car');
 const ServiceJob = require('../models/ServiceJob');
 const journalService = require('../services/journalService');
+const pricingService = require('../services/pricingService');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+
+// POST: حساب الفاتورة من بيانات خام (بدون أسعار من Frontend)
+router.post('/calculate-invoice', authenticateToken, async (req, res) => {
+    try {
+        const calculated = await pricingService.calculateInvoice(req.body);
+        res.json(calculated);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: حساب الفاتورة (legacy alias)
+router.post('/calculate', authenticateToken, async (req, res) => {
+    try {
+        const calculated = await pricingService.calculateInvoice(req.body);
+        res.json({
+            subtotal: calculated.subtotal,
+            taxable: calculated.taxable,
+            vat: calculated.vat,
+            totalWithVat: calculated.totalWithVat,
+            wht: calculated.wht,
+            finalTotal: calculated.finalTotal,
+            items: calculated.items
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 const db = new FileDatabaseManager();
 
@@ -156,7 +185,29 @@ router.post('/', authenticateToken, async (req, res, next) => {
                 return res.status(400).json({ error: 'رقم الفاتورة مكرر، اختر رقمًا آخر' });
             }
         }
-        const newInvoice = await salesService.createSalesInvoice(req.body, req.user);
+
+        const calculated = await pricingService.calculateInvoice(req.body);
+        if (!calculated.discountValid) {
+            return res.status(400).json({ error: calculated.discountError || 'الخصم غير صالح' });
+        }
+
+        const securePayload = {
+            ...req.body,
+            items: calculated.items,
+            subtotal: calculated.subtotal,
+            totalExtraCosts: calculated.totalExtraCosts,
+            totalDiscount: calculated.totalDiscount,
+            totalTax: calculated.vat,
+            vatAmount: calculated.vat,
+            netAmount: calculated.netAmount,
+            whtAmount: calculated.wht,
+            finalTotal: calculated.finalTotal,
+            totalAmount: calculated.finalTotal,
+            agentCommission: calculated.agentCommission,
+            agent_commission_value: calculated.agentCommission
+        };
+
+        const newInvoice = await salesService.createSalesInvoice(securePayload, req.user);
         res.status(201).json({
             success: true,
             message: 'تم حفظ الفاتورة والقيود المخزنية والمحاسبية بنجاح',
@@ -470,23 +521,22 @@ router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
             }
         }
 
-        // Calculate totals inline
-        const subtotal = (nextItems || [])
-            .filter((it) => !it.isCancelled)
-            .reduce((sum, it) => sum + toNumber(it.total || (toNumber(it.price) * toNumber(it.quantity || 1))), 0);
-        const discount = toNumber(invoice.discount || invoice.totalDiscount);
-        const vatRate = 0.14;
-        const taxableBase = Math.max(0, subtotal - discount);
-        const vat = Number((taxableBase * vatRate).toFixed(2));
-        const finalTotal = Number((taxableBase + vat).toFixed(2));
+        // حساب الإجماليات عبر pricingService (Single Source of Truth)
+        const activeItems  = (nextItems || []).filter(it => !it.isCancelled);
+        const subtotal     = activeItems.reduce((s, it) =>
+            s + toNumber(it.total || (toNumber(it.price) * toNumber(it.quantity || 1))), 0);
+        const discount     = toNumber(invoice.discount || invoice.totalDiscount);
+        const financials   = pricingService.calculateFinancials(subtotal - discount);
+        const vat          = financials.vat;
+        const finalTotal   = parseFloat((subtotal - discount + vat).toFixed(2));
         const totals = {
-            subtotal: Number(subtotal.toFixed(2)),
+            subtotal:      parseFloat(subtotal.toFixed(2)),
             totalDiscount: discount,
             discount,
-            totalTax: vat,
-            vatAmount: vat,
-            totalAmount: finalTotal,
-            finalAmount: finalTotal,
+            totalTax:      vat,
+            vatAmount:     vat,
+            totalAmount:   finalTotal,
+            finalAmount:   finalTotal,
             finalTotal
         };
         const serviceAdjustments = Array.isArray(invoice.serviceAdjustments) ? [...invoice.serviceAdjustments] : [];
@@ -546,18 +596,139 @@ router.post('/:id/service-adjustments', authenticateToken, async (req, res) => {
 });
 */
 
+// 🧹 Cleanup Orphaned Service Jobs (أوامر التشغيل اليتيمة)
+// يحذف أوامر التشغيل التي لا توجد لها فاتورة مبيعات مقابلة
+// يجب أن يكون قبل/:id حتى لا يتم التقاطه كـ invoice ID
+router.delete('/cleanup-orphaned-jobs', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const allServiceJobs = await db.find('servicejobs', {});
+        const allInvoices = await db.find('salesinvoices', {});
+        const invoiceNumbers = new Set(allInvoices.map(inv => inv.invoiceNumber));
+        const invoiceIds = new Set(allInvoices.map(inv => inv._id));
+
+        let deletedCount = 0;
+        for (const job of allServiceJobs) {
+            const hasValidInvoice = 
+                (job.invoiceNumber && invoiceNumbers.has(job.invoiceNumber)) ||
+                (job.salesInvoiceId && invoiceIds.has(job.salesInvoiceId));
+            
+            if (!hasValidInvoice) {
+                const deleted = await db.deleteOne('servicejobs', { _id: job._id });
+                if (deleted) {
+                    deletedCount++;
+                    console.log(`🧹 حذف أمر تشغيل يتيم: ${job._id} (INV: ${job.invoiceNumber})`);
+                }
+            }
+        }
+
+        res.json({
+            message: `تم حذف ${deletedCount} أوامر تشغيل يتيمة`,
+            deletedCount,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error cleaning orphaned service jobs:', error);
+        res.status(500).json({ error: 'فشل تنظيف أوامر التشغيل اليتيمة: ' + error.message });
+    }
+});
+
 // 6. Delete Sales Invoice
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res, next) => {
     try {
-        const deleted = await db.deleteOne('salesinvoices', { _id: req.params.id });
-        if (!deleted) {
+        const invoiceId = req.params.id;
+        
+        // ============================================================
+        // 1️⃣ GUARD CLAUSE: Check for related ServiceJob with active inventory allocation
+        // ============================================================
+        
+        // Get the invoice first to extract invoiceNumber
+        const invoice = await db.findOne('salesinvoices', { _id: invoiceId });
+        if (!invoice) {
             return res.status(404).json({ error: 'الفاتورة غير موجودة' });
         }
-        res.json({ message: 'تم حذف الفاتورة بنجاح' });
+        
+        // Find any ServiceJob linked to this invoice
+        // البحث يتم بـ invoiceNumber (الأكثر موثوقية) أو بـ salesInvoiceId
+        let allServiceJobs = await db.find('servicejobs', {});
+        const relatedServiceJobs = allServiceJobs.filter(job =>
+            (job.invoiceNumber && job.invoiceNumber === invoice.invoiceNumber) ||
+            (job.jobOrder && job.jobOrder === invoice.invoiceNumber) ||
+            (job.salesInvoiceId && job.salesInvoiceId === invoiceId)
+        );
+        
+        // If ServiceJob(s) exist, check if they have active inventory allocation
+        if (relatedServiceJobs && relatedServiceJobs.length > 0) {
+            for (const serviceJob of relatedServiceJobs) {
+                // Check for related stock transactions (outbound movements)
+                const stockTransactions = await db.find('stocktransactions', {
+                    jobOrderId: serviceJob._id
+                });
+                
+                // Also check by job order number (invoiceNumber)
+                const stockTransactionsByInvoice = await db.find('stocktransactions', {
+                    jobOrder: invoice.invoiceNumber
+                });
+                
+                const allTransactions = [...(stockTransactions || []), ...(stockTransactionsByInvoice || [])];
+                
+                // If ANY outbound transaction exists, delete it instead of blocking
+                if (allTransactions.length > 0) {
+                    for (const st of allTransactions) {
+                        await db.deleteOne('stocktransactions', { _id: st._id });
+                        console.log(`✅ Cascade deleted Stock Transaction: ${st._id}`);
+                    }
+                }
+            }
+        }
+        
+        // ============================================================
+        // 2️⃣ CASCADE DELETE: Remove related ServiceJob(s) if no inventory allocation
+        // ============================================================
+        
+        if (relatedServiceJobs && relatedServiceJobs.length > 0) {
+            for (const serviceJob of relatedServiceJobs) {
+                const result = await db.deleteOne('servicejobs', { _id: serviceJob._id });
+                console.log(`✅ Cascade deleted ServiceJob: ${serviceJob._id}`);
+            }
+        }
+        
+        // ============================================================
+        // 3️⃣ REVERSE JOURNAL ENTRIES: Delete all related accounting entries
+        // ============================================================
+        
+        // Find and delete related journal entries
+        const journalEntries = await db.find('journalentries', {
+            referenceNumber: invoice.invoiceNumber
+        });
+        
+        if (journalEntries && journalEntries.length > 0) {
+            for (const entry of journalEntries) {
+                const deleted = await db.deleteOne('journalentries', { _id: entry._id });
+                console.log(`✅ Reversed Journal Entry: ${entry._id} (Reference: ${invoice.invoiceNumber})`);
+            }
+        }
+        
+        // ============================================================
+        // 4️⃣ FINAL DELETE: Remove the invoice
+        // ============================================================
+        
+        const deleted = await db.deleteOne('salesinvoices', { _id: invoiceId });
+        if (!deleted) {
+            return res.status(500).json({ error: 'فشل حذف الفاتورة بعد التحققات الأمنية' });
+        }
+        
+        console.log(`✅ Sales Invoice deleted successfully: ${invoiceId} (INV: ${invoice.invoiceNumber})`);
+        res.json({ 
+            message: 'تم حذف الفاتورة وجميع المستندات المرتبطة بها بنجاح',
+            deletedInvoice: invoiceId,
+            cascadeDeleted: relatedServiceJobs.length,
+            reversedJournalEntries: journalEntries ? journalEntries.length : 0
+        });
     } catch (error) {
         console.error('Error deleting sales invoice:', error);
-        res.status(500).json({ error: 'فشل حذف الفاتورة' });
+        res.status(500).json({ error: 'فشل حذف الفاتورة: ' + error.message });
     }
 });
+
 
 module.exports = router;

@@ -29,7 +29,11 @@
                 { href: "/inventory/stock_balance_tree.html", label: "شجرة الأرصدة" },
                 { href: "/inventory/stock_verification.html", label: "التحقق المخزني" },
                 { href: "/warehouse_dashboard.html", label: "داشبورد المخزن" },
-                { href: "/service/reissue_execution.html", label: "تنفيذ إعادة الصرف" }
+                { href: "/service/reissue_execution.html", label: "تنفيذ إعادة الصرف" },
+                { href: '/inventory/stock_balance_tree.html', label: 'شجرة الأرصدة', icon: '🌳' },
+                { href: '/inventory/rolls_status.html', label: 'حالة الرولات', icon: '📦' },
+                { href: '/inventory/waste_report.html', label: 'تقرير الهدر', icon: '🗑️' },
+                { href: '/inventory/cutting_planner.html', label: 'مخطط التقطيع', icon: '✂️' }
             ]
         },
         {
@@ -42,7 +46,8 @@
                 { href: "/sales/pricing_matrix.html", label: "ماتريكس الأسعار" },
                 { href: "/sales/sales_agents.html", label: "مناديب المبيعات" },
                 { href: "/sales/customer_statement.html", label: "كشف حساب عميل" },
-                { href: "/service/warranty_request.html", label: "طلبات الضمان" }
+                { href: "/service/warranty_request.html", label: "طلبات الضمان" },
+                { href: '/sales/price_list.html', label: 'قائمة الأسعار', icon: '🏷️' }
             ]
         },
         {
@@ -59,7 +64,8 @@
             children: [
                 { href: "/purchases/purchase_invoice.html", label: "فاتورة مشتريات" },
                 { href: "/purchases/purchase_list.html", label: "سجل المشتريات" },
-                { href: "/purchases/suppliers.html", label: "الموردين" }
+                { href: "/purchases/suppliers.html", label: "الموردين" },
+                { href: '/purchases/suppliers_balance.html', label: 'ميزان مراجعة الموردين', icon: '⚖️' }
             ]
         },
         {
@@ -74,18 +80,19 @@
                 { href: "/sales/service_adjustments.html", label: "متابعة تعديلات الفواتير" },
                 { href: "/reports/smart_reports.html", label: "📊 BI Dashboard" },
                 { href: "/financial_settings.html", label: "إعدادات مالية" },
-                { href: "/service/reissue_accounting.html", label: "تسجيل محاسبي - إعادة الصرف" }
+                { href: "/service/reissue_accounting.html", label: "تسجيل محاسبي - إعادة الصرف" },
+                { href: '/reports/smart_reports.html', label: 'BI Dashboard', icon: '📊' }
             ]
         },
         {
             label: "الموارد البشرية",
             children: [
-                { href: "/hr/hr.html", label: "الرئيسية (HR) - 🔧 قريباً", disabled: true },
-                { href: "/hr/employees_list.html", label: "دليل الموظفين - 🔧 قريباً", disabled: true },
-                { href: "/hr/payroll.html", label: "صرف الرواتب - 🔧 قريباً", disabled: true },
-                { href: "/hr/payroll_management.html", label: "إدارة الرواتب - 🔧 قريباً", disabled: true },
-                { href: "/hr/technicians.html", label: "سجل الفنيين - 🔧 قريباً", disabled: true },
-                { href: "/hr/tech_performance.html", label: "أداء الفنيين - 🔧 قريباً", disabled: true }
+                { href: "/hr/hr.html", label: "الرئيسية (HR)" },
+                { href: "/hr/employees_list.html", label: "دليل الموظفين" },
+                { href: "/hr/payroll.html", label: "صرف الرواتب" },
+                { href: "/hr/payroll_management.html", label: "إدارة الرواتب" },
+                { href: "/hr/technicians.html", label: "سجل الفنيين" },
+                { href: "/hr/tech_performance.html", label: "أداء الفنيين" }
             ]
         }
     ];

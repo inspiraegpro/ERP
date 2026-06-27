@@ -68,8 +68,9 @@ const routes = {
     '/api/products': './Routes/productRoutes',
     '/api/customers': './Routes/customerRoutes',
     '/api/suppliers': './Routes/supplierRoutes',
-    '/api/warehouses': './Routes/warehouseRoutes',
+    // '/api/warehouses': './Routes/warehouseRoutes', // merged into /api/stock
     '/api/stock': './Routes/stockRoutes',
+    '/api/cutting': './Routes/cuttingRoutes',
     '/api/accounts': './Routes/accountRoutes',
     '/api/purchases': './Routes/purchaseRoutes',
     '/api/sales': './Routes/salesRoutes',
@@ -84,7 +85,7 @@ const routes = {
     '/api/reissue-requests': './Routes/reissueRequestRoutes',
     // '/api/inventory': './Routes/inventoryRoutes',
     '/api/journal': './Routes/journalRoutes',
-    // '/api/pricing': './Routes/pricingRoutes',
+    '/api/pricing': './Routes/pricingRoutes',
     '/api/agents': './Routes/agentRoutes',      // ← وكلاء البيع
     '/api/data': './Routes/dataRoutes',         // ← استيراد وتصدير الإكسيل
     '/api/payment': './Routes/paymentRoutes',

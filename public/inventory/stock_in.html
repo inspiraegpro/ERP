@@ -559,7 +559,7 @@
                     }));
                     setInvoiceStatus(`تم تحميل الشحنة ${shipment.shipmentRef || ref}`, '#1f6f5f');
                 }
-                populateTable(items, ref);
+                await populateTable(items, ref);
                 setMessage('تم تحميل الأصناف بنجاح. يمكنك مراجعتها قبل الحفظ.', 'success');
             } catch (error) {
                 console.error(error);
@@ -576,31 +576,40 @@
             if (numeric > 50) return numeric / 100;
             return numeric;
         }
-        function generateRollCode(ref, index, productName, date, lengthCm, widthCm) {
-            // Format:
-            // {last5digits}/{rollNumber}-{productName}-{yyyymmdd}-{lengthCm×widthCm}
-            // e.g. 21557/4-P2-20260422-1524×152
-            const refDigits = String(ref || '').replace(/[^0-9]/g, '');
-            const last5 = refDigits.length >= 5 ? refDigits.slice(-5) : refDigits.padStart(5, '0');
-            const nameToken = String(productName || 'XX').trim().replace(/\s+/g, '');
-            const dateToken = String(date || '').trim().replace(/[^0-9]/g, '').slice(0, 8) || new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            const l = Math.max(0, Math.round(Number(lengthCm || 0)));
-            const w = Math.max(0, Math.round(Number(widthCm || 0)));
-            const sizeToken = (l && w) ? `${l}×${w}` : '';
-            return `${last5}/${index + 1}-${nameToken}${dateToken ? `-${dateToken}` : ''}${sizeToken ? `-${sizeToken}` : ''}`;
-        }
-
-        function populateTable(items, ref) {
+        async function populateTable(items, ref) {
             const body = document.getElementById('itemsBody');
             body.innerHTML = '';
             const dateVal = document.getElementById('inDate').value || new Date().toISOString().split('T')[0];
             const dateFormatted = dateVal.replace(/-/g, '');
-            items.forEach((item, index) => {
+            for (const [index, item] of items.entries()) {
                 const productId = String(item.productId);
                 const productName = item.productName || resolveProductName(productId);
                 const lengthCm = Math.round(Number(item.length || 0) * 100);
                 const widthCm = Math.round(Number(item.width || 0) * 100);
-                const autoRoll = generateRollCode(ref, index, productName, dateFormatted, lengthCm, widthCm);
+                let autoRoll = item.rollCode || '';
+
+                if (!autoRoll) {
+                    try {
+                        const rollRes = await fetch(`${API}/stock/generate-roll-code`, {
+                            method: 'POST',
+                            headers: authHeaders(true),
+                            body: JSON.stringify({
+                                ref: ref,
+                                index: index,
+                                productName: productName,
+                                date: dateFormatted,
+                                lengthCm: lengthCm,
+                                widthCm: widthCm
+                            })
+                        });
+                        const rollData = await rollRes.json();
+                        autoRoll = rollData.rollCode || '';
+                    } catch (e) {
+                        console.error('فشل توليد كود الرول:', e);
+                        autoRoll = `${ref}-${Date.now()}`;
+                    }
+                }
+
                 addRow({
                     productId,
                     productName,
@@ -610,9 +619,9 @@
                     quantity: Number(item.quantity || 0),
                     unitCost: Number(item.unitCost || 0)
                 });
-            });
+            }
         }
-        function addManualRow() {
+        async function addManualRow() {
             if (!productsList.length) {
                 setMessage('تعذر إضافة سطر يدوي قبل تحميل قائمة المنتجات.', 'error');
                 return;
@@ -626,10 +635,30 @@
             const widthM = normalizeMeterValue(product.dimensions?.width || 0);
             const lengthCm = Math.round(Number(lengthM || 0) * 100);
             const widthCm = Math.round(Number(widthM || 0) * 100);
+            let autoRoll = '';
+            try {
+                const rollRes = await fetch(`${API}/stock/generate-roll-code`, {
+                    method: 'POST',
+                    headers: authHeaders(true),
+                    body: JSON.stringify({
+                        ref: ref,
+                        index: currentRows,
+                        productName: product.name,
+                        date: dateFormatted,
+                        lengthCm: lengthCm,
+                        widthCm: widthCm
+                    })
+                });
+                const rollData = await rollRes.json();
+                autoRoll = rollData.rollCode || '';
+            } catch (e) {
+                console.error('فشل توليد كود الرول:', e);
+                autoRoll = `${ref}-${Date.now()}`;
+            }
             addRow({
                 productId: product._id,
                 productName: product.name,
-                rollCode: generateRollCode(ref, currentRows, product.name, dateFormatted, lengthCm, widthCm),
+                rollCode: autoRoll,
                 length: lengthM,
                 width: widthM,
                 quantity: 0,
@@ -645,11 +674,7 @@
             const widthCm = Math.round(Number(item.width || 0) * 100);
             const dimsText = widthCm > 0 ? `${lengthCm}×${widthCm}` : '';
 
-            // If roll code is empty (or legacy short), generate the structured format.
-            const ref = document.getElementById('inRef').value.trim() || 'manual';
-            const currentIndex = document.querySelectorAll('#itemsBody tr').length;
-            const structuredCode = generateRollCode(ref, currentIndex, item.productName, dateFormatted, lengthCm, widthCm);
-            const rollCodeValue = (item.rollCode && String(item.rollCode).trim()) ? String(item.rollCode).trim() : structuredCode;
+            const rollCodeValue = (item.rollCode && String(item.rollCode).trim()) ? String(item.rollCode).trim() : '';
 
             row.innerHTML = `
                 <td>${item.productName}<input type="hidden" class="p-id" value="${item.productId}"></td>
@@ -670,10 +695,21 @@
             row.querySelector('.cost').addEventListener('input', updateSummary);
             recalcQty(row);
         }
-        function recalcQty(row) {
+        async function recalcQty(row) {
             const length = Number(row.querySelector('.len').value || 0);
             const width = Number(row.querySelector('.wid').value || 0);
-            row.querySelector('.qty').value = (length * width).toFixed(2);
+
+            try {
+                const res = await fetch(`${API}/stock/calculate-area`, {
+                    method: 'POST',
+                    headers: authHeaders(true),
+                    body: JSON.stringify({ lengthCm: length * 100, widthCm: width * 100 })
+                });
+                const data = await res.json();
+                row.querySelector('.qty').value = Number(data.areaM2 || 0).toFixed(2);
+            } catch (e) {
+                row.querySelector('.qty').value = (length * width).toFixed(2);
+            }
             updateSummary();
         }
         function updateSummary() {

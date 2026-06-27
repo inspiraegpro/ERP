@@ -2,9 +2,63 @@ const express = require('express');
 const router = express.Router();
 const FileDbManager = require('../file_db_manager');
 const inventoryService = require('../services/inventoryService');
+const Warehouse = require('../models/Warehouse');
 const { authenticateToken: auth } = require('../middleware/auth');
 
 const db = new FileDbManager();
+
+const getFallbackWarehouse = () => ([{
+    _id: 'default-warehouse',
+    code: 'MAIN',
+    name: 'Main Warehouse',
+    path: 'Main Warehouse',
+    isActive: true,
+    isTransactional: true
+}]);
+
+// POST: حساب المساحة بالمتر المربع من الطول والعرض بالسنتيمتر
+router.post('/calculate-area', auth, async (req, res) => {
+    try {
+        const { lengthCm, widthCm } = req.body;
+        const length = Number(lengthCm || 0);
+        const width = Number(widthCm || 0);
+        const areaM2 = (length * width) / 10000;
+        res.json({ lengthCm: length, widthCm: width, areaM2: Number(areaM2.toFixed(4)) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: توليد كود رول تلقائي للاستلام
+router.post('/generate-roll-code', auth, async (req, res) => {
+    try {
+        const { ref, index, productName, date, lengthCm, widthCm } = req.body;
+        
+        // تنسيق: {last5digits}/{index+1}-{productName}-{yyyymmdd}-{lengthCm×widthCm}
+        const refDigits = String(ref || '').replace(/[^0-9]/g, '');
+        const last5 = refDigits.length >= 5 ? refDigits.slice(-5) : refDigits.padStart(5, '0');
+        const nameToken = String(productName || 'XX').trim().replace(/\s+/g, '');
+        const dateToken = String(date || '').trim().replace(/[^0-9]/g, '').slice(0, 8) || new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const l = Math.max(0, Math.round(Number(lengthCm || 0)));
+        const w = Math.max(0, Math.round(Number(widthCm || 0)));
+        const sizeToken = (l && w) ? `${l}×${w}` : '';
+        
+        let rollCode = `${last5}/${index + 1}-${nameToken}`;
+        if (dateToken) rollCode += `-${dateToken}`;
+        if (sizeToken) rollCode += `-${sizeToken}`;
+        
+        // التحقق من عدم تكرار الكود
+        const existing = await db.findOne('rollbalances', { rollCode });
+        if (existing) {
+            // إضافة لاحقة عشوائية إذا كان مكرراً
+            rollCode += `-${Math.floor(Math.random() * 1000)}`;
+        }
+        
+        res.json({ rollCode });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ─── مولّد رقم مسلسل فريد ────────────────────────────────────────────────────
 async function generateSerialNumber(type) {
@@ -38,15 +92,19 @@ router.get('/', auth, async (req, res) => {
 // GET: Available Rolls (Helper for Stock-Out or Stock-In validation)
 router.get('/available-rolls', auth, async (req, res) => {
     try {
-        const { productId, warehouse } = req.query;
+        const { productId, warehouse, warehouseId } = req.query;
         if(!productId) return res.json([]);
         
+        const warehouseFilter = String(warehouse || warehouseId || '').trim();
         const rolls = await db.find('rollbalances');
-        const filtered = rolls.filter(r => 
-            (String(r.product) === String(productId) || String(r.productCode) === String(productId)) &&
-            (r.status === 'Available' || r.status === 'PartiallyUsed') &&
-            (!warehouse || r.warehouse === warehouse)
-        );
+        const filtered = rolls.filter(r => {
+            const productMatch = String(r.product) === String(productId) || String(r.productCode) === String(productId);
+            const statusMatch = r.status === 'Available' || r.status === 'PartiallyUsed';
+            const warehouseMatch = !warehouseFilter ||
+                String(r.warehouse).trim() === warehouseFilter ||
+                String(r.warehouseId).trim() === warehouseFilter;
+            return productMatch && statusMatch && warehouseMatch;
+        });
         
         res.json(filtered.map(r => ({
             rollCode: r.rollCode,
@@ -82,6 +140,178 @@ router.get('/smart-suggestions', auth, async (req, res) => {
     } catch (error) {
         console.error('Error in smart-suggestions:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: صرف مخزني موحد مع توليد فضلات -P1, -P2
+router.post('/issue', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.processIssue(req.body);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: قص رول وإنشاء فضلة بباركود
+router.post('/cut-roll', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.processCuttingAction(req.body);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET: البحث بالباركود
+router.get('/lookup/:barcode', auth, async (req, res) => {
+    try {
+        const item = await inventoryService.findInventoryItemByBarcode(req.params.barcode);
+        if (!item) return res.status(404).json({ error: 'الباركود غير موجود' });
+        res.json(item);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET: تقارير المخزون
+router.get('/inventory-report/:type', auth, async (req, res) => {
+    try {
+        const report = await inventoryService.getInventoryReport(req.params.type);
+        res.json(report);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET: الرولات (alias للتوافق)
+router.get('/rolls', auth, async (req, res) => {
+    try {
+        const rolls = await db.find('rollbalances');
+        res.json(rolls);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: مزامنة المنتجات من المخزون
+router.post('/sync-products-from-stock', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.syncProductsFromStock(req.body);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ─── الجرد الافتتاحي ───────────────────────────────────────────────────────
+router.post('/opening-balance/preview', auth, async (req, res) => {
+    try {
+        const rows = inventoryService.parseOpeningInventoryText(req.body.rawText || req.body.text || '');
+        res.json({ count: rows.length, rows: rows.slice(0, 100) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/opening-balance/import', auth, async (req, res) => {
+    try {
+        const rows = req.body.rows || inventoryService.parseOpeningInventoryText(req.body.rawText || '');
+        const result = await inventoryService.importOpeningInventoryRows(rows, req.body.warehouseId || 'main_warehouse');
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/opening-balance/reset', auth, async (req, res) => {
+    try {
+        const result = await inventoryService.resetOperationalInventory();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ─── إدارة المستودعات (CRUD) ───────────────────────────────────────────────
+router.get('/warehouses/transactional', auth, async (req, res) => {
+    try {
+        const warehouses = await Warehouse.find({ isTransactional: true });
+        res.json(warehouses.length > 0 ? warehouses : getFallbackWarehouse());
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.post('/warehouses/transfer', auth, async (req, res) => {
+    try {
+        const tx = await inventoryService.transferBetweenWarehouses(req.body);
+        res.status(201).json(tx);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/transfer', auth, async (req, res) => {
+    try {
+        const body = {
+            fromWarehouse: req.body.fromWarehouse || req.body.from,
+            toWarehouse: req.body.toWarehouse || req.body.to,
+            items: req.body.items,
+            notes: req.body.notes
+        };
+        const tx = await inventoryService.transferBetweenWarehouses(body);
+        res.status(201).json(tx);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/warehouses', auth, async (req, res) => {
+    try {
+        const warehouses = await Warehouse.find();
+        res.json(warehouses.length > 0 ? warehouses : getFallbackWarehouse());
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.get('/warehouses/:id', auth, async (req, res) => {
+    try {
+        const warehouse = await Warehouse.findOne({ _id: req.params.id });
+        if (!warehouse) return res.status(404).json({ message: 'Warehouse not found' });
+        res.json(warehouse);
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+router.post('/warehouses', auth, async (req, res) => {
+    try {
+        const warehouse = await Warehouse.create(req.body);
+        res.status(201).json(warehouse);
+    } catch (e) {
+        res.status(400).json({ message: e.message });
+    }
+});
+
+router.put('/warehouses/:id', auth, async (req, res) => {
+    try {
+        const updated = await Warehouse.updateOne({ _id: req.params.id }, req.body);
+        if (!updated) return res.status(404).json({ message: 'Warehouse not found' });
+        res.json(updated);
+    } catch (e) {
+        res.status(400).json({ message: e.message });
+    }
+});
+
+router.delete('/warehouses/:id', auth, async (req, res) => {
+    try {
+        const deleted = await Warehouse.deleteOne({ _id: req.params.id });
+        if (!deleted) return res.status(404).json({ message: 'Warehouse not found' });
+        res.json({ message: 'Warehouse deleted successfully' });
+    } catch (e) {
+        res.status(400).json({ message: e.message });
     }
 });
 

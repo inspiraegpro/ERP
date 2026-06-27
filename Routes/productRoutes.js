@@ -1,20 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
-
-const VAT_RATE = 0.14;
+const { calculateFinancials, VAT_RATE } = require('../services/pricingService');
 
 function buildPricingObject(salePrice) {
-    const priceWithVat = Number(salePrice) || 0;
-    const priceWithoutVat = priceWithVat / (1 + VAT_RATE);
-    const vatAmount = priceWithVat - priceWithoutVat;
+    const financials = calculateFinancials(salePrice);
 
     return {
-        salePrice: priceWithVat,
-        priceWithoutVat,
-        unitSalePrice: priceWithoutVat,
+        salePrice: financials.total,
+        priceWithoutVat: financials.net,
+        unitSalePrice: financials.total,
         vatRate: VAT_RATE,
-        vatAmount,
+        vatAmount: financials.vat,
         lastUpdated: new Date().toISOString()
     };
 }
@@ -33,8 +30,20 @@ router.post('/', async (req, res) => {
         delete data.price;
         delete data.pricing.purchasePrice;
         data.currentStock = 0;
+        
+        data.isDefault = data.isDefault === true || data.isDefault === 'true';
 
         const newProduct = await Product.create(data);
+        
+        if (newProduct.isDefault && newProduct.type) {
+            const products = await Product.find({ type: newProduct.type });
+            for (const p of products) {
+                if (String(p._id) !== String(newProduct._id) && p.isDefault) {
+                    await Product.updateOne({ _id: p._id }, { isDefault: false });
+                }
+            }
+        }
+
         res.status(201).json(newProduct);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -58,8 +67,20 @@ router.put('/:id', async (req, res) => {
 
         delete data.price;
         if (data.pricing) delete data.pricing.purchasePrice;
+        
+        data.isDefault = data.isDefault === true || data.isDefault === 'true';
 
         const updated = await Product.updateOne({ _id: req.params.id }, data);
+        
+        if (data.isDefault && data.type) {
+            const products = await Product.find({ type: data.type });
+            for (const p of products) {
+                if (String(p._id) !== String(req.params.id) && p.isDefault) {
+                    await Product.updateOne({ _id: p._id }, { isDefault: false });
+                }
+            }
+        }
+        
         res.json(updated);
     } catch (err) {
         res.status(400).json({ message: err.message });
